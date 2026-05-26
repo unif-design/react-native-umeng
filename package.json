@@ -1,12 +1,12 @@
 {
-  "name": "@unif/react-native-umshare",
+  "name": "@unif/react-native-umeng",
   "version": "0.1.0",
-  "description": "友盟分享 React Native bridge(@unif 私有)",
+  "description": "友盟 React Native bridge: U-Share(WeChat/DingTalk) + U-App Analytics (@unif 私有)",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
     ".": {
-      "source": "./src/index.tsx",
+      "source": "./src/index.ts",
       "types": "./lib/typescript/src/index.d.ts",
       "default": "./lib/module/index.js"
     },
@@ -17,7 +17,6 @@
     "lib",
     "android",
     "ios",
-    "cpp",
     "*.podspec",
     "react-native.config.js",
     "!ios/build",
@@ -32,82 +31,75 @@
     "!**/.*"
   ],
   "scripts": {
-    "example": "yarn workspace @unif/react-native-umshare-example",
+    "example": "yarn workspace @unif/react-native-umeng-example",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
     "typecheck": "tsc",
-    "lint": "eslint \"**/*.{js,ts,tsx}\""
+    "lint": "eslint \"**/*.{js,ts,tsx}\"",
+    "test": "jest"
   },
-  "keywords": [
-    "react-native",
-    "ios",
-    "android"
-  ],
+  "keywords": ["react-native", "ios", "android", "umeng", "share", "analytics"],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/unif-design/react-native-umshare.git"
+    "url": "git+https://github.com/unif-design/react-native-umeng.git"
   },
   "author": "unif-design <382724935@qq.com> (https://github.com/unif-design)",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/unif-design/react-native-umshare/issues"
-  },
-  "homepage": "https://github.com/unif-design/react-native-umshare#readme",
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
-  },
+  "bugs": { "url": "https://github.com/unif-design/react-native-umeng/issues" },
+  "homepage": "https://github.com/unif-design/react-native-umeng#readme",
+  "publishConfig": { "registry": "https://npm.unif.internal" },
   "devDependencies": {
     "@eslint/compat": "^2.0.3",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
+    "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native/babel-preset": "0.85.3",
     "@react-native/eslint-config": "0.85.0",
+    "@react-native/jest-preset": "0.85.3",
+    "@types/jest": "^29.5.14",
     "@types/react": "^19.2.0",
+    "@unif/react-native-design": "portal:../react-native-design",
     "del-cli": "^7.0.0",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-ft-flow": "^3.0.11",
     "eslint-plugin-prettier": "^5.5.5",
+    "jest": "^29.7.0",
     "prettier": "^3.8.1",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-builder-bob": "^0.41.0",
+    "react-native-gesture-handler": "^2.21.0",
+    "react-native-svg": "^15.15.5",
     "turbo": "^2.8.21",
     "typescript": "^6.0.2"
   },
   "peerDependencies": {
+    "@gorhom/bottom-sheet": ">=5",
+    "@unif/react-native-design": ">=0.1.2",
     "react": "*",
-    "react-native": "*"
+    "react-native": "*",
+    "react-native-gesture-handler": ">=2.21.0",
+    "react-native-svg": ">=15"
   },
-  "workspaces": [
-    "example"
-  ],
+  "workspaces": ["example"],
   "packageManager": "yarn@4.11.0",
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",
     "targets": [
-      [
-        "module",
-        {
-          "esm": true
-        }
-      ],
-      [
-        "typescript",
-        {
-          "project": "tsconfig.build.json"
-        }
-      ]
+      ["module", { "esm": true }],
+      ["typescript", { "project": "tsconfig.build.json" }]
     ]
   },
   "codegenConfig": {
-    "name": "ReactNativeUmshareSpec",
+    "name": "ReactNativeUmengSpec",
     "type": "modules",
-    "jsSrcsDir": "src",
-    "android": {
-      "javaPackageName": "com.unif.reactnativeumshare"
-    }
+    "jsSrcsDir": "src"
+  },
+  "jest": {
+    "preset": "@react-native/jest-preset",
+    "modulePathIgnorePatterns": ["<rootDir>/example/node_modules", "<rootDir>/lib/"]
   },
   "prettier": {
     "quoteProps": "consistent",
@@ -119,9 +111,7 @@
   "create-react-native-library": {
     "type": "turbo-module",
     "languages": "kotlin-objc",
-    "tools": [
-      "eslint"
-    ],
+    "tools": ["eslint", "jest"],
     "version": "0.62.0"
   }
 }
