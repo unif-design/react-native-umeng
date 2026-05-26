@@ -1,0 +1,236 @@
+/* ─────────────────────────────────────────────────────────────
+ * Unif Design System — colors & type tokens
+ * Mirrors retail-pec-portal/src/theme/{colors,tokens,shadow}.ts
+ * Role-based, light + dark dual sets, system fonts only.
+ * ───────────────────────────────────────────────────────────── */
+
+:root {
+  /* ===== Brand ===== */
+  --primary:                 #EB6E00;
+  --primary-pressed:         #D06200;
+  --primary-container:       #FFF5EB;
+  --primary-container-subtle:#FFF8F0;
+  --on-primary:              #FFFFFF;
+  --on-primary-muted:        rgba(255,255,255,0.85);
+
+  /* Brand gradient — only for logo bubble + drawer header */
+  --brand-gradient:          linear-gradient(135deg, #EB6E00 0%, #E96C00 100%);
+  --brand-gradient-soft:     linear-gradient(135deg, #FFC18A 0%, #EF8B33 100%);
+
+  /* ===== Semantic ===== */
+  --success:                 #52C41A;
+  --success-container:       #F0FFF0;
+  --on-success:              #FFFFFF;
+  --error:                   #F4511E;
+  --error-container:         #FFF5F5;
+  --on-error:                #FFFFFF;
+  --info:                    #3775F6;   /* user-avatar reserved */
+  --info-container:          #F0F5FF;
+  --on-info:                 #FFFFFF;
+
+  /* ===== Surface (5 layers) ===== */
+  --background:              #F5F5F5;
+  --surface:                 #FFFFFF;
+  --surface-container:       #F5F5F5;
+  --surface-container-high:  #F0F0F0;
+  --surface-container-highest:#E0E0E0;
+
+  /* ===== Foreground (3 levels) ===== */
+  --foreground:              #333333;
+  --foreground-muted:        #666666;
+  --foreground-subtle:       #999999;
+  --on-surface:              #333333;
+  --on-surface-muted:        #666666;
+
+  /* ===== Outline (3 levels) ===== */
+  --outline:                 #EDEDED;
+  --outline-variant:         #E8E8E8;
+  --outline-faint:           #F5F5F5;
+
+  /* ===== Inverse ===== */
+  --inverse-surface:         #1C1C1E;
+  --inverse-on-surface:      #FFFFFF;
+
+  /* ===== Misc ===== */
+  --scrim:                   rgba(0,0,0,0.5);
+
+  /* ===== Shadow (light) ===== */
+  --shadow-card:             0 1px 4px rgba(0,0,0,0.08);
+  --shadow-pop:              0 4px 12px rgba(235,110,0,0.18);
+  --shadow-none:             none;
+
+  /* ===== Type ===== */
+  --font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue",
+                 Helvetica, Arial, sans-serif;
+  --font-mono:   "SF Mono", Menlo, Monaco, Consolas,
+                 "Liberation Mono", monospace;
+
+  /* Type scale (px) — mobile first */
+  --t-display:   22px;
+  --t-h1:        18px;
+  --t-h2:        17px;
+  --t-h3:        15px;
+  --t-body:      15px;
+  --t-sm:        14px;
+  --t-xs:        13px;
+  --t-2xs:       12px;
+  --t-micro:     11px;
+
+  /* Line height */
+  --lh-tight:    1.25;
+  --lh-body:     1.45;
+
+  /* Weight */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semi:     600;
+  --fw-bold:     700;
+  --fw-heavy:    800;
+
+  /* ===== Spacing (4px base) ===== */
+  --space-px:    1px;
+  --space-1:     4px;
+  --space-2:     6px;
+  --space-3:     8px;
+  --space-4:     10px;
+  --space-5:     12px;
+  --space-6:     14px;
+  --space-7:     16px;
+  --space-8:     20px;
+  --space-9:     24px;
+  --space-10:    32px;
+
+  /* ===== Radii ===== */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   10px;
+  --radius-xl:   12px;
+  --radius-2xl:  14px;     /* chat bubble */
+  --radius-3xl:  18px;     /* prompt input wrapper */
+  --radius-pill: 999px;
+
+  /* ===== Control heights ===== */
+  --dim-control-sm: 28px;
+  --dim-control-md: 36px;
+  --dim-control-lg: 44px;
+  --dim-hit-target: 44px;
+  --dim-navbar-h:   44px;
+  --dim-tabbar-h:   50px;
+  --dim-send-btn:   32px;
+
+  /* Avatar sizes */
+  --dim-avatar-xs:  18px;
+  --dim-avatar-sm:  28px;
+  --dim-avatar-md:  32px;
+  --dim-avatar-lg:  40px;
+  --dim-avatar-xl:  56px;
+
+  /* ===== Motion ===== */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --motion-pulse: 1600ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Dark theme ===== */
+[data-theme="dark"], .theme-dark {
+  /* Brand stays orange (4.36:1 on #0A0A0A passes WCAG AA) */
+  --primary:                 #EB6E00;
+  --primary-pressed:         #D06200;
+  --primary-container:       #3D1F00;
+  --primary-container-subtle:#2A1500;
+
+  --success:                 #52C41A;
+  --success-container:       #0E2810;
+  --error:                   #FF6B40;
+  --error-container:         #2A1010;
+  --info:                    #5A91FF;
+  --info-container:          #0F1A33;
+
+  /* iOS HIG dark — pure black bg, layered greys */
+  --background:              #0A0A0A;
+  --surface:                 #1C1C1E;
+  --surface-container:       #2C2C2E;
+  --surface-container-high:  #3A3A3C;
+  --surface-container-highest:#48484A;
+
+  --foreground:              #FFFFFF;
+  --foreground-muted:        rgba(235,235,245,0.6);
+  --foreground-subtle:       rgba(235,235,245,0.3);
+  --on-surface:              #FFFFFF;
+  --on-surface-muted:        rgba(235,235,245,0.6);
+
+  --outline:                 #3A3A3C;
+  --outline-variant:         #48484A;
+  --outline-faint:           rgba(84,84,88,0.65);
+
+  --inverse-surface:         #FFFFFF;
+  --inverse-on-surface:      #000000;
+
+  --scrim:                   rgba(0,0,0,0.7);
+
+  /* Layered surface 替代 shadow — both shadows go to none */
+  --shadow-card:             none;
+  --shadow-pop:              none;
+}
+
+/* Auto follow OS preference */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary-container:       #3D1F00;
+    --primary-container-subtle:#2A1500;
+    --error:                   #FF6B40;
+    --error-container:         #2A1010;
+    --success-container:       #0E2810;
+    --info:                    #5A91FF;
+    --info-container:          #0F1A33;
+
+    --background:              #0A0A0A;
+    --surface:                 #1C1C1E;
+    --surface-container:       #2C2C2E;
+    --surface-container-high:  #3A3A3C;
+    --surface-container-highest:#48484A;
+
+    --foreground:              #FFFFFF;
+    --foreground-muted:        rgba(235,235,245,0.6);
+    --foreground-subtle:       rgba(235,235,245,0.3);
+    --on-surface:              #FFFFFF;
+    --on-surface-muted:        rgba(235,235,245,0.6);
+
+    --outline:                 #3A3A3C;
+    --outline-variant:         #48484A;
+    --outline-faint:           rgba(84,84,88,0.65);
+
+    --inverse-surface:         #FFFFFF;
+    --inverse-on-surface:      #000000;
+    --scrim:                   rgba(0,0,0,0.7);
+
+    --shadow-card:             none;
+    --shadow-pop:              none;
+  }
+}
+
+/* ===== Semantic helpers ===== */
+html, body {
+  font-family: var(--font-family);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  color: var(--foreground);
+  background: var(--background);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1 { font-size: var(--t-h1);      font-weight: var(--fw-semi);   line-height: var(--lh-tight); margin: 0; }
+h2 { font-size: var(--t-h2);      font-weight: var(--fw-semi);   line-height: var(--lh-tight); margin: 0; }
+h3 { font-size: var(--t-h3);      font-weight: var(--fw-semi);   line-height: var(--lh-tight); margin: 0; }
+.display { font-size: var(--t-display); font-weight: var(--fw-bold); line-height: var(--lh-tight); }
+p, .body { font-size: var(--t-body); line-height: var(--lh-body); margin: 0; }
+.sm    { font-size: var(--t-sm); }
+.xs    { font-size: var(--t-xs);    color: var(--foreground-muted); }
+.xxs   { font-size: var(--t-2xs);   color: var(--foreground-subtle); }
+.micro { font-size: var(--t-micro); color: var(--foreground-subtle); }
+code, .mono { font-family: var(--font-mono); }

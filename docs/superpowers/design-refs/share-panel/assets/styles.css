@@ -1,0 +1,334 @@
+/* ─── Stage / page ─────────────────────────────────────────── */
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background:
+    radial-gradient(ellipse at top, #FAFAFA 0%, #EEEEEE 60%, #E5E5E5 100%);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.stage {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 24px;
+}
+.stage.dark {
+  background:
+    radial-gradient(ellipse at top, #1A1A1C 0%, #0F0F10 60%, #050505 100%);
+}
+
+/* ─── Dark-icon filter recipe ──────────────────────────────────
+ * Unif DS stores neutral icons as black-stroked SVG. In dark mode
+ * we need them white. Single rule, applied wherever we use stroked
+ * icons over a dark/neutral disc.
+ * ────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .navic,
+[data-theme="dark"] .sheetic,
+[data-theme="dark"] .auxic,
+[data-theme="dark"] .metaic { filter: invert(1); opacity: 0.85; }
+.toastic { filter: brightness(0) invert(1); }
+
+/* iOS frame interior */
+.device-inner {
+  position: relative; width: 100%; height: 100%;
+  background: var(--background); overflow: hidden;
+  color: var(--foreground);
+}
+
+/* ─── Visit summary screen ────────────────────────────────── */
+.screen { display: flex; flex-direction: column; height: 100%; }
+
+.navbar {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px;
+  height: 44px; padding: 0 8px 0 4px;
+  background: var(--background);
+}
+.nav-title {
+  flex: 1; text-align: center;
+  font-size: 15px; font-weight: var(--fw-semi); letter-spacing: -0.1px;
+  color: var(--foreground);
+}
+.nav-actions { display: flex; gap: 2px; }
+.navbtn {
+  width: 36px; height: 36px; border-radius: 999px;
+  background: transparent; border: 0; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--foreground); cursor: pointer;
+}
+.navbtn:active { opacity: 0.6; }
+.navbtn.primary {
+  background: var(--primary); color: #fff;
+}
+.navbtn.primary img { filter: brightness(0) invert(1); }
+
+.screen-body {
+  flex: 1; overflow-y: auto;
+  padding: 4px 14px 24px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* Hero block */
+.summary-hero { padding: 6px 4px 6px; }
+.hero-meta { display: flex; gap: 6px; margin-bottom: 8px; }
+.hero-title {
+  font-size: 20px; font-weight: var(--fw-bold);
+  letter-spacing: -0.3px; line-height: 1.25;
+}
+.hero-sub {
+  font-size: 12px; color: var(--foreground-subtle);
+  margin-top: 4px;
+}
+
+/* Card pieces specific to the summary (not in base DS) */
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.card-eyebrow {
+  font-size: 11px; font-weight: var(--fw-semi);
+  color: var(--primary); letter-spacing: 0.04em;
+}
+.card-badge {
+  font-size: 10.5px; color: var(--foreground-subtle);
+  font-family: var(--font-mono);
+  padding: 2px 7px; border-radius: 999px;
+  background: var(--surface-container);
+}
+.card-text {
+  font-size: 13px; line-height: 1.55;
+  color: var(--foreground); margin-bottom: 12px;
+}
+.metrics {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--outline);
+}
+.m { display: flex; flex-direction: column; gap: 2px; }
+.m-v {
+  font-size: 16px; font-weight: var(--fw-bold);
+  color: var(--foreground); letter-spacing: -0.2px;
+}
+.m-l { font-size: 10.5px; color: var(--foreground-subtle); }
+
+.todo {
+  display: flex; gap: 10px; padding: 8px 0;
+  align-items: flex-start;
+}
+.todo + .todo { border-top: 0.5px solid var(--outline-faint); }
+.todo-dot {
+  width: 14px; height: 14px; border-radius: 999px;
+  background: var(--primary);
+  margin-top: 3px; flex-shrink: 0;
+  position: relative;
+}
+.todo-dot::after {
+  content: ""; position: absolute; inset: 3px;
+  border-radius: 999px;
+  border: 1.5px solid #fff;
+  border-right-color: transparent; border-bottom-color: transparent;
+  transform: rotate(45deg) translate(0px, -1px);
+}
+.todo-dot.empty {
+  background: transparent;
+  border: 1.5px solid var(--outline-variant);
+}
+.todo-dot.empty::after { display: none; }
+.todo-t { font-size: 13.5px; font-weight: var(--fw-medium); color: var(--foreground); }
+.todo-d { font-size: 11.5px; color: var(--foreground-subtle); margin-top: 2px; }
+
+/* ─── Share sheet ─────────────────────────────────────────── */
+.sheet-root {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+.scrim {
+  position: absolute; inset: 0;
+  background: var(--scrim);
+  animation: scrim-in var(--motion-slow) var(--ease-out) both;
+}
+.sheet-root.closing .scrim { animation: scrim-out var(--motion-base) var(--ease-out) both; }
+
+.sheet {
+  position: relative;
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  padding: 6px 14px 18px;
+  display: flex; flex-direction: column;
+  animation: sheet-in var(--motion-slow) var(--ease-out) both;
+}
+.sheet-root.closing .sheet {
+  animation: sheet-out var(--motion-base) var(--ease-out) both;
+}
+
+@keyframes scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scrim-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes sheet-out { from { transform: translateY(0); } to { transform: translateY(100%); } }
+
+.grabber {
+  width: 36px; height: 4px; border-radius: 999px;
+  background: var(--outline-variant);
+  margin: 6px auto 4px;
+}
+[data-theme="dark"] .grabber { background: var(--surface-container-highest); }
+
+.sheet-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 4px 4px;
+}
+.sheet-title {
+  font-size: 15px; font-weight: var(--fw-semi);
+  letter-spacing: -0.1px; color: var(--foreground);
+}
+.sheet-close {
+  width: 26px; height: 26px; border-radius: 999px;
+  background: var(--surface-container); border: 0;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.sheet-close:active { opacity: 0.6; }
+
+/* Preview card */
+.preview {
+  display: flex; gap: 10px; align-items: center;
+  margin: 8px 0 4px;
+  padding: 10px;
+  background: var(--surface-container);
+  border-radius: var(--radius-lg);
+}
+.preview-thumb {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 8px; overflow: hidden;
+  background: var(--primary-container-subtle);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px;
+}
+[data-theme="dark"] .preview-thumb { background: var(--primary-container); }
+.thumb-eyebrow {
+  font-size: 7px; font-weight: var(--fw-bold);
+  color: var(--primary); letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.thumb-bars { display: flex; flex-direction: column; gap: 2px; }
+.thumb-bars span {
+  display: block; height: 2px; border-radius: 1px;
+  background: var(--primary);
+  opacity: 0.4; width: 100%;
+}
+.preview-body { flex: 1; min-width: 0; }
+.preview-title {
+  font-size: 13px; font-weight: var(--fw-semi);
+  color: var(--foreground); letter-spacing: -0.1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.preview-sub { font-size: 11px; color: var(--foreground-subtle); margin-top: 2px; }
+
+.sec-label {
+  font-size: 10.5px; font-weight: var(--fw-semi);
+  color: var(--foreground-subtle);
+  letter-spacing: 0.06em;
+  margin: 14px 4px 8px;
+}
+
+/* ─── Variant: tiles ──────────────────────────────────────── */
+.tile-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px;
+  background: var(--surface-container);
+  border: 0;
+  border-radius: var(--radius-xl);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-family);
+  transition: opacity var(--motion-fast) var(--ease-out),
+              transform var(--motion-fast) var(--ease-out);
+}
+.tile:active { opacity: 0.7; transform: scale(0.98); }
+.tile-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.tile-label {
+  font-size: 14px; font-weight: var(--fw-semi);
+  color: var(--foreground); letter-spacing: -0.1px;
+}
+.tile-sub { font-size: 11px; color: var(--foreground-subtle); margin-top: 2px; }
+
+.aux-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.aux-tile {
+  display: flex; flex-direction: column; gap: 8px;
+  align-items: center; justify-content: center;
+  padding: 14px 8px;
+  background: var(--surface-container);
+  border: 0;
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+}
+.aux-tile:active { opacity: 0.7; }
+.aux-disc {
+  width: 36px; height: 36px; border-radius: 999px;
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--foreground);
+}
+[data-theme="dark"] .aux-disc { background: var(--surface-container-high); }
+.aux-label { font-size: 11.5px; color: var(--foreground-muted); }
+
+/* ─── Variant: grid (WeChat 5-up) ─────────────────────────── */
+.grid-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0; padding: 12px 0 4px;
+}
+.grid-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 4px;
+  background: transparent; border: 0; cursor: pointer;
+  font-family: var(--font-family);
+}
+.grid-item:active { opacity: 0.55; }
+.grid-disc {
+  width: 50px; height: 50px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.grid-disc-neutral {
+  background: var(--surface-container);
+  color: var(--foreground);
+}
+.grid-label { font-size: 11px; color: var(--foreground-muted); text-align: center; }
+
+/* ─── Variant: list — uses DS .list-flush / .cell / .leading ─
+ * Brand-colored leading for the WeChat / DingTalk rows. The
+ * SVG glyphs already render white, so we keep the leading box
+ * itself colored and skip the orange-tint filter the DS uses
+ * for stroked icons.
+ * ──────────────────────────────────────────────────────────── */
+.list-flush .brand-leading {
+  width: 32px; height: 32px; border-radius: 8px;
+}
+/* QR uses currentColor — tint it brand orange like the DS .leading recipe */
+.list-flush .leading .qr-tint { color: var(--primary); display: inline-flex; }
+
+/* ─── Cancel button — spacing only; .btn from DS handles look ── */
+.cancel-btn { margin-top: 14px; }
+
+/* ─── Toast ─────────────────────────────────────────────────── */
+.toast {
+  position: absolute;
+  left: 50%; bottom: 100%;
+  transform: translateX(-50%) translateY(-12px);
+  background: rgba(0,0,0,0.85);
+  color: #fff; font-size: 12.5px; font-weight: var(--fw-medium);
+  padding: 9px 14px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+  animation: toast-in 220ms var(--ease-out) both;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(0); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(-12px); }
+}

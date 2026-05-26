@@ -1,0 +1,165 @@
+/* ─────────────────────────────────────────────────────────────
+ * Unif Design System — base components
+ * Extracted canonical patterns from /preview/{cell-list,buttons,
+ * confirmation,tags-chips}.html so they can be re-used by product
+ * code. Class names are stable contracts.
+ * ───────────────────────────────────────────────────────────── */
+
+/* ─── Cell · base ──────────────────────────────────────────── */
+.cell {
+  display: flex; align-items: center;
+  gap: 12px; padding: 10px 14px;
+  min-height: 56px; box-sizing: border-box;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 0;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-family);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.cell .body { flex: 1; min-width: 0; }
+.cell .ttl {
+  font-size: var(--t-body); font-weight: var(--fw-medium);
+  color: var(--foreground); line-height: 1.3;
+}
+.cell .desc {
+  font-size: var(--t-xs); color: var(--foreground-subtle);
+  line-height: 1.4; margin-top: 2px;
+}
+.cell .extra {
+  font-size: var(--t-xs); color: var(--foreground-subtle);
+}
+.cell .arr {
+  width: 16px; height: 16px; opacity: .55;
+}
+.cell .ic { width: 22px; height: 22px; opacity: .65; }
+
+/* Dark — neutral icons flip to white via filter (DS recipe) */
+[data-theme="dark"] .cell .arr,
+[data-theme="dark"] .cell .ic { filter: invert(1) brightness(2); opacity: .55; }
+
+/* ─── Grouped list (default) — loose white cards w/ 8px gap ── */
+.list { display: flex; flex-direction: column; gap: 8px; }
+
+/* ─── Card wrap & Flush list (rows share one surface) ──────── */
+.card-wrap {
+  background: var(--surface); border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+.list-flush { background: transparent; }
+.list-flush .cell {
+  background: transparent; border-radius: 0;
+  min-height: 0; padding: 11px;
+}
+.list-flush .cell.with-desc { padding: 9px 11px; }
+
+/* Flush leading: 28×28 orange-tint box (DS standard) */
+.list-flush .leading {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--primary-container);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.list-flush .leading img {
+  width: 16px; height: 16px; opacity: 1;
+  /* Brand-orange tint applied to neutral stroked SVG */
+  filter: brightness(0) saturate(100%) invert(46%) sepia(96%) saturate(2095%) hue-rotate(8deg) brightness(99%) contrast(101%);
+}
+.list-flush .ttl {
+  font-size: 13px; letter-spacing: -0.1px;
+  line-height: 1.3;
+}
+.list-flush .desc {
+  font-size: 11px; opacity: .55; margin-top: 1px;
+}
+.list-flush .extra { font-size: 11px; opacity: .55; }
+.list-flush .arr { width: 14px; height: 14px; opacity: .35; }
+
+.list-flush.divided > .cell + .cell {
+  box-shadow: 0 -0.5px 0 var(--outline) inset;
+  position: relative;
+}
+.list-flush.airy > .cell {
+  padding-top: 11px; padding-bottom: 14px;
+}
+
+/* States */
+.cell.danger .leading { background: var(--error-container); }
+.cell.danger .leading img {
+  filter: brightness(0) saturate(100%) invert(31%) sepia(99%) saturate(2245%) hue-rotate(354deg) brightness(95%) contrast(96%);
+}
+.cell.danger .ttl { color: var(--error); }
+.cell.disabled { opacity: 0.5; pointer-events: none; }
+.cell:active:not(.disabled) { opacity: 0.7; }
+
+/* ─── Button ────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 4px; height: 32px; padding: 0 12px;
+  font-size: 13px; border-radius: 7px;
+  border: 0; font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+.btn.sm { height: 26px; padding: 0 9px; font-size: 12px; border-radius: 6px; }
+.btn.lg { height: 38px; padding: 0 14px; font-size: 14px; border-radius: 9px; }
+.btn.xl { height: 50px; padding: 0 16px; font-size: 15px; border-radius: var(--radius-xl); }
+.btn.block { width: 100%; }
+
+.btn.primary { background: var(--primary); color: #fff; }
+.btn.primary:active { background: var(--primary-pressed); }
+
+.btn.secondary { background: var(--surface-container-high); color: var(--foreground); }
+[data-theme="dark"] .btn.secondary { background: var(--surface-container); color: var(--foreground); }
+.btn.secondary:active { opacity: 0.7; }
+
+.btn.outline { background: var(--surface); color: var(--foreground); border: 1px solid var(--outline); }
+.btn.ghost { background: transparent; color: var(--primary); }
+.btn.danger { background: var(--error); color: #fff; }
+.btn.dis, .btn[disabled] { opacity: .4; cursor: not-allowed; }
+
+/* ─── Tag / chip ────────────────────────────────────────────── */
+.tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  height: 20px; padding: 0 7px;
+  font-size: 11px; font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--primary-container);
+  color: var(--primary);
+}
+.tag.success { background: var(--success-container); color: var(--success); }
+[data-theme="dark"] .tag.success { background: #0E2810; color: #52C41A; }
+.tag.neutral {
+  background: var(--surface-container);
+  color: var(--foreground-muted);
+}
+
+/* ─── Card (confirmation style + plain) ────────────────────── */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-xl);
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+}
+[data-theme="dark"] .card { box-shadow: none; }
+.card.pending   { border: 2px solid var(--primary); padding: 10px 12px; }
+.card.confirmed { border: 2px solid var(--success); padding: 10px 12px; }
+
+/* ─── Switch (32×20) ───────────────────────────────────────── */
+.sw {
+  width: 32px; height: 20px; border-radius: 999px;
+  background: var(--surface-container-highest);
+  position: relative; flex-shrink: 0;
+  border: 0; padding: 0; cursor: pointer;
+}
+.sw::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  transition: transform var(--motion-base) var(--ease-out);
+}
+.sw.on { background: var(--primary); }
+.sw.on::after { transform: translateX(12px); }

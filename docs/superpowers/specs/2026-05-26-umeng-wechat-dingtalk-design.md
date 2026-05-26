@@ -34,7 +34,7 @@
 | 私服 registry | `https://npm.unif.internal` |
 | Repository | `https://github.com/unif-design/react-native-umeng.git` |
 | 类型 | React Native turbo-module |
-| 公共依赖 | peerDependencies: `@unif/react-native-design >=0.1.2`、`@gorhom/bottom-sheet >=5`、`react-native-gesture-handler >=2.21.0`（ShareSheet UI 复用 design 系统的 `<BottomSheet>`、`<Cell>`、`<Button>`） |
+| 公共依赖 | peerDependencies: `@unif/react-native-design >=0.1.2`、`@gorhom/bottom-sheet >=5`、`react-native-gesture-handler >=2.21.0`、`react-native-svg >=15`（ShareSheet UI 复用 design 系统的 `<BottomSheet>`、`<Cell>`、`<Button>`；品牌 glyph 用 react-native-svg 画） |
 | iOS 语言 | **ObjC++ shim（`.mm`）+ Swift Adapter（`.swift`）** — RN 0.85 不支持纯 Swift TurboModule，必须用官方 Adapter Pattern：codegen 生成的 OC 协议由 `.mm` 类符合并 forward 到 `@objcMembers public class XxxImpl: NSObject` Swift 类 |
 | Android 语言 | Kotlin |
 | 错误码风格 | SCREAMING_SNAKE |
@@ -122,8 +122,10 @@ export type ShareSheetPayload =
   | { type: 'link'; title: string; url: string; description?: string; thumb?: string };
 
 export interface ShareSheetOptions {
-  title?: string;          // 面板标题，默认 '分享到'
+  title?: string;          // 面板标题，默认 '分享至'
   cancelText?: string;     // 取消按钮文案，默认 '取消'
+  /** 平台副标题覆盖；默认：微信 = '发送给好友或群'，钉钉 = '发送至工作群' */
+  subtitles?: Partial<Record<Platform, string>>;
   /** 隐藏未安装的平台（默认 false，未安装时按钮置灰） */
   hideUninstalled?: boolean;
 }
@@ -234,21 +236,32 @@ await Share.shareLink({ platform: Platform.WECHAT_SESSION, title, url, descripti
 
 ### 5.2.1 ShareSheet UI 规约
 
-**UI 实现完全基于 `@unif/react-native-design`**（peerDependency，与 `react-native-camera` 同模式）。不再裸用 RN `Modal`。
+**UI 视觉规约来源**：Anthropic Claude Design 出的设计稿 `Share Panel`（已落盘到 `docs/superpowers/design-refs/share-panel/`，含 `share-panel.jsx`、`styles.css`、`README.md`）。设计稿提供 3 个 variant（list / tiles / grid），**v1 只实现 list**（最贴近 DS 的 `list-flush + cell + leading` 模式；其余 variant 后续增量）。
 
-- **容器**：`<BottomSheet snapPoints={['30%']} grabber backdrop='scrim' onClose={...}>`（来自 `@unif/react-native-design`）
-  - 内部基于 `@gorhom/bottom-sheet` + `react-native-gesture-handler`，宿主 App 须挂 `GestureHandlerRootView`（标准 RN 模板已有）
-  - 主题色 / scrim / 圆角 / 阴影由 design 系统的 `ThemeProvider` 提供，宿主 App 须在根挂一次
+**实现完全基于 `@unif/react-native-design`** —— 不再裸用 RN `Modal`：
+
+- **容器**：`<BottomSheet snapPoints={['30%']} grabber backdrop='scrim' onClose={...}>`（来自 design 系统）
+  - 内部基于 `@gorhom/bottom-sheet` + `react-native-gesture-handler`，宿主 App 须挂 `GestureHandlerRootView`
+  - 主题色 / scrim / 圆角 / 阴影由 design 的 `ThemeProvider` 提供
+  - sheet 顶部圆角 18px，padding `6px 14px 18px`（设计稿 `styles.css` 规约）
+
 - **内容布局**（自上而下）：
-  1. 标题区：`<View>` + `Text`，文案 `options.title ?? '分享到'`，用 `useTheme()` 拿 typography
-  2. 平台行：每个平台一个 `<Cell title="微信" leading={<PlatformIcon platform='wechat' />} onPress={...} disabled={!installed} />`
-  3. 取消行：`<Button variant='text' label={options.cancelText ?? '取消'} block onPress={dismiss} />`
+  1. **grabber**：design 的 `<BottomSheet grabber>` 已自带（36×4px 圆角胶囊）
+  2. **sheet 头部**：左侧标题 `options.title ?? '分享至'`（15px / `fw-semi` / letter-spacing -0.1px），右侧 26×26 圆形关闭按钮（`surface-container` 背景 + close icon）
+  3. **平台行（list variant）**：每个平台一个 `<Cell>`
+     - `leading`: 32×32 圆角 8、品牌色背景的方块（微信 `#07C160`、钉钉 `#1677FF`），内含 18px 白色 SVG glyph（用 `react-native-svg`，glyph path 直接搬设计稿 `share-panel.jsx` 的 `WeChatGlyph` / `DingTalkGlyph`）
+     - `title`: 平台名（"微信" / "钉钉"）
+     - `desc`: 副标题（默认"发送给好友或群" / "发送至工作群"，可通过 `options.subtitles[platform]` 覆盖）
+     - 右箭头：design 的 `chevron-right` icon
+  4. **取消按钮**：`<Button variant='secondary' size='lg' block label='取消' style={{ marginTop: 14 }} />`（设计稿用 `.btn.secondary.xl.block`，对应 design 的 `variant='secondary' size='lg' block`）
+
 - **平台按钮行为**：
-  - 未安装时若 `hideUninstalled=true` 则不渲染该 Cell；否则 `disabled` 置灰，点击 reject `E_PLATFORM_NOT_INSTALLED`
-  - 点击有效平台 → 调用对应 `shareXxx` → 拿到 `ShareResult` 后调 `bottomSheetRef.close()` → animation 完成回调里 resolve openSheet 的 Promise
+  - 未安装：`hideUninstalled=true` 时不渲染该 Cell；否则 `Cell disabled` 置灰，点击 reject `E_PLATFORM_NOT_INSTALLED`
+  - 点击有效平台：`bottomSheetRef.close()` → animation 完成回调里调对应 `shareXxx(payload)` → resolve openSheet 的 Promise
+  - 时序考虑：先关 sheet 再调原生分享，避免 sheet 还在动画时 native 模态弹起冲突
 - **取消**：点取消按钮 / 拖到底 / scrim 点击 → reject `E_USER_CANCEL`
-- **图标资源**：design 系统**没有**微信/钉钉品牌图标（仅有通用 `share` icon）。本包内置微信/钉钉 PNG @1x/@2x/@3x 在 `src/ShareSheet/assets/`，`<PlatformIcon>` 内部直接 `<Image source={...}>` 渲染
-- **主题**：完全跟随 design 系统 `useTheme()`；自动支持暗色（design 内置 dark/light 主题切换）
+- **暗色**：完全跟随 design `useTheme()`；设计稿暗色规约（grabber 颜色 / sheet 背景 / scrim 透明度）由 design tokens 自动 cover
+- **不内置 toast**：openSheet resolve 出 `ShareResult`，业务自己决定是否 Toast（设计稿里的 toast 仅是 demo 模拟）
 
 ### 5.2.2 实现说明
 
@@ -814,10 +827,9 @@ react-native-umeng/
 │   ├── ShareSheet/
 │   │   ├── ShareSheetHost.tsx        ← Host，内部用 design 的 <BottomSheet> + <Cell> + <Button>
 │   │   ├── ShareSheetController.ts   ← 单例：openSheet/dismiss + EventEmitter
-│   │   ├── PlatformIcon.tsx          ← 渲染微信/钉钉 PNG
-│   │   └── assets/
-│   │       ├── wechat@1x.png  @2x.png  @3x.png
-│   │       └── dingtalk@1x.png  @2x.png  @3x.png
+│   │   ├── PlatformLeading.tsx       ← 32×32 圆角品牌色方块 + 白色 glyph 容器
+│   │   ├── WeChatGlyph.tsx           ← react-native-svg 画的白色微信 glyph
+│   │   └── DingTalkGlyph.tsx         ← react-native-svg 画的白色钉钉 glyph
 ├── src/__tests__/
 │   ├── common.test.ts
 │   ├── share.test.ts
@@ -854,7 +866,7 @@ react-native-umeng/
 2. JS 侧基础：types / NativeUmengCommon / NativeUmengShare / NativeUmengAnalytics / common / share / analytics / index + 单测
 3. Android：`UmengBootstrap` + `UmengCommonModule` + `UmengShareModule` + `UmengAnalyticsModule` + `ReactNativeUmengPackage`，gradle 依赖（含显式声明 wechat-sdk-android + ddsharesdk）
 4. iOS：每个 module 三件套（`.h` + `.mm` + `Impl.swift`）+ `UmengBootstrap.swift` 共享单例；podspec 依赖 UMCommon + UMShare/Core + WeChat/DingDing subspec
-5. **ShareSheet（RN, 用 @unif/react-native-design）**：`ShareSheetController` 单例 + `ShareSheetHost`（内部用 design `BottomSheet`+`Cell`+`Button`）+ 微信/钉钉 PNG 图标 + 组件单测；example/package.json 加 `@unif/react-native-design` 的 portal: 引用
+5. **ShareSheet（RN, 用 @unif/react-native-design，list variant）**：`ShareSheetController` 单例 + `ShareSheetHost`（内部用 design `BottomSheet`+`Cell`+`Button`）+ `WeChatGlyph` / `DingTalkGlyph`（react-native-svg 内联，path 直接搬设计稿）+ `PlatformLeading`（32×32 品牌色方块）+ 组件单测；example/package.json 加 `@unif/react-native-design` 的 portal: 引用
 6. example：根挂 `GestureHandlerRootView` + `ThemeProvider` + `<ShareSheetHost />`；2 common + 4 分享（openSheet 主用例 + 1 个直拉）+ 3 统计按钮（onEvent / signIn / signOut，无 reportError）
 7. README：宿主 App 集成步骤（plist / Manifest / WXEntryActivity / **自实现的** DDShareActivity / MainActivity onActivityResult 转发 / Podfile post_install 清 EXCLUDED_ARCHS / use_modular_headers + use_frameworks linkage static / AppDelegate handleOpenURL + Universal Link 回调）
 6. README：宿主 App 集成步骤（plist、Manifest、WXEntryActivity / DDShareActivity 模板、AppDelegate handleOpenURL）
@@ -885,7 +897,8 @@ react-native-umeng/
 - **隐私协议** 文案不在本包范围；本包仅控制 `Common.init()` 调用时机
 - **`<ShareSheetHost />` 单例假设**：要求集成方根组件挂一个，多次挂载行为未定义；Host 内部用 `useId` 注册表 + dev 多挂 warning
 - **设计系统依赖**：ShareSheet UI 用 `@unif/react-native-design` 的 `BottomSheet`/`Cell`/`Button` 实现。宿主 App 必须包 `<ThemeProvider>`（来自 design 系统）和 `<GestureHandlerRootView>`（标准 RN 模板已有），否则 UI 报错。`@unif/react-native-design` 当前最低 0.1.2
-- **微信/钉钉图标**：design 系统不含品牌图标，本包随包内置 PNG（@1x/@2x/@3x），版权使用各平台公开 brand 资源；若不允许内嵌可改为支持集成方传 `iconResolver`
+- **微信/钉钉品牌 glyph**：design 系统不含品牌图标；本包用 `react-native-svg` 画 path（直接搬设计稿 `share-panel.jsx` 的 `WeChatGlyph` / `DingTalkGlyph`），白色填充叠在品牌色方块上。设计稿 chat 作者已说明 glyph 是手绘近似而非官方 brand asset；如商务/法务要求必须用官方 logo 替换，再单独切到官方 SVG
+- **variant 单一**：v1 只实现 list variant。如未来要补 tiles（2 列大卡片）/ grid（5 列网格），设计稿 `share-panel.jsx` 已含完整布局可直接搬
 
 ---
 
