@@ -45,14 +45,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/unif/react-native-umshare.git"
+    "url": "git+https://github.com/unif-design/react-native-umshare.git"
   },
-  "author": "刘利军 <doryvic7@gmail.com> (https://github.com/liulijun)",
+  "author": "unif-design <382724935@qq.com> (https://github.com/unif-design)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/unif/react-native-umshare/issues"
+    "url": "https://github.com/unif-design/react-native-umshare/issues"
   },
-  "homepage": "https://github.com/unif/react-native-umshare#readme",
+  "homepage": "https://github.com/unif-design/react-native-umshare#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
