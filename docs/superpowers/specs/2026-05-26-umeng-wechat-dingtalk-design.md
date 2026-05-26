@@ -720,15 +720,17 @@ try {
 
 ### 10.2 错误码与原生映射
 
-| ErrorCode | 触发条件 | 原生侧检测点 |
-| --- | --- | --- |
-| `E_PLATFORM_NOT_INSTALLED` | 微信/钉钉未安装 | `UMSocialManager.isInstall(platform)` |
-| `E_PLATFORM_NOT_SUPPORTED` | platform 字串不在白名单 | TS facade + 原生 enum 校验 |
-| `E_INVALID_OPTIONS` | 必填字段缺失 / URL 格式错 | TS facade 优先；原生兜底 |
-| `E_USER_CANCEL` | 友盟回调 `cancel` | iOS `UMSocialPlatformErrorType.cancel` / Android `onCancel` |
-| `E_SHARE_FAILED` | 友盟回调 `error` | iOS `onResponse` 带 error；Android `onError` |
-| `E_NOT_INITIALIZED` | （保留预案）`Common.init()` 失败或 SDK 内部状态异常 | `UmengBootstrap.isInited` 标志；当前 Analytics API 不强制抛错 |
-| `E_UNKNOWN` | 其它 | catch-all |
+| ErrorCode | 触发条件 | iOS 检测点 | Android 检测点 |
+| --- | --- | --- | --- |
+| `E_PLATFORM_NOT_INSTALLED` | 微信/钉钉未安装 | `UIApplication.shared.canOpenURL("weixin://"/"dingtalk://")` 探测；友盟错误码 2008 兜底 | `UMShareAPI.get(ctx).isInstall(activity, platform)` |
+| `E_PLATFORM_NOT_SUPPORTED` | platform 字串不在白名单 | TS facade + 原生 enum 校验 | 同左 |
+| `E_INVALID_OPTIONS` | 必填字段缺失 / URL 格式错 | TS facade 优先；原生兜底 | 同左 |
+| `E_USER_CANCEL` | 用户取消 | `error.domain == UMSocialPlatformErrorDomain && error.code == 2009` | `UMShareListener.onCancel(platform)` 回调 |
+| `E_SHARE_FAILED` | 友盟回调 fail | `error.code == 2003 / 2007 / 2010 / 2011 / 其它` | `UMShareListener.onError(platform, throwable)` — Android 无结构化错误码，只能透出 `throwable.message` |
+| `E_NOT_INITIALIZED` | `Common.init()` 未调用就调 share | `UmengBootstrap.isInited == false` | 同左 |
+| `E_UNKNOWN` | 其它 | catch-all | catch-all |
+
+> **iOS 友盟方法名拼写注意**：`setPlaform`（少一个 t）是 SDK 源码错误，沿用至今；调用时必须照错误拼写写。
 
 ## 11. example 验证矩阵
 
