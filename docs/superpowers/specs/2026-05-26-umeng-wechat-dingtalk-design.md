@@ -249,7 +249,10 @@ await Share.shareLink({ platform: Platform.WECHAT_SESSION, title, url, descripti
   1. **grabber**：design 的 `<BottomSheet grabber>` 已自带（36×4px 圆角胶囊）
   2. **sheet 头部**：左侧标题 `options.title ?? '分享至'`（15px / `fw-semi` / letter-spacing -0.1px），右侧 26×26 圆形关闭按钮（`surface-container` 背景 + close icon）
   3. **平台行（list variant）**：每个平台一个 `<Cell>`
-     - `leading`: 32×32 圆角 8、品牌色背景的方块（微信 `#07C160`、钉钉 `#1677FF`），内含 18px 白色 SVG glyph（用 `react-native-svg`，glyph path 直接搬设计稿 `share-panel.jsx` 的 `WeChatGlyph` / `DingTalkGlyph`）
+     - **`leading` 容器**：32×32 圆角 8 方块
+     - **微信 leading**：`#07C160` 实色背景 + 18px 白色 SVG glyph（path 来自 SimpleIcons CC0，已落盘 `docs/superpowers/design-refs/share-panel/brand-icons/wechat.svg`；24×24 viewBox 单 path）
+     - **钉钉 leading**：`surface-container` 浅色背景 + 22px **官方钉钉品牌 logo SVG**（多 path 蓝色渐变 `#2595E8 / #3A9CED / #59ADF8 / #6BC2FC`，1024×1024 viewBox；已落盘 `brand-icons/dingtalk.svg`）。设计师 v2 用 SimpleIcons 路径不像钉钉，所以采用钉钉公开品牌 logo
+     - **风格差异说明**：微信走"色块 + 白 glyph"模式（绿色 brand color 是 logo 主色），钉钉用官方多色 logo 不再叠蓝底（否则蓝色叠蓝色丢失层次）。这种差异化更尊重 brand identity
      - `title`: 平台名（"微信" / "钉钉"）
      - `desc`: 副标题（默认"发送给好友或群" / "发送至工作群"，可通过 `options.subtitles[platform]` 覆盖）
      - 右箭头：design 的 `chevron-right` icon
@@ -866,7 +869,7 @@ react-native-umeng/
 2. JS 侧基础：types / NativeUmengCommon / NativeUmengShare / NativeUmengAnalytics / common / share / analytics / index + 单测
 3. Android：`UmengBootstrap` + `UmengCommonModule` + `UmengShareModule` + `UmengAnalyticsModule` + `ReactNativeUmengPackage`，gradle 依赖（含显式声明 wechat-sdk-android + ddsharesdk）
 4. iOS：每个 module 三件套（`.h` + `.mm` + `Impl.swift`）+ `UmengBootstrap.swift` 共享单例；podspec 依赖 UMCommon + UMShare/Core + WeChat/DingDing subspec
-5. **ShareSheet（RN, 用 @unif/react-native-design，list variant）**：`ShareSheetController` 单例 + `ShareSheetHost`（内部用 design `BottomSheet`+`Cell`+`Button`）+ `WeChatGlyph` / `DingTalkGlyph`（react-native-svg 内联，path 直接搬设计稿）+ `PlatformLeading`（32×32 品牌色方块）+ 组件单测；example/package.json 加 `@unif/react-native-design` 的 portal: 引用
+5. **ShareSheet（RN, 用 @unif/react-native-design，list variant）**：`ShareSheetController` 单例 + `ShareSheetHost`（内部用 design `BottomSheet`+`Cell`+`Button`）；`WeChatGlyph`（react-native-svg 内联 SimpleIcons 单 path 白色）+ `DingTalkGlyph`（内联钉钉官方 4 path 蓝色渐变 logo）；`PlatformLeading` 容器（微信 32×32 绿块；钉钉 32×32 浅色块）+ 组件单测；example/package.json 加 `@unif/react-native-design` 的 portal: 引用
 6. example：根挂 `GestureHandlerRootView` + `ThemeProvider` + `<ShareSheetHost />`；2 common + 4 分享（openSheet 主用例 + 1 个直拉）+ 3 统计按钮（onEvent / signIn / signOut，无 reportError）
 7. README：宿主 App 集成步骤（plist / Manifest / WXEntryActivity / **自实现的** DDShareActivity / MainActivity onActivityResult 转发 / Podfile post_install 清 EXCLUDED_ARCHS / use_modular_headers + use_frameworks linkage static / AppDelegate handleOpenURL + Universal Link 回调）
 6. README：宿主 App 集成步骤（plist、Manifest、WXEntryActivity / DDShareActivity 模板、AppDelegate handleOpenURL）
@@ -897,7 +900,8 @@ react-native-umeng/
 - **隐私协议** 文案不在本包范围；本包仅控制 `Common.init()` 调用时机
 - **`<ShareSheetHost />` 单例假设**：要求集成方根组件挂一个，多次挂载行为未定义；Host 内部用 `useId` 注册表 + dev 多挂 warning
 - **设计系统依赖**：ShareSheet UI 用 `@unif/react-native-design` 的 `BottomSheet`/`Cell`/`Button` 实现。宿主 App 必须包 `<ThemeProvider>`（来自 design 系统）和 `<GestureHandlerRootView>`（标准 RN 模板已有），否则 UI 报错。`@unif/react-native-design` 当前最低 0.1.2
-- **微信/钉钉品牌 glyph**：design 系统不含品牌图标；本包用 `react-native-svg` 画 path（直接搬设计稿 `share-panel.jsx` 的 `WeChatGlyph` / `DingTalkGlyph`），白色填充叠在品牌色方块上。设计稿 chat 作者已说明 glyph 是手绘近似而非官方 brand asset；如商务/法务要求必须用官方 logo 替换，再单独切到官方 SVG
+- **微信品牌 glyph**：用 SimpleIcons (CC0) 的双气泡 + 4 眼睛点 path（24×24 viewBox 单 path），白色 fill 叠在 `#07C160` 绿色 leading 块上。已落盘 `brand-icons/wechat.svg`
+- **钉钉品牌 logo**：用钉钉公开品牌 logo（4 path 蓝色渐变，1024×1024 viewBox），保留原色叠在 `surface-container` 浅色 leading 块上。已落盘 `brand-icons/dingtalk.svg`。如果商务/法务需要换正式授权版本（如阿里钉钉品牌中心提供的 logo），直接替换 brand-icons/dingtalk.svg 即可，UI 容器与样式不变
 - **variant 单一**：v1 只实现 list variant。如未来要补 tiles（2 列大卡片）/ grid（5 列网格），设计稿 `share-panel.jsx` 已含完整布局可直接搬
 
 ---
