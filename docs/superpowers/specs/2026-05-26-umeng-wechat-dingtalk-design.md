@@ -6,21 +6,23 @@
 ## 1. 目标与范围
 
 ### 1.1 包含
-- **Common（基础组件）**：`UMConfigure.preInit` + `UMConfigure.init` 两阶段、初始化状态查询。preInit/init 是 UMCommon 提供的基础能力，被分享回流统计、自动数据采集共用
+- **Common（基础组件）**：触发友盟数据采集启动（PIPL 合规层）、状态查询
+  - **Android**：模块构造期自动调 `UMConfigure.preInit(ctx, appkey, channel)`（无差别、不采集）；JS `Common.init()` 触发 `UMConfigure.init(...)`（用户同意后开始采集）
+  - **iOS**：友盟 iOS 公开 SDK 没有 preInit；JS `Common.init()` 触发首次 `UMConfigure.initWithAppkey:channel:`（用户同意前模块构造期完全不调任何友盟 API）
 - **Share（社会化分享）**：
   - 平台：微信会话、钉钉
   - 内容类型：文本 / 图片 / 链接卡片
   - **内置 ShareSheet 面板**：命令式 API `Share.openSheet(payload)`，弹出 RN 实现的半屏 ActionSheet，用户选平台后自动调用对应分享，resolve 出 `ShareResult`
   - 底层方法（`shareText` / `shareImage` / `shareLink` / `isInstalled`）仍暴露给想跳过面板的场景
-- **Analytics（移动统计）**：`onEvent`、`reportError`、`onProfile signIn/signOut`
-- iOS 14+、Android API 21+
+- **Analytics（移动统计）**：`onEvent`、`onProfile signIn/signOut`
+- iOS 15.1+（RN 0.85 要求）、Android API 21+
 
 ### 1.2 不包含（明确排除，后续可增量）
 - 微信朋友圈分享（首版不做；后续如要支持，加 `Platform.WECHAT_TIMELINE` 即可）
 - 小程序分享 / 视频分享
 - 平台授权登录、第三方登录
 - 友盟 U-Link 深链回流
-- 友盟推送（U-Push）、性能监控（U-APM）
+- 友盟推送（U-Push）、性能监控（U-APM）（友盟 9.3.6+ 已将崩溃捕获移出 U-App 统计 SDK，需 U-APM；本桥不暴露 `reportError`）
 - **友盟原生 shareboard**：不引入 `UMShare/UI`，面板由 RN 自己画
 
 ## 2. 包元信息
@@ -32,7 +34,7 @@
 | 私服 registry | `https://npm.unif.internal` |
 | Repository | `https://github.com/unif-design/react-native-umeng.git` |
 | 类型 | React Native turbo-module |
-| iOS 语言 | Swift（通过 module map 调用友盟 OC SDK） |
+| iOS 语言 | **ObjC++ shim（`.mm`）+ Swift Adapter（`.swift`）** — RN 0.85 不支持纯 Swift TurboModule，必须用官方 Adapter Pattern：codegen 生成的 OC 协议由 `.mm` 类符合并 forward 到 `@objcMembers public class XxxImpl: NSObject` Swift 类 |
 | Android 语言 | Kotlin |
 | 错误码风格 | SCREAMING_SNAKE |
 
@@ -51,12 +53,14 @@ src/
 ├── NativeUmengShare.ts      ← codegen spec (TurboModule)
 └── NativeUmengAnalytics.ts  ← codegen spec (TurboModule)
 
-ios/
-├── UmengCommon.swift        ← @objc class, 实现 UmengCommonSpec
-├── UmengShare.swift         ← @objc class, 实现 UmengShareSpec
-├── UmengAnalytics.swift     ← @objc class, 实现 UmengAnalyticsSpec
-├── UmengBootstrap.swift     ← 内部 helper 单例（preInit + setPlatform，3 个 module 共用）
-└── ReactNativeUmeng-Bridging-Header.h  ← 引入 <UMCommon/...>、<UMShare/...> 头
+ios/                                 ← 三件套 × 3 module + 共享 helper
+├── UmengCommon.h            ← @interface UmengCommon: NSObject <NativeUmengCommonSpec>
+├── UmengCommon.mm           ← ObjC++ shim，forward 到 UmengCommonImpl
+├── UmengCommonImpl.swift    ← @objcMembers public class，Swift 业务
+├── UmengShare.h / .mm / UmengShareImpl.swift
+├── UmengAnalytics.h / .mm / UmengAnalyticsImpl.swift
+├── UmengBootstrap.swift     ← 内部 helper 单例（iOS：无 preInit；持 setPlaform 配置入口）
+└── (无单独 Bridging Header — 库不需要，宿主 App Podfile 用 use_modular_headers! 让 Swift 看到友盟 OC 头)
 
 android/src/main/java/com/unif/reactnativeumeng/
 ├── UmengCommonModule.kt          ← TurboModule 1
@@ -68,11 +72,26 @@ android/src/main/java/com/unif/reactnativeumeng/
 ReactNativeUmeng.podspec
 ```
 
-**三个 TurboModule 通过 `UmengBootstrap` 单例共享一次性 preInit**：
-- 任意 TurboModule 被构造时，其 `init()` / `initialize()` 第一步都调用 `UmengBootstrap.shared.ensurePreInit(context)`
-- `UmengBootstrap` 内部加锁、记 inited 标志，保证 preInit + setPlatform 仅执行一次
-- `UmengBootstrap` 不是 TurboModule，是纯 native helper；它**也持有 `init()` 的实现**，由 `UmengCommonModule.init()` 转发调用
-- 设计动机：Share / Analytics 都要保证 preInit 已就绪，Common 则承载用户主动触发的 `init()`
+**三个 TurboModule 通过 `UmengBootstrap` 单例共享初始化状态**：
+
+**Android**：
+- 任一 TurboModule 构造时，调用 `UmengBootstrap.ensurePreInit(ctx)`（加锁单次）：
+  - 读 Manifest `meta-data`
+  - `UMConfigure.preInit(ctx, appkey, channel)` — 不采集、可在用户同意前调
+- `Common.init()` 触发 `UmengBootstrap.ensureInit(ctx)`（加锁单次）：
+  - `UMConfigure.init(ctx, appkey, channel, DEVICE_TYPE_PHONE, "")`
+  - `PlatformConfig.setWeixin(...)` + `PlatformConfig.setDing(...)`（必须在 `init` 之后）
+
+**iOS**：
+- TurboModule 构造时**不调任何友盟 API**（友盟 iOS 没有 preInit；PIPL 要求未同意前不能触发 SDK）
+- `Common.init()` 触发 `UmengBootstrap.ensureInit()`（加锁单次）：
+  - 读 Info.plist 配置
+  - `UMConfigure.initWithAppkey(_:channel:)`
+  - `UMSocialManager.default()?.setPlaform(.wechatSession, appKey:appSecret:redirectURL:)`（注意 SDK 拼写错误 `setPlaform`）
+  - `setPlaform(.dingDing, ...)`
+  - 如有 UL，`UMSocialGlobal.shareInstance().universalLinkDic = [...]`
+
+**`UmengBootstrap` 不是 TurboModule**，是纯 native helper，三个 module 共用。
 
 ## 4. 公共类型
 
@@ -259,11 +278,12 @@ export default function App() {
 ```ts
 // src/analytics.ts
 export function onEvent(eventId: string,
-                        params?: Record<string, string>): void;
-export function reportError(error: Error | string): void;
+                        params?: Record<string, string | number>): void;
 export function signIn(userId: string, provider?: string): void;
 export function signOut(): void;
 ```
+
+> **`reportError` 不暴露**：友盟统计 SDK 9.3.6+ 已经移除崩溃捕获能力（iOS 7.2.0+ 同样）；要崩溃捕获要另装 `com.umeng.umsdk:apm` (U-APM)，超出本桥范围。
 
 调用样例：
 
@@ -273,10 +293,12 @@ import { Common, Analytics } from '@unif/react-native-umeng';
 await Common.init();                                  // 隐私协议同意后
 Analytics.onEvent('login', { channel: 'wechat' });
 Analytics.signIn('user-123', 'wechat');
-Analytics.reportError(new Error('something went wrong'));
 ```
 
-> `Analytics` 上所有方法在 `Common.init()` 之前调用，原生 SDK 行为是：缓存在本地或丢弃（友盟默认）。本桥不强制抛 `E_NOT_INITIALIZED`，但 README 会写明先 `Common.init()`。
+**Android**：`onEvent` 桥接到 `MobclickAgent.onEventObject(ctx, eventId, paramsMap)`（支持数值类型 value）。  
+**iOS**：`onEvent` 桥接到 `MobClick.event(eventId, attributes:)`；iOS 端 value 强制 NSString（桥接层负责把 number 转字符串）。
+
+> `Analytics` 上所有方法在 `Common.init()` 之前调用，原生 SDK 行为是：缓存或丢弃。本桥不抛 `E_NOT_INITIALIZED`，README 写明先 `Common.init()`。
 
 ### 5.4 index 出口
 
@@ -345,7 +367,6 @@ import { TurboModuleRegistry } from 'react-native';
 
 export interface Spec extends TurboModule {
   onEvent(eventId: string, params: Object): void;
-  reportError(message: string): void;
   signIn(userId: string, provider?: string): void;
   signOut(): void;
 }
@@ -361,43 +382,50 @@ JS facade（`common.ts` / `share.ts` / `analytics.ts`）负责把 Platform enum 
 
 ```groovy
 // android/build.gradle - dependencies
-implementation 'com.umeng.umsdk:common:9.9.1'      // 基础组件
-implementation 'com.umeng.umsdk:asms:1.8.7.2'      // 设备指纹基础
-implementation 'com.umeng.umsdk:share-core:7.3.7'  // 分享核心
-implementation 'com.umeng.umsdk:share-wx:7.3.7'    // 微信
-implementation 'com.umeng.umsdk:share-dingding:7.3.7' // 钉钉
+implementation 'com.umeng.umsdk:common:9.9.1'         // 基础（含 UMConfigure / MobclickAgent）
+implementation 'com.umeng.umsdk:asms:1.8.7.2'         // 必选基础组件
+implementation 'com.umeng.umsdk:share-core:7.3.7'     // 分享核心
+implementation 'com.umeng.umsdk:share-wx:7.3.7'       // 微信桥
+implementation 'com.umeng.umsdk:share-dingding:7.3.7' // 钉钉桥
 
-// 微信官方 SDK
-implementation 'com.tencent.mm.opensdk:wechat-sdk-android:6.8.0'
-
-// 钉钉官方 SDK（友盟 share-dingding 内部依赖；如冲突可显式声明）
+// 友盟 share-wx / share-dingding 不传递依赖于原生 SDK —— 必须显式声明
+implementation 'com.tencent.mm.opensdk:wechat-sdk-android:6.8.34'
+implementation 'com.alibaba.android:ddsharesdk:1.2.2'
 ```
 
-> 版本号来源：Maven Central（`repo1.maven.org/maven2/com/umeng/umsdk/`）当前最新稳定版。  
-> 钉钉 SDK 由友盟 share-dingding 传递依赖，**实现阶段** 验证传递结果；若有冲突再显式锁定 `com.alibaba.android:ddsharekit:<x.y.z>`。
+> 版本号来源：Maven Central（`repo1.maven.org/maven2/com/umeng/umsdk/`、`com/tencent/mm/opensdk/`、`com/alibaba/android/ddsharesdk/`）当前最新稳定版（2026-05-26 实拉）。  
+> **关键事实**：友盟 `share-*:7.3.7` 的 POM `<dependencies>` 实测为**空**，不会自动拉微信/钉钉官方 SDK，必须显式声明。
 
 ### 7.2 iOS（podspec）
 
 ```ruby
 # ReactNativeUmeng.podspec
-s.dependency 'UMCommon'                  # 基础
-s.dependency 'UMDevice'                  # 设备指纹
-s.dependency 'UMAPM'                     # （可选，含错误上报）
-s.dependency 'UMShare/UI'                # 分享核心（subspec UI 是必需的基础，含资源；本包不调用 shareboard 面板）
-s.dependency 'UMShare/Social/WeChat'     # 微信子 spec
-s.dependency 'UMShare/Social/DingDing'   # 钉钉子 spec
+s.dependency 'UMCommon', '~> 7.5.10'           # 含 UMConfigure 和 MobClick（统计 API）
+s.dependency 'UMDevice', '~> 3.6.0'            # 设备标识采集
+s.dependency 'UMShare/Core', '~> 6.11.1'       # 分享核心
+s.dependency 'UMShare/Social/WeChat', '~> 6.11.1'    # 微信（vendored WeChatSDK .a，无需单独装）
+s.dependency 'UMShare/Social/DingDing', '~> 6.11.1'  # 钉钉（vendored DTShareKit.framework）
 
-s.dependency 'WechatOpenSDK-XCFramework' # 微信官方 SDK（友盟壳依赖）
+s.source_files = "ios/**/*.{h,m,mm,swift,cpp}"
+s.pod_target_xcconfig = {
+  "DEFINES_MODULE" => "YES",
+  "SWIFT_VERSION" => "5.0",
+  "CLANG_ENABLE_MODULES" => "YES",
+  "OTHER_LDFLAGS" => "$(inherited) -ObjC"
+}
+install_modules_dependencies(s)
 ```
 
-> iOS 版本号：当前 Cocoapods/Specs 主线版本 `UMCommon ~> 7.5+`、`UMShare ~> 6.10+`、`WechatOpenSDK-XCFramework ~> 2.0+`。**实现阶段** 用 `pod search` 锁定写入 podspec。
+> **没有 UMAnalytics pod** — `MobClick.h` 已在 `UMCommon` 内（友盟新版命名后整合）。  
+> **iOS / Android 版本号体系不同**：iOS UMShare 走 6.x（最新 6.11.1, 2026-01-07），Android share-* 走 7.x（最新 7.3.7），这是友盟在两端独立的版本号体系，**6.11.1 与 7.3.7 是同期版本、功能对齐**，不是 iOS 落后。  
+> **`UMShare 6.11.1` podspec EXCLUDED_ARCHS 问题**：含 `EXCLUDED_ARCHS[sdk=iphonesimulator*]: arm64`，Apple Silicon 模拟器跑不起来。**宿主 Podfile** 需 `post_install` 清掉（见 §8.6）。
 
 ## 8. 集成方配置（README 写明）
 
 ### 8.1 iOS `Info.plist`
 
 ```xml
-<!-- 友盟 appkey -->
+<!-- 友盟 appkey（iOS 端 appkey 通过代码传入，但本桥约定从 Info.plist 读以便宿主集中配置） -->
 <key>UMENG_APPKEY</key>
 <string>YOUR_UMENG_APPKEY</string>
 <key>UMENG_CHANNEL</key>
@@ -408,6 +436,8 @@ s.dependency 'WechatOpenSDK-XCFramework' # 微信官方 SDK（友盟壳依赖）
 <string>wxXXXXXXXX</string>
 <key>UMENG_WECHAT_APPSECRET</key>
 <string>XXXXXXXX</string>
+<key>UMENG_WECHAT_UNIVERSAL_LINK</key>     <!-- 微信 SDK 1.8.6+ 强制 UL -->
+<string>https://your.host/path/</string>
 
 <!-- 钉钉 -->
 <key>UMENG_DINGTALK_APPID</key>
@@ -417,41 +447,51 @@ s.dependency 'WechatOpenSDK-XCFramework' # 微信官方 SDK（友盟壳依赖）
 <key>LSApplicationQueriesSchemes</key>
 <array>
   <string>weixin</string>
-  <string>weixinULAPI</string>
+  <string>weixinULAPI</string>           <!-- 微信 1.8.6+ 强制 -->
+  <string>weixinURLParamsAPI</string>
   <string>wechat</string>
   <string>dingtalk</string>
   <string>dingtalk-open</string>
+  <string>dingtalk-sso</string>
 </array>
 
 <!-- 回调 URL Scheme -->
 <key>CFBundleURLTypes</key>
 <array>
   <dict>
-    <key>CFBundleURLName</key>
-    <string>weixin</string>
+    <key>CFBundleTypeRole</key><string>Editor</string>
+    <key>CFBundleURLName</key><string>weixin</string>
     <key>CFBundleURLSchemes</key>
-    <array><string>wxXXXXXXXX</string></array>
+    <array><string>wxXXXXXXXX</string></array>   <!-- wx + 微信 AppID -->
   </dict>
   <dict>
-    <key>CFBundleURLName</key>
-    <string>dingtalk</string>
+    <key>CFBundleTypeRole</key><string>Editor</string>
+    <key>CFBundleURLName</key><string>dingtalk</string>
     <key>CFBundleURLSchemes</key>
-    <array><string>dingoaXXXXXXXX</string></array>
+    <array><string>dingoaXXXXXXXX</string></array>  <!-- dingoa + 钉钉 AppID -->
   </dict>
 </array>
 ```
 
-### 8.2 iOS AppDelegate（README 给代码片段）
+### 8.2 iOS AppDelegate（README 模板）
 
 ```swift
-import UmengBootstrap  // 由本包导出，让宿主能调用 handleOpenURL
-
+// 1) handleOpenURL（iOS 9+ url scheme 回调）
 func application(_ app: UIApplication, open url: URL,
                  options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-  if UmengBootstrap.shared.handleOpenURL(url) { return true }
+  if UmengBootstrap.shared.handleOpen(url, options: options) { return true }
   return false
 }
+
+// 2) Universal Link 回调（微信 1.8.6+ 强制需要）
+func application(_ application: UIApplication,
+                 continue userActivity: NSUserActivity,
+                 restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+  return UmengBootstrap.shared.handleUniversalLink(userActivity)
+}
 ```
+
+`UmengBootstrap.shared.handleOpen` / `handleUniversalLink` 是本包导出的 Swift 静态方法，内部转发到 `UMSocialManager.default()?.handleOpen(_:options:)` / `handleUniversalLink(_:options:)`。
 
 ### 8.3 Android `AndroidManifest.xml`
 
@@ -466,74 +506,204 @@ func application(_ app: UIApplication, open url: URL,
 
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+<!-- Android 11+ 必须（包可见性查询，否则 isInstalled 始终 false） -->
+<queries>
+  <package android:name="com.tencent.mm" />
+  <package android:name="com.alibaba.android.rimet" />
+</queries>
 ```
 
 ### 8.4 Android 回调 Activity（集成方在自己包下创建）
 
-微信和钉钉要求回调 Activity 在 **App 自己的包名** 下。集成方需手动添加：
-
+#### 微信（继承友盟提供的基类，1 行空类）
 ```kotlin
 // {appPkg}/wxapi/WXEntryActivity.kt
 package com.example.app.wxapi
-class WXEntryActivity : com.umeng.socialize.weixin.view.WXCallbackActivity()
+
+import com.umeng.socialize.weixin.view.WXCallbackActivity
+
+class WXEntryActivity : WXCallbackActivity()
 ```
+
+#### 钉钉（友盟未提供基类，必须自己实现 IDDAPIEventHandler）
+
+> **关键差异**：与微信不同，友盟 7.3.7 **不提供** `DDShareCallbackActivity` 父类。开发者必须自己实现 `IDDAPIEventHandler`。
 
 ```kotlin
 // {appPkg}/ddshare/DDShareActivity.kt
 package com.example.app.ddshare
-class DDShareActivity : com.umeng.socialize.dingding.DDShareCallbackActivity()
+
+import android.app.Activity
+import android.os.Bundle
+import com.android.dingtalk.share.ddsharemodule.DDShareApiFactory
+import com.android.dingtalk.share.ddsharemodule.IDDAPIEventHandler
+import com.android.dingtalk.share.ddsharemodule.IDDShareApi
+import com.android.dingtalk.share.ddsharemodule.message.BaseReq
+import com.android.dingtalk.share.ddsharemodule.message.BaseResp
+
+class DDShareActivity : Activity(), IDDAPIEventHandler {
+  private lateinit var iddShareApi: IDDShareApi
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    val appId = /* 读 Manifest meta-data UMENG_DINGTALK_APPID */
+    iddShareApi = DDShareApiFactory.createDDShareApi(this, appId, false)
+    iddShareApi.handleIntent(intent, this)
+  }
+
+  override fun onReq(req: BaseReq) { /* 钉钉分享一般不会触发 onReq */ }
+
+  override fun onResp(resp: BaseResp) {
+    // TODO: 透传给友盟 UMShareAPI（具体 API 在实施阶段验证 friend demo
+    //   `umeng/MultiFunctionAndroidMavenDemo-master`）
+    finish()
+  }
+}
 ```
 
-并在 `AndroidManifest.xml` 注册：
-
+#### Manifest 注册
 ```xml
 <activity android:name=".wxapi.WXEntryActivity"
+          android:configChanges="keyboardHidden|orientation|screenSize"
           android:exported="true"
-          android:taskAffinity="${applicationId}"
-          android:launchMode="singleTask"/>
+          android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
 
 <activity android:name=".ddshare.DDShareActivity"
+          android:configChanges="keyboardHidden|orientation|screenSize"
           android:exported="true"
-          android:taskAffinity="${applicationId}"
-          android:launchMode="singleTask">
-  <intent-filter>
-    <action android:name="android.intent.action.VIEW"/>
-    <category android:name="android.intent.category.DEFAULT"/>
-    <data android:scheme="dingoaXXXXXXXX"/>
-  </intent-filter>
-</activity>
+          android:launchMode="singleInstance"
+          android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
 ```
 
-> README 给完整模板可直接复制。
+`WXEntryActivity` 和 `DDShareActivity` 必须放在 `{applicationId}.wxapi.WXEntryActivity` / `{applicationId}.ddshare.DDShareActivity` —— 这是微信/钉钉 SDK 反射查找的固定位置，**不可改名**。
 
-## 9. 初始化流程（PIPL 合规两阶段）
+### 8.5 Android MainActivity 必须的转发（集成方）
+
+```kotlin
+class MainActivity : ReactActivity() {
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    UMShareAPI.get(this).onActivityResult(requestCode, resultCode, data)
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    UMShareAPI.get(this).release()
+  }
+}
+```
+
+> **没有这两个转发就拿不到分享回调**。RN 桥侧 `UmengShareModule` 通过 `reactApplicationContext.currentActivity` 拿到这个 Activity 后调 `ShareAction(activity).share()`。
+
+### 8.6 宿主 Podfile（iOS）
+
+```ruby
+use_frameworks! :linkage => :static    # 强制 static — UMShare vendored .a，dynamic 会崩
+use_modular_headers!                    # 必须 — 让 Swift 看到友盟 OC 头
+
+target 'YourApp' do
+  pod 'UMShare', :path => '...'
+  pod 'UMCommon', :modular_headers => true  # 双保险，单独打开 OC 库的模块化头
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    if target.name.start_with?('UM')
+      target.build_configurations.each do |config|
+        # 清掉 UMShare 6.11.1 的 EXCLUDED_ARCHS=arm64 simulator，让 Apple Silicon Mac 模拟器跑起来
+        config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
+      end
+    end
+  end
+end
+```
+
+### 8.7 Proguard（Android）
+
+```pro
+-dontwarn com.umeng.**
+-keepattributes *Annotation*
+
+-keep class com.umeng.** { *; }
+-keep class com.uyumao.** { *; }
+-keep class com.uc.** { *; }       # 友盟 9.3.0+ 必加
+-keep class com.ut.** { *; }
+-keep class com.ta.** { *; }
+
+# 微信
+-keep class com.tencent.mm.opensdk.** { *; }
+-keep class com.tencent.wxop.** { *; }
+-keep class com.tencent.mm.sdk.** { *; }
+
+# 钉钉
+-keep class com.alibaba.android.** { *; }
+
+-keep public class **.R$* { public static final int *; }
+-keepclassmembers class * { public <init> (org.json.JSONObject); }
+-keepclassmembers enum * {
+  public static **[] values();
+  public static ** valueOf(java.lang.String);
+}
+```
+
+## 9. 初始化流程（PIPL 合规）
+
+两端流程**不同**（iOS SDK 没有 preInit），JS API 一致。
+
+### 9.1 Android（两阶段）
 
 ```
 App 冷启动
    │
    ▼
-任一 TurboModule 首次构造（Common / Share / Analytics）
-   ├─ UmengBootstrap.ensurePreInit(context)   // 加锁单次
-   │    ├─ 读 Info.plist / Manifest meta-data
-   │    ├─ UMConfigure.preInit(appkey, channel)
-   │    ├─ UMShareConfig.setPlatform(WECHAT, appId, appSecret, ...)
-   │    └─ UMShareConfig.setPlatform(DINGDING, appId)
+任一 TurboModule 构造（Common / Share / Analytics）
+   └─ UmengBootstrap.ensurePreInit(ctx)         // 加锁单次
+        ├─ 读 Manifest meta-data
+        └─ UMConfigure.preInit(ctx, appkey, channel)
+                                                ← 不采集、不上报，PIPL 合规
    ▼
 JS 启动
    │
    ▼ 用户首次同意《隐私协议》
 JS: await Common.init()
    │
-   ▼ 原生 UmengCommonModule.init() → UmengBootstrap.ensureInit()
-   │    └─ UMConfigure.init(appkey, channel, deviceType, secret)
-开始正式数据采集 + 分享回流统计
+   ▼ 原生 UmengCommonModule.init() → UmengBootstrap.ensureInit(ctx)
+        ├─ UMConfigure.init(ctx, appkey, channel, DEVICE_TYPE_PHONE, "")
+        ├─ PlatformConfig.setWeixin(appId, appSecret)
+        └─ PlatformConfig.setDing(appId)
+                                                ← 开始正式数据采集 + 分享回流
 ```
 
-要点：
-- **preInit 不上报任何数据**，符合 PIPL 合规
-- **init 必须在用户同意后调**；未同意前 `Analytics.onEvent` 会进入本地缓存或直接丢弃（友盟 SDK 行为）
-- **分享操作（`Share.shareXxx`）** 在 preInit 后即可调用，不强制 init；只是回流统计要 init 后才开始
-- **init 是 idempotent**：重复调 `Common.init()` 仅触发一次原生 `UMConfigure.init`，第二次 resolve 立即返回
+### 9.2 iOS（一阶段，未同意前不调任何 SDK API）
+
+```
+App 冷启动
+   │
+   ▼
+TurboModule 构造        ← **不调任何友盟 API**（PIPL：未同意前不能 init）
+   │
+   ▼
+JS 启动
+   │
+   ▼ 用户首次同意《隐私协议》
+JS: await Common.init()
+   │
+   ▼ 原生 UmengCommonModule init: → UmengBootstrap.ensureInit()
+        ├─ 读 Info.plist
+        ├─ UMConfigure.initWithAppkey(appkey, channel: channel)
+        ├─ UMSocialManager.default()?.setPlaform(.wechatSession, appKey:, appSecret:, redirectURL: nil)
+        │   ↑ 注意拼写 setPlaform (SDK 源码错误，少一个 t)
+        ├─ UMSocialManager.default()?.setPlaform(.dingDing, appKey:, appSecret: nil, redirectURL: nil)
+        └─ UMSocialGlobal.shareInstance().universalLinkDic = [wechatSession.rawValue: UL]
+                                                ← 开始正式数据采集 + 分享
+```
+
+### 9.3 公共要点
+- **`Common.init()` 是 idempotent**：重复调仅触发一次原生 init，第二次立即 resolve
+- **`Share.shareXxx` / `Share.openSheet`** 必须在 `Common.init()` 之后调用（iOS 端 init 前没有 setPlaform，会失败；Android 端 preInit 后 setPlatform 尚未跑，也会失败）
+- **未 init 时的行为**：`Share` 操作 reject `E_NOT_INITIALIZED`；`Analytics` 操作友盟 SDK 内部丢弃（不抛错）
 
 ## 10. 错误处理
 
@@ -634,12 +804,17 @@ react-native-umeng/
 │   ├── share.test.ts
 │   ├── share-sheet.test.tsx
 │   └── analytics.test.ts
-├── ios/
-│   ├── UmengCommon.swift
-│   ├── UmengShare.swift
-│   ├── UmengAnalytics.swift
-│   ├── UmengBootstrap.swift
-│   └── ReactNativeUmeng-Bridging-Header.h
+├── ios/                                ← 每个 module 三件套 + 共享 helper
+│   ├── UmengCommon.h
+│   ├── UmengCommon.mm                  ← ObjC++ shim，符合 NativeUmengCommonSpec
+│   ├── UmengCommonImpl.swift           ← Swift 业务（@objcMembers public class）
+│   ├── UmengShare.h
+│   ├── UmengShare.mm
+│   ├── UmengShareImpl.swift
+│   ├── UmengAnalytics.h
+│   ├── UmengAnalytics.mm
+│   ├── UmengAnalyticsImpl.swift
+│   └── UmengBootstrap.swift            ← 共享单例（iOS 端）
 ├── android/src/main/java/com/unif/reactnativeumeng/
 │   ├── UmengCommonModule.kt
 │   ├── UmengShareModule.kt
@@ -658,23 +833,39 @@ react-native-umeng/
 
 1. `git mv` 目录 `react-native-umshare` → `react-native-umeng`，同步改 package.json、podspec、Java 包名、iOS 类名
 2. JS 侧基础：types / NativeUmengCommon / NativeUmengShare / NativeUmengAnalytics / common / share / analytics / index + 单测
-3. Android：`UmengBootstrap` + `UmengCommonModule` + `UmengShareModule` + `UmengAnalyticsModule` + `ReactNativeUmengPackage`，gradle 依赖
-4. iOS：`UmengBootstrap.swift` + `UmengCommon.swift` + `UmengShare.swift` + `UmengAnalytics.swift`，bridging header，podspec 依赖
+3. Android：`UmengBootstrap` + `UmengCommonModule` + `UmengShareModule` + `UmengAnalyticsModule` + `ReactNativeUmengPackage`，gradle 依赖（含显式声明 wechat-sdk-android + ddsharesdk）
+4. iOS：每个 module 三件套（`.h` + `.mm` + `Impl.swift`）+ `UmengBootstrap.swift` 共享单例；podspec 依赖 UMCommon + UMShare/Core + WeChat/DingDing subspec
 5. **ShareSheet（RN）**：`ShareSheetController` 单例 + `ShareSheetHost` 组件 + 图标资源 + 组件单测
-6. example：根组件挂 `<ShareSheetHost />`；2 common + 4 分享（含 openSheet 主用例 + 1 个直拉）+ 4 统计按钮
+6. example：根组件挂 `<ShareSheetHost />`；2 common + 4 分享（含 openSheet 主用例 + 1 个直拉）+ 3 统计按钮（onEvent / signIn / signOut，无 reportError）
+7. README：宿主 App 集成步骤（plist / Manifest / WXEntryActivity / **自实现的** DDShareActivity / MainActivity onActivityResult 转发 / Podfile post_install 清 EXCLUDED_ARCHS / use_modular_headers + use_frameworks linkage static / AppDelegate handleOpenURL + Universal Link 回调）
 6. README：宿主 App 集成步骤（plist、Manifest、WXEntryActivity / DDShareActivity 模板、AppDelegate handleOpenURL）
 7. 真机回归
 
 ## 15. 风险与待确认
 
-- **iOS pod 具体版本号**：当前用 `UMCommon ~> 7.5`、`UMShare ~> 6.10` 写在 podspec；实施时 `pod search` 锁版本
-- **钉钉 Android SDK 传递依赖**：是否被 `share-dingding:7.3.7` 完整带入，待 gradle resolve 时验证；如缺失则显式声明
-- **Swift TurboModule** 在 React Native 0.85 的稳定性：spec 协议是 OC，Swift 类需 `@objc` + 协议符合；如遇 codegen 问题则退回到 Obj-C++ shim 包一层（不影响公共 API）
-- **钉钉回调 Activity 命名**：钉钉按 Activity 名查找，必须是 `{appPkg}/ddshare/DDShareActivity`；集成方按 README 添加
-- **微信/钉钉回调 Activity 基类的全限定名**：示例中给的是 `com.umeng.socialize.weixin.view.WXCallbackActivity` / `com.umeng.socialize.dingding.DDShareCallbackActivity`，**实现阶段** 按 share-wx / share-dingding 7.3.7 的 sources jar 实际类名校正
-- **隐私协议** 文案不在本包范围，由集成方在宿主 App 提供；本包仅控制 `Common.init()` 调用时机
-- **`<ShareSheetHost />` 单例假设**：本版要求集成方在根组件挂一个 host，多次挂载行为未定义；实现时 Host 内部用 `useId` 加 controller 注册表，若注册超过 1 个则 dev mode 抛 warning
-- **微信/钉钉图标**：随包内置 PNG（@1x/@2x/@3x），版权使用各平台公开 brand 资源；若不允许内嵌可改为允许集成方传 `iconResolver` 自定义
+### 已知重大风险
+
+- **iOS UMShare 6.11.1 `EXCLUDED_ARCHS=arm64` 模拟器**：宿主 Podfile 必须 `post_install` 清掉（spec §8.6 已写代码），否则 Apple Silicon Mac 上 simulator 跑不起来
+- **iOS `use_frameworks!` 限制**：UMShare vendored `.a` 文件，宿主 Podfile 必须 `use_frameworks! :linkage => :static`（或不写），用 dynamic 会崩；同时必须 `use_modular_headers!` 才能在 Swift 里 `import UMCommon`
+- **iOS 友盟方法名拼写错误**：`UMSocialManager.default()?.setPlaform(...)`（少一个 t）是 SDK 源码沿用至今的拼写错误，**桥实现时必须按错的拼写写**
+- **Android 钉钉回调 Activity** 友盟未提供基类，必须按 §8.4 模板自实现 `IDDAPIEventHandler`；`onResp` 内透传给 `UMShareAPI` 的具体方法需要实施时打开 [`umeng/MultiFunctionAndroidMavenDemo-master`](https://github.com/umeng/MultiFunctionAndroidMavenDemo-master) demo 验证
+- **Android 必须 `onActivityResult` / `onDestroy` 转发**：见 §8.5；集成方不做这个，所有分享回调都收不到
+- **Android 微信/钉钉 SDK 不传递依赖**：见 §7.1；必须显式声明 `wechat-sdk-android:6.8.34` + `ddsharesdk:1.2.2`
+- **微信 Universal Link 强制**：iOS 微信 SDK 1.8.6+ 起强制 UL；宿主 App 必须开启 Associated Domains + 部署 `apple-app-site-association`，否则微信跳回会闪退
+
+### 待实施时验证
+
+- **钉钉 `DDShareActivity.onResp` 透传方式**：友盟 demo 中具体怎么把回调发给 `UMShareAPI`（API 名）
+- **iOS `setPlaform` 拼写**是否在 6.11.1 仍存在（极大概率是；底层 framework 头文件未更新）
+- **iOS `isInstall(platformType:)` 公开 API** 是否存在；保守用 `UIApplication.canOpenURL`
+- **Android U-App 9.x 是否需要 `READ_PHONE_STATE`**：U-App 文档列了，share-* 7.3.7 文档说不需要 —— 矛盾，实施时取并集观察
+- **微信 6.8.34 与 友盟 share-wx 7.3.7 兼容性**：友盟 demo 用 6.8.24，maven 最新 6.8.34
+
+### 其他约束
+
+- **隐私协议** 文案不在本包范围；本包仅控制 `Common.init()` 调用时机
+- **`<ShareSheetHost />` 单例假设**：要求集成方根组件挂一个，多次挂载行为未定义；Host 内部用 `useId` 注册表 + dev 多挂 warning
+- **微信/钉钉图标**：随包内置 PNG（@1x/@2x/@3x），版权使用各平台公开 brand 资源；若不允许内嵌可改为支持集成方传 `iconResolver`
 
 ---
 

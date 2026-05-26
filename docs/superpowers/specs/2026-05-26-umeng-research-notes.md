@@ -9,7 +9,7 @@
 ## 关键风险点（必读）
 
 1. **iOS 端公开 SDK 没有 `preInit`** — 友盟 iOS 公开接口只有 `UMConfigure.initWithAppkey:channel:`。PIPL 合规解法是"用户同意《隐私协议》前完全不调任何友盟 API"。Android 才有 `preInit(ctx, appkey, channel)` + `init(...)` 的两段式。
-2. **iOS pod 版本严重落后 Android** — CocoaPods Trunk 最新：`UMShare 6.11.1`（2021）、`UMCommon 7.5.10`。Android Maven 已到 `common 9.9.1`、`share-* 7.3.7`。要对齐功能必须从 `https://developer.umeng.com/sdk` 手动下载 zip + `vendored_frameworks`。
+2. **iOS / Android 版本号体系不同**（**非落后**） — CocoaPods Trunk 实拉日期：`UMShare 6.11.1` (2026-01-07)、`UMCommon 7.5.10` (2026-04-07)、`UMDevice 3.6.0` (2026-05-25)；Android Maven 上 `common 9.9.1`（2026-03-24）、`share-* 7.3.7`。这是友盟在两端用了不同的版本号体系（iOS 走 6.x、Android 走 7.x / 9.x），**功能上是同期版本**。无需手动 zip。
 3. **没有 `UMAnalytics` pod** — `MobClick.h` 直接在 `UMCommon` 里。iOS 端只需 `pod 'UMCommon'`。
 4. **`UMShare/Social/WeChat` vendored 了 WeChatSDK .a** — 不需要单独装 `WechatOpenSDK-XCFramework`；但内置版本可能落后于 Tencent 官方 2.0.5（2025-07-29）。
 5. **`UMShare/Social/DingDing` vendored 了 DTShareKit.framework** — 钉钉 iOS 不需要单独集成。
@@ -36,9 +36,9 @@
 
 | Pod | 最新版（CocoaPods Trunk 2026-05-26）| 必/可选 | 说明 |
 |---|---|---|---|
-| `UMCommon` | **7.5.10** | 必选 | 提供 `UMConfigure` 与 `MobClick`（统计 + 分享共用） |
-| `UMDevice` | **3.6.0** | 必选 | 设备标识采集 |
-| `UMShare/Core` | **6.11.1** | 必选 | 分享核心 |
+| `UMCommon` | **7.5.10**（2026-04-07） | 必选 | 提供 `UMConfigure` 与 `MobClick`（统计 + 分享共用） |
+| `UMDevice` | **3.6.0**（2026-05-25） | 必选 | 设备标识采集 |
+| `UMShare/Core` | **6.11.1**（2026-01-07） | 必选 | 分享核心 |
 | `UMShare/Social/WeChat` | 6.11.1 | 微信必选 | **自带 WeChatSDK 二进制** |
 | `UMShare/Social/DingDing` | 6.11.1 | 钉钉必选 | **自带 DTShareKit.framework** |
 | `UMShare/UI` | 6.11.1 | 不要 | 友盟自带分享面板 UI（本桥不要） |
@@ -46,7 +46,7 @@
 
 iOS 最低部署：取 **15.1**（RN 0.85 要求；UMShare 自己写 9.0，WechatOpenSDK 写 12.0，钉钉 12.0，都更低）。
 
-> **版本落后注意**：CocoaPods Trunk 上的 6.11.1 是 2021 年版本，与 Android 7.3.7 不同步。如果客户要 iOS 7.x.x 对齐 Android，唯一办法是从 `https://developer.umeng.com/sdk` 下载官方 zip 并用 `vendored_frameworks` 接入。
+> **版本号体系差异**：CocoaPods Trunk 上 UMShare 主版本号是 6.x（最新 6.11.1, 2026-01-07），Android Maven 上是 7.x（最新 7.3.7）。这是友盟在两端独立的版本号体系，**6.11.1 与 7.3.7 是同期版本，功能对齐**。
 
 ### 1.2 Info.plist
 
