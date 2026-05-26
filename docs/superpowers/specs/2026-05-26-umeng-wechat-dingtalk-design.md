@@ -7,16 +7,21 @@
 
 ### 1.1 包含
 - **Common（基础组件）**：`UMConfigure.preInit` + `UMConfigure.init` 两阶段、初始化状态查询。preInit/init 是 UMCommon 提供的基础能力，被分享回流统计、自动数据采集共用
-- **Share（社会化分享）**：微信会话、微信朋友圈、钉钉；内容类型 文本 / 图片 / 链接卡片
+- **Share（社会化分享）**：
+  - 平台：微信会话、钉钉
+  - 内容类型：文本 / 图片 / 链接卡片
+  - **内置 ShareSheet 面板**：命令式 API `Share.openSheet(payload)`，弹出 RN 实现的半屏 ActionSheet，用户选平台后自动调用对应分享，resolve 出 `ShareResult`
+  - 底层方法（`shareText` / `shareImage` / `shareLink` / `isInstalled`）仍暴露给想跳过面板的场景
 - **Analytics（移动统计）**：`onEvent`、`reportError`、`onProfile signIn/signOut`
 - iOS 14+、Android API 21+
 
 ### 1.2 不包含（明确排除，后续可增量）
+- 微信朋友圈分享（首版不做；后续如要支持，加 `Platform.WECHAT_TIMELINE` 即可）
 - 小程序分享 / 视频分享
 - 平台授权登录、第三方登录
 - 友盟 U-Link 深链回流
 - 友盟推送（U-Push）、性能监控（U-APM）
-- 自定义 shareboard UI 面板（首版只暴露按平台直拉）
+- **友盟原生 shareboard**：不引入 `UMShare/UI`，面板由 RN 自己画
 
 ## 2. 包元信息
 
@@ -75,8 +80,32 @@ ReactNativeUmeng.podspec
 // src/types.ts
 export enum Platform {
   WECHAT_SESSION = 'wechat_session',
-  WECHAT_TIMELINE = 'wechat_timeline',
   DINGTALK = 'dingtalk',
+}
+
+/** 本桥首版支持的平台清单（顺序即 ShareSheet 默认渲染顺序） */
+export const SUPPORTED_PLATFORMS: Platform[] = [
+  Platform.WECHAT_SESSION,
+  Platform.DINGTALK,
+];
+
+export interface PlatformInfo {
+  platform: Platform;
+  installed: boolean;
+  displayName: string;   // '微信' / '钉钉'，本桥内置
+}
+
+/** ShareSheet 的 payload（与底层 shareXxx 的 options 对齐，无 platform 字段——由用户在面板上选） */
+export type ShareSheetPayload =
+  | { type: 'text'; text: string }
+  | { type: 'image'; image: string; thumb?: string }
+  | { type: 'link'; title: string; url: string; description?: string; thumb?: string };
+
+export interface ShareSheetOptions {
+  title?: string;          // 面板标题，默认 '分享到'
+  cancelText?: string;     // 取消按钮文案，默认 '取消'
+  /** 隐藏未安装的平台（默认 false，未安装时按钮置灰） */
+  hideUninstalled?: boolean;
 }
 
 export type ShareCode = 'success' | 'cancel' | 'failed';
@@ -146,25 +175,83 @@ export interface ShareLinkOptions {
   thumb?: string;
 }
 
+/** 命令式面板：弹出 → 选平台 → 分享 → resolve */
+export function openSheet(payload: ShareSheetPayload,
+                          options?: ShareSheetOptions): Promise<ShareResult>;
+
+/** 底层 API（不弹面板，按 platform 直拉），供有自定义 UI 需求的场景 */
 export function shareText(options: ShareTextOptions): Promise<ShareResult>;
 export function shareImage(options: ShareImageOptions): Promise<ShareResult>;
 export function shareLink(options: ShareLinkOptions): Promise<ShareResult>;
 export function isInstalled(platform: Platform): Promise<boolean>;
+export function listPlatforms(): Promise<PlatformInfo[]>;
 ```
 
-调用样例：
+最常见用法（命令式）：
 
 ```ts
-import { Share, Platform } from '@unif/react-native-umeng';
+import { Share } from '@unif/react-native-umeng';
 
-const r = await Share.shareLink({
-  platform: Platform.WECHAT_SESSION,
+const r = await Share.openSheet({
+  type: 'link',
   title: '问问看',
   url: 'https://example.com/x',
   description: '一句话描述',
   thumb: 'https://example.com/x/thumb.png',
 });
-if (r.code === 'success') { /* ... */ }
+if (r.code === 'success') {
+  // r.platform === 'wechat_session' 或 'dingtalk'
+}
+```
+
+跳过面板直拉某平台：
+
+```ts
+import { Share, Platform } from '@unif/react-native-umeng';
+
+await Share.shareLink({ platform: Platform.WECHAT_SESSION, title, url, description, thumb });
+```
+
+### 5.2.1 ShareSheet UI 规约
+
+- **形态**：底部半屏 Modal（`react-native` 内置 `Modal`），透明遮罩 + 圆角 sheet
+- **内容**：标题行（`options.title ?? '分享到'`）→ 平台按钮横排（图标 + 名称）→ 取消按钮
+- **平台按钮**：图标 + `displayName`；未安装时若 `hideUninstalled=true` 则不渲染，否则按钮置灰且点击 reject `E_PLATFORM_NOT_INSTALLED`
+- **取消**：点取消 / 点遮罩 → reject `E_USER_CANCEL`
+- **关闭逻辑**：分享完成 / 用户取消 → 自动关闭
+- **资源**：微信、钉钉图标内置在包 `src/assets/`（PNG @1x/@2x/@3x）
+- **样式**：默认浅色主题；本版**不**做主题/暗色模式切换（后续增量）
+
+### 5.2.2 实现说明
+
+`openSheet` 通过模块级 `ShareSheetController` 单例管理 Modal：
+
+```
+openSheet(payload)
+   │
+   ├─ controller.show(payload) → 调用挂载的 ShareSheetHost 渲染 Modal
+   │
+   ├─ 用户点击平台按钮
+   │   └─ 内部调用 shareLink/shareImage/shareText → 等回包 → resolve openSheet 的 Promise
+   │
+   └─ 用户点取消/遮罩 → controller.dismiss('cancel') → reject E_USER_CANCEL
+```
+
+**集成方需要**：在 App 根组件树挂一次 `<ShareSheetHost />`（无 props，自动接管 Modal 渲染）。  
+README 给出代码片段。
+
+```tsx
+// App.tsx
+import { ShareSheetHost } from '@unif/react-native-umeng';
+
+export default function App() {
+  return (
+    <>
+      <NavigationContainer>...</NavigationContainer>
+      <ShareSheetHost />   {/* 一次性挂在根 */}
+    </>
+  );
+}
 ```
 
 ### 5.3 Analytics
@@ -198,9 +285,11 @@ Analytics.reportError(new Error('something went wrong'));
 export * as Common from './common';
 export * as Share from './share';
 export * as Analytics from './analytics';
-export { Platform } from './types';
+export { ShareSheetHost } from './ShareSheet/ShareSheetHost';
+export { Platform, SUPPORTED_PLATFORMS } from './types';
 export type { ShareCode, ShareResult, ErrorCode,
-             ShareTextOptions, ShareImageOptions, ShareLinkOptions } from './types';
+             ShareTextOptions, ShareImageOptions, ShareLinkOptions,
+             ShareSheetPayload, ShareSheetOptions, PlatformInfo } from './types';
 ```
 
 ## 6. TurboModule Native Spec
@@ -240,6 +329,9 @@ export interface Spec extends TurboModule {
   shareLink(platform: string, title: string, url: string,
             description?: string, thumb?: string): Promise<NativeShareResult>;
   isInstalled(platform: string): Promise<boolean>;
+  // listPlatforms / openSheet 不进 native spec —— 它们是 JS 侧组合：
+  //   listPlatforms = SUPPORTED_PLATFORMS.map(p => ({ p, installed: isInstalled(p), name }))
+  //   openSheet     = 内部用 RN Modal 渲染 UI，按用户选择调用 shareXxx
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('UmengShare');
@@ -476,14 +568,19 @@ example 工程要覆盖：
 - 触发 `Common.init()`（隐私同意按钮）
 - 显示 `Common.isInited()` 当前状态
 
-**Share 部分（3 平台 × 3 类型 = 9 case）**
-- 微信会话 / 朋友圈 / 钉钉 × text / image / link
+**Share 部分（4 case）**
+- `Share.openSheet({ type: 'link', ... })` —— **主验证用例**：弹面板、选平台、看 ShareResult
+- `Share.openSheet({ type: 'text', text })`
+- `Share.openSheet({ type: 'image', image })`
+- 底层直拉：`Share.shareLink({ platform: WECHAT_SESSION, ... })`（验证跳过面板的能力）
 
 **Analytics 部分（4 case）**
 - `onEvent('demo_event', { source: 'btn' })`
 - `reportError(new Error('manual report'))`
 - `signIn('demo-user-123')`
 - `signOut()`
+
+**根组件挂载 `<ShareSheetHost />`** —— example App 的根 component 必须挂这个，否则 openSheet 报错
 
 每个按钮调用后用 `Toast` / `Alert` 显示返回的 `code` 和 `message`。
 
@@ -495,6 +592,10 @@ example 工程要覆盖：
   - Platform enum → 字符串映射
   - 原生回包 → ShareResult 转换
   - `Common.init` idempotent（重复调只触发一次原生）
+- ShareSheet 组件（react-test-renderer 或 @testing-library/react-native）：
+  - 渲染平台按钮（按 SUPPORTED_PLATFORMS 顺序）
+  - 未安装时按钮置灰 / 点击取消正确 reject
+  - openSheet 单例：未挂 `<ShareSheetHost />` 时 reject 友好错误
 - mock `TurboModuleRegistry` 提供假桥
 
 ### 12.2 真机集成测试（手动 / 文档化清单）
@@ -520,10 +621,18 @@ react-native-umeng/
 │   ├── types.ts
 │   ├── NativeUmengCommon.ts
 │   ├── NativeUmengShare.ts
-│   └── NativeUmengAnalytics.ts
+│   ├── NativeUmengAnalytics.ts
+│   ├── ShareSheet/
+│   │   ├── ShareSheetHost.tsx      ← Modal Host 组件
+│   │   ├── ShareSheetController.ts ← 单例：openSheet/dismiss
+│   │   └── styles.ts
+│   └── assets/
+│       ├── wechat@1x.png  @2x.png  @3x.png
+│       └── dingtalk@1x.png  @2x.png  @3x.png
 ├── src/__tests__/
 │   ├── common.test.ts
 │   ├── share.test.ts
+│   ├── share-sheet.test.tsx
 │   └── analytics.test.ts
 ├── ios/
 │   ├── UmengCommon.swift
@@ -548,10 +657,11 @@ react-native-umeng/
 ## 14. 落地步骤总览（高阶，后续 writing-plans 细化）
 
 1. `git mv` 目录 `react-native-umshare` → `react-native-umeng`，同步改 package.json、podspec、Java 包名、iOS 类名
-2. JS 侧：types / NativeUmengCommon / NativeUmengShare / NativeUmengAnalytics / common / share / analytics / index + 单测
+2. JS 侧基础：types / NativeUmengCommon / NativeUmengShare / NativeUmengAnalytics / common / share / analytics / index + 单测
 3. Android：`UmengBootstrap` + `UmengCommonModule` + `UmengShareModule` + `UmengAnalyticsModule` + `ReactNativeUmengPackage`，gradle 依赖
 4. iOS：`UmengBootstrap.swift` + `UmengCommon.swift` + `UmengShare.swift` + `UmengAnalytics.swift`，bridging header，podspec 依赖
-5. example：2 common 按钮 + 9 分享按钮 + 4 统计按钮
+5. **ShareSheet（RN）**：`ShareSheetController` 单例 + `ShareSheetHost` 组件 + 图标资源 + 组件单测
+6. example：根组件挂 `<ShareSheetHost />`；2 common + 4 分享（含 openSheet 主用例 + 1 个直拉）+ 4 统计按钮
 6. README：宿主 App 集成步骤（plist、Manifest、WXEntryActivity / DDShareActivity 模板、AppDelegate handleOpenURL）
 7. 真机回归
 
@@ -562,7 +672,9 @@ react-native-umeng/
 - **Swift TurboModule** 在 React Native 0.85 的稳定性：spec 协议是 OC，Swift 类需 `@objc` + 协议符合；如遇 codegen 问题则退回到 Obj-C++ shim 包一层（不影响公共 API）
 - **钉钉回调 Activity 命名**：钉钉按 Activity 名查找，必须是 `{appPkg}/ddshare/DDShareActivity`；集成方按 README 添加
 - **微信/钉钉回调 Activity 基类的全限定名**：示例中给的是 `com.umeng.socialize.weixin.view.WXCallbackActivity` / `com.umeng.socialize.dingding.DDShareCallbackActivity`，**实现阶段** 按 share-wx / share-dingding 7.3.7 的 sources jar 实际类名校正
-- **隐私协议** 文案不在本包范围，由集成方在宿主 App 提供；本包仅控制 `Analytics.init()` 调用时机
+- **隐私协议** 文案不在本包范围，由集成方在宿主 App 提供；本包仅控制 `Common.init()` 调用时机
+- **`<ShareSheetHost />` 单例假设**：本版要求集成方在根组件挂一个 host，多次挂载行为未定义；实现时 Host 内部用 `useId` 加 controller 注册表，若注册超过 1 个则 dev mode 抛 warning
+- **微信/钉钉图标**：随包内置 PNG（@1x/@2x/@3x），版权使用各平台公开 brand 资源；若不允许内嵌可改为允许集成方传 `iconResolver` 自定义
 
 ---
 
