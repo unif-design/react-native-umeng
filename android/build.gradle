@@ -1,17 +1,8 @@
 buildscript {
-  ext.ReactNativeUmshare = [
-    kotlinVersion: "2.0.21",
-    minSdkVersion: 24,
-    compileSdkVersion: 36,
-    targetSdkVersion: 36
-  ]
-
-  ext.getExtOrDefault = { prop ->
-    if (rootProject.ext.has(prop)) {
-      return rootProject.ext.get(prop)
-    }
-
-    return ReactNativeUmshare[prop]
+  ext.getExtOrDefault = { name ->
+    return rootProject.ext.has(name)
+      ? rootProject.ext.get(name)
+      : project.properties["ReactNativeUmeng_" + name]
   }
 
   repositories {
@@ -21,47 +12,60 @@ buildscript {
 
   dependencies {
     classpath "com.android.tools.build:gradle:8.7.2"
-    // noinspection DifferentKotlinGradleVersion
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault('kotlinVersion')}"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault("kotlinVersion") ?: '2.1.20'}"
   }
 }
 
-
 apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
+apply plugin: "org.jetbrains.kotlin.android"
 
-apply plugin: "com.facebook.react"
+def reactNativeArchitectures() {
+  def value = rootProject.getProperties().get("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
 
 android {
-  namespace "com.unif.reactnativeumshare"
-
-  compileSdkVersion getExtOrDefault("compileSdkVersion")
+  namespace "com.unif.reactnativeumeng"
+  compileSdkVersion (getExtOrDefault("compileSdkVersion") as Integer) ?: 35
 
   defaultConfig {
-    minSdkVersion getExtOrDefault("minSdkVersion")
-    targetSdkVersion getExtOrDefault("targetSdkVersion")
+    minSdkVersion (getExtOrDefault("minSdkVersion") as Integer) ?: 24
+    targetSdkVersion (getExtOrDefault("targetSdkVersion") as Integer) ?: 34
   }
 
-  buildFeatures {
-    buildConfig true
-  }
-
-  buildTypes {
-    release {
-      minifyEnabled false
-    }
-  }
-
-  lint {
-    disable "GradleCompatible"
-  }
+  buildFeatures { buildConfig true }
 
   compileOptions {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
   }
+
+  kotlinOptions { jvmTarget = "17" }
+
+  sourceSets.main.java.srcDirs += [
+    "generated/java",
+    "generated/jni",
+  ]
+}
+
+repositories {
+  mavenCentral()
+  google()
 }
 
 dependencies {
   implementation "com.facebook.react:react-android"
+
+  // 友盟基础
+  implementation "com.umeng.umsdk:common:9.9.1"
+  implementation "com.umeng.umsdk:asms:1.8.7.2"
+
+  // U-Share
+  implementation "com.umeng.umsdk:share-core:7.3.7"
+  implementation "com.umeng.umsdk:share-wx:7.3.7"
+  implementation "com.umeng.umsdk:share-dingding:7.3.7"
+
+  // 微信 / 钉钉官方 SDK（友盟不传递依赖，必须显式）
+  implementation "com.tencent.mm.opensdk:wechat-sdk-android:6.8.34"
+  implementation "com.alibaba.android:ddsharesdk:1.2.2"
 }
