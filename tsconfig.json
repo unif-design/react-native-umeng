@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "@unif/react-native-umshare": ["./src/index"]
+      "@unif/react-native-umeng": ["./src/index"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,

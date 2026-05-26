@@ -1,20 +1,13 @@
 import { Text, View, StyleSheet } from 'react-native';
-import { multiply } from '@unif/react-native-umshare';
-
-const result = multiply(3, 7);
 
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>Result: {result}</Text>
+      <Text>@unif/react-native-umeng — placeholder（T24 替换）</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

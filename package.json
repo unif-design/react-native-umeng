@@ -38,16 +38,27 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest"
   },
-  "keywords": ["react-native", "ios", "android", "umeng", "share", "analytics"],
+  "keywords": [
+    "react-native",
+    "ios",
+    "android",
+    "umeng",
+    "share",
+    "analytics"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/unif-design/react-native-umeng.git"
   },
   "author": "unif-design <382724935@qq.com> (https://github.com/unif-design)",
   "license": "MIT",
-  "bugs": { "url": "https://github.com/unif-design/react-native-umeng/issues" },
+  "bugs": {
+    "url": "https://github.com/unif-design/react-native-umeng/issues"
+  },
   "homepage": "https://github.com/unif-design/react-native-umeng#readme",
-  "publishConfig": { "registry": "https://npm.unif.internal" },
+  "publishConfig": {
+    "registry": "https://npm.unif.internal"
+  },
   "devDependencies": {
     "@eslint/compat": "^2.0.3",
     "@eslint/eslintrc": "^3.3.5",
@@ -82,14 +93,26 @@
     "react-native-gesture-handler": ">=2.21.0",
     "react-native-svg": ">=15"
   },
-  "workspaces": ["example"],
+  "workspaces": [
+    "example"
+  ],
   "packageManager": "yarn@4.11.0",
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",
     "targets": [
-      ["module", { "esm": true }],
-      ["typescript", { "project": "tsconfig.build.json" }]
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
     ]
   },
   "codegenConfig": {
@@ -99,7 +122,11 @@
   },
   "jest": {
     "preset": "@react-native/jest-preset",
-    "modulePathIgnorePatterns": ["<rootDir>/example/node_modules", "<rootDir>/lib/"]
+    "modulePathIgnorePatterns": [
+      "<rootDir>/example/node_modules",
+      "<rootDir>/lib/"
+    ],
+    "passWithNoTests": true
   },
   "prettier": {
     "quoteProps": "consistent",
@@ -111,7 +138,10 @@
   "create-react-native-library": {
     "type": "turbo-module",
     "languages": "kotlin-objc",
-    "tools": ["eslint", "jest"],
+    "tools": [
+      "eslint",
+      "jest"
+    ],
     "version": "0.62.0"
   }
 }
