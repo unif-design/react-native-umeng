@@ -34,6 +34,7 @@
 | 私服 registry | `https://npm.unif.internal` |
 | Repository | `https://github.com/unif-design/react-native-umeng.git` |
 | 类型 | React Native turbo-module |
+| 公共依赖 | peerDependencies: `@unif/react-native-design >=0.1.2`、`@gorhom/bottom-sheet >=5`、`react-native-gesture-handler >=2.21.0`（ShareSheet UI 复用 design 系统的 `<BottomSheet>`、`<Cell>`、`<Button>`） |
 | iOS 语言 | **ObjC++ shim（`.mm`）+ Swift Adapter（`.swift`）** — RN 0.85 不支持纯 Swift TurboModule，必须用官方 Adapter Pattern：codegen 生成的 OC 协议由 `.mm` 类符合并 forward 到 `@objcMembers public class XxxImpl: NSObject` Swift 类 |
 | Android 语言 | Kotlin |
 | 错误码风格 | SCREAMING_SNAKE |
@@ -233,42 +234,58 @@ await Share.shareLink({ platform: Platform.WECHAT_SESSION, title, url, descripti
 
 ### 5.2.1 ShareSheet UI 规约
 
-- **形态**：底部半屏 Modal（`react-native` 内置 `Modal`），透明遮罩 + 圆角 sheet
-- **内容**：标题行（`options.title ?? '分享到'`）→ 平台按钮横排（图标 + 名称）→ 取消按钮
-- **平台按钮**：图标 + `displayName`；未安装时若 `hideUninstalled=true` 则不渲染，否则按钮置灰且点击 reject `E_PLATFORM_NOT_INSTALLED`
-- **取消**：点取消 / 点遮罩 → reject `E_USER_CANCEL`
-- **关闭逻辑**：分享完成 / 用户取消 → 自动关闭
-- **资源**：微信、钉钉图标内置在包 `src/assets/`（PNG @1x/@2x/@3x）
-- **样式**：默认浅色主题；本版**不**做主题/暗色模式切换（后续增量）
+**UI 实现完全基于 `@unif/react-native-design`**（peerDependency，与 `react-native-camera` 同模式）。不再裸用 RN `Modal`。
+
+- **容器**：`<BottomSheet snapPoints={['30%']} grabber backdrop='scrim' onClose={...}>`（来自 `@unif/react-native-design`）
+  - 内部基于 `@gorhom/bottom-sheet` + `react-native-gesture-handler`，宿主 App 须挂 `GestureHandlerRootView`（标准 RN 模板已有）
+  - 主题色 / scrim / 圆角 / 阴影由 design 系统的 `ThemeProvider` 提供，宿主 App 须在根挂一次
+- **内容布局**（自上而下）：
+  1. 标题区：`<View>` + `Text`，文案 `options.title ?? '分享到'`，用 `useTheme()` 拿 typography
+  2. 平台行：每个平台一个 `<Cell title="微信" leading={<PlatformIcon platform='wechat' />} onPress={...} disabled={!installed} />`
+  3. 取消行：`<Button variant='text' label={options.cancelText ?? '取消'} block onPress={dismiss} />`
+- **平台按钮行为**：
+  - 未安装时若 `hideUninstalled=true` 则不渲染该 Cell；否则 `disabled` 置灰，点击 reject `E_PLATFORM_NOT_INSTALLED`
+  - 点击有效平台 → 调用对应 `shareXxx` → 拿到 `ShareResult` 后调 `bottomSheetRef.close()` → animation 完成回调里 resolve openSheet 的 Promise
+- **取消**：点取消按钮 / 拖到底 / scrim 点击 → reject `E_USER_CANCEL`
+- **图标资源**：design 系统**没有**微信/钉钉品牌图标（仅有通用 `share` icon）。本包内置微信/钉钉 PNG @1x/@2x/@3x 在 `src/ShareSheet/assets/`，`<PlatformIcon>` 内部直接 `<Image source={...}>` 渲染
+- **主题**：完全跟随 design 系统 `useTheme()`；自动支持暗色（design 内置 dark/light 主题切换）
 
 ### 5.2.2 实现说明
 
-`openSheet` 通过模块级 `ShareSheetController` 单例管理 Modal：
+`openSheet` 通过模块级 `ShareSheetController` 单例 + `<ShareSheetHost />` 挂载点管理：
 
 ```
-openSheet(payload)
+openSheet(payload, options)
    │
-   ├─ controller.show(payload) → 调用挂载的 ShareSheetHost 渲染 Modal
+   ├─ controller.show(payload, options)
+   │   ├─ 通过 EventEmitter / useSyncExternalStore 通知挂载的 ShareSheetHost 渲染
+   │   └─ ShareSheetHost 渲染 <BottomSheet snapPoints=['30%']> 内部包 Cell × N + Button(取消)
    │
    ├─ 用户点击平台按钮
-   │   └─ 内部调用 shareLink/shareImage/shareText → 等回包 → resolve openSheet 的 Promise
+   │   └─ ShareSheetHost 调用 shareLink/shareImage/shareText → 等回包 → controller.settle(result) → bottomSheetRef.close() → onClose 回调 resolve openSheet Promise
    │
-   └─ 用户点取消/遮罩 → controller.dismiss('cancel') → reject E_USER_CANCEL
+   └─ 用户点取消/拖到底/scrim → bottomSheetRef.close() → onClose 回调 reject E_USER_CANCEL
 ```
 
-**集成方需要**：在 App 根组件树挂一次 `<ShareSheetHost />`（无 props，自动接管 Modal 渲染）。  
-README 给出代码片段。
+**集成方需要**：
+
+1. 安装 peerDependency：`@unif/react-native-design`、`@gorhom/bottom-sheet`、`react-native-gesture-handler`（任意一个已装就行，design 通常会带）
+2. 根组件挂 `GestureHandlerRootView`（标准 RN 模板已有）+ `<ThemeProvider>`（design 系统提供）+ `<ShareSheetHost />`：
 
 ```tsx
 // App.tsx
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ThemeProvider } from '@unif/react-native-design';
 import { ShareSheetHost } from '@unif/react-native-umeng';
 
 export default function App() {
   return (
-    <>
-      <NavigationContainer>...</NavigationContainer>
-      <ShareSheetHost />   {/* 一次性挂在根 */}
-    </>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <NavigationContainer>...</NavigationContainer>
+        <ShareSheetHost />
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 ```
@@ -795,12 +812,12 @@ react-native-umeng/
 │   ├── NativeUmengShare.ts
 │   ├── NativeUmengAnalytics.ts
 │   ├── ShareSheet/
-│   │   ├── ShareSheetHost.tsx      ← Modal Host 组件
-│   │   ├── ShareSheetController.ts ← 单例：openSheet/dismiss
-│   │   └── styles.ts
-│   └── assets/
-│       ├── wechat@1x.png  @2x.png  @3x.png
-│       └── dingtalk@1x.png  @2x.png  @3x.png
+│   │   ├── ShareSheetHost.tsx        ← Host，内部用 design 的 <BottomSheet> + <Cell> + <Button>
+│   │   ├── ShareSheetController.ts   ← 单例：openSheet/dismiss + EventEmitter
+│   │   ├── PlatformIcon.tsx          ← 渲染微信/钉钉 PNG
+│   │   └── assets/
+│   │       ├── wechat@1x.png  @2x.png  @3x.png
+│   │       └── dingtalk@1x.png  @2x.png  @3x.png
 ├── src/__tests__/
 │   ├── common.test.ts
 │   ├── share.test.ts
@@ -837,8 +854,8 @@ react-native-umeng/
 2. JS 侧基础：types / NativeUmengCommon / NativeUmengShare / NativeUmengAnalytics / common / share / analytics / index + 单测
 3. Android：`UmengBootstrap` + `UmengCommonModule` + `UmengShareModule` + `UmengAnalyticsModule` + `ReactNativeUmengPackage`，gradle 依赖（含显式声明 wechat-sdk-android + ddsharesdk）
 4. iOS：每个 module 三件套（`.h` + `.mm` + `Impl.swift`）+ `UmengBootstrap.swift` 共享单例；podspec 依赖 UMCommon + UMShare/Core + WeChat/DingDing subspec
-5. **ShareSheet（RN）**：`ShareSheetController` 单例 + `ShareSheetHost` 组件 + 图标资源 + 组件单测
-6. example：根组件挂 `<ShareSheetHost />`；2 common + 4 分享（含 openSheet 主用例 + 1 个直拉）+ 3 统计按钮（onEvent / signIn / signOut，无 reportError）
+5. **ShareSheet（RN, 用 @unif/react-native-design）**：`ShareSheetController` 单例 + `ShareSheetHost`（内部用 design `BottomSheet`+`Cell`+`Button`）+ 微信/钉钉 PNG 图标 + 组件单测；example/package.json 加 `@unif/react-native-design` 的 portal: 引用
+6. example：根挂 `GestureHandlerRootView` + `ThemeProvider` + `<ShareSheetHost />`；2 common + 4 分享（openSheet 主用例 + 1 个直拉）+ 3 统计按钮（onEvent / signIn / signOut，无 reportError）
 7. README：宿主 App 集成步骤（plist / Manifest / WXEntryActivity / **自实现的** DDShareActivity / MainActivity onActivityResult 转发 / Podfile post_install 清 EXCLUDED_ARCHS / use_modular_headers + use_frameworks linkage static / AppDelegate handleOpenURL + Universal Link 回调）
 6. README：宿主 App 集成步骤（plist、Manifest、WXEntryActivity / DDShareActivity 模板、AppDelegate handleOpenURL）
 7. 真机回归
@@ -867,7 +884,8 @@ react-native-umeng/
 
 - **隐私协议** 文案不在本包范围；本包仅控制 `Common.init()` 调用时机
 - **`<ShareSheetHost />` 单例假设**：要求集成方根组件挂一个，多次挂载行为未定义；Host 内部用 `useId` 注册表 + dev 多挂 warning
-- **微信/钉钉图标**：随包内置 PNG（@1x/@2x/@3x），版权使用各平台公开 brand 资源；若不允许内嵌可改为支持集成方传 `iconResolver`
+- **设计系统依赖**：ShareSheet UI 用 `@unif/react-native-design` 的 `BottomSheet`/`Cell`/`Button` 实现。宿主 App 必须包 `<ThemeProvider>`（来自 design 系统）和 `<GestureHandlerRootView>`（标准 RN 模板已有），否则 UI 报错。`@unif/react-native-design` 当前最低 0.1.2
+- **微信/钉钉图标**：design 系统不含品牌图标，本包随包内置 PNG（@1x/@2x/@3x），版权使用各平台公开 brand 资源；若不允许内嵌可改为支持集成方传 `iconResolver`
 
 ---
 
