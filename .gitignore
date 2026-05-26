@@ -84,3 +84,6 @@ android/generated
 
 # React Native Nitro Modules
 nitrogen/
+
+# Playwright MCP scratch files
+.playwright-mcp/
