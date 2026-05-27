@@ -56,7 +56,7 @@
   "bugs": {
     "url": "https://github.com/unif-design/react-native-umeng/issues"
   },
-  "homepage": "https://github.com/unif-design/react-native-umeng#readme",
+  "homepage": "https://unif-design.github.io/react-native-umeng/",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },

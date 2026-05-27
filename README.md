@@ -2,6 +2,9 @@
 
 友盟 React Native bridge：U-Share（微信会话 / 钉钉）+ U-App 移动统计。Unif 私有。
 
+📖 **文档站**：[unif-design.github.io/react-native-umeng](https://unif-design.github.io/react-native-umeng/)
+📦 **npm**：[@unif/react-native-umeng](https://www.npmjs.com/package/@unif/react-native-umeng)
+
 ## 安装
 
 ```sh
