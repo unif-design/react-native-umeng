@@ -1,9 +1,11 @@
 # @unif/react-native-umeng
 
-友盟 React Native bridge：U-Share（微信会话 / 钉钉）+ U-App 移动统计。Unif 私有。
+[![npm](https://img.shields.io/npm/v/@unif/react-native-umeng.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/@unif/react-native-umeng)
+[![CI](https://github.com/unif-design/react-native-umeng/actions/workflows/ci.yml/badge.svg)](https://github.com/unif-design/react-native-umeng/actions/workflows/ci.yml)
+[![License](https://img.shields.io/npm/l/@unif/react-native-umeng.svg?color=blue)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-unif--design.github.io-orange.svg)](https://unif-design.github.io/react-native-umeng/)
 
-📖 **文档站**：[unif-design.github.io/react-native-umeng](https://unif-design.github.io/react-native-umeng/)
-📦 **npm**：[@unif/react-native-umeng](https://www.npmjs.com/package/@unif/react-native-umeng)
+友盟 React Native bridge：U-Share（微信会话 / 钉钉）+ U-App 移动统计。Unif 私有。
 
 ## 安装
 
