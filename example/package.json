@@ -12,6 +12,7 @@
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
     "@unif/react-native-design": "^0.3.0",
+    "@unif/react-native-umeng": "workspace:*",
     "react": "19.2.3",
     "react-native": "0.86.0-rc.2",
     "react-native-gesture-handler": "^2.21.0",
