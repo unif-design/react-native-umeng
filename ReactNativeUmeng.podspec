@@ -14,12 +14,7 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/unif-design/react-native-umeng.git", :tag => "#{s.version}" }
 
   s.source_files = "ios/**/*.{h,m,mm,swift,cpp}"
-  s.pod_target_xcconfig = {
-    "DEFINES_MODULE" => "YES",
-    "SWIFT_VERSION" => "5.0",
-    "CLANG_ENABLE_MODULES" => "YES",
-    "OTHER_LDFLAGS" => "$(inherited) -ObjC"
-  }
+  s.private_header_files = "ios/**/*.h"
 
   # 友盟基础 + 分享
   s.dependency "UMCommon", "~> 7.5.10"
