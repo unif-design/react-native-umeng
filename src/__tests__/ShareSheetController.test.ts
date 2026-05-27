@@ -53,9 +53,7 @@ describe('ShareSheetController', () => {
     const listener = jest.fn();
     const unsub = controller.subscribe(listener);
     unsub();
-    void controller
-      .show({ type: 'text', text: 'hi' })
-      .catch(() => {});
+    void controller.show({ type: 'text', text: 'hi' }).catch(() => {});
     expect(listener).not.toHaveBeenCalled();
   });
 

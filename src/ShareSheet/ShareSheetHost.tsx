@@ -1,11 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import {
-  BottomSheet,
-  Cell,
-  Button,
-  useTheme,
-} from '@unif/react-native-design';
+import { BottomSheet, Cell, Button, useTheme } from '@unif/react-native-design';
 import {
   PLATFORM_DEFAULT_SUBTITLES,
   PLATFORM_DISPLAY_NAMES,
