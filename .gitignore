@@ -51,6 +51,10 @@ example/ios/*.xcworkspace
 example/vendor/
 example/Gemfile.lock
 
+# Docusaurus
+website/.docusaurus
+website/build
+
 # node.js
 #
 node_modules/

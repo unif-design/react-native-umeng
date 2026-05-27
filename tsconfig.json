@@ -26,5 +26,11 @@
     "strict": true,
     "target": "ESNext",
     "verbatimModuleSyntax": true
-  }
+  },
+  "exclude": [
+    "lib",
+    "website",
+    "**/node_modules",
+    "**/build"
+  ]
 }
