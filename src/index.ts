@@ -22,5 +22,4 @@ export type {
   ShareSheetOptions,
 } from './types';
 
-// ShareSheetHost 会在 T22 加入：
-// export { ShareSheetHost } from './ShareSheet/ShareSheetHost';
+export { ShareSheetHost } from './ShareSheet/ShareSheetHost';

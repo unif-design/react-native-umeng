@@ -135,7 +135,7 @@ export const ShareSheetHost: React.FC = () => {
       onClose={handleCancel}
     >
       <View style={styles.head}>
-        <Text style={[styles.title, { color: theme.c.foreground }]}>
+        <Text style={[styles.title, { color: theme.colors.foreground }]}>
           {title}
         </Text>
       </View>

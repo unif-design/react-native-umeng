@@ -1,4 +1,5 @@
 import NativeUmengShare, { type NativeShareResult } from './NativeUmengShare';
+import { shareSheetController } from './ShareSheet/ShareSheetController';
 import {
   Platform,
   PLATFORM_DISPLAY_NAMES,
@@ -8,6 +9,8 @@ import {
   type ShareImageOptions,
   type ShareLinkOptions,
   type ShareResult,
+  type ShareSheetOptions,
+  type ShareSheetPayload,
   type ShareTextOptions,
 } from './types';
 
@@ -111,4 +114,15 @@ export async function listPlatforms(): Promise<PlatformInfo[]> {
     installed: installs[i] ?? false,
     displayName: PLATFORM_DISPLAY_NAMES[p],
   }));
+}
+
+/**
+ * 命令式拉起分享面板（推荐用法）。
+ * 必须在应用根挂载 `<ShareSheetHost />`，否则 Promise 立即 reject。
+ */
+export function openSheet(
+  payload: ShareSheetPayload,
+  options?: ShareSheetOptions
+): Promise<ShareResult> {
+  return shareSheetController.show(payload, options ?? {});
 }

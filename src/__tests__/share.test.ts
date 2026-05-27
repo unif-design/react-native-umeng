@@ -9,6 +9,9 @@ jest.mock('../NativeUmengShare', () => ({
     isInstalled: jest.fn(),
   },
 }));
+jest.mock('../ShareSheet/ShareSheetController', () => ({
+  shareSheetController: { show: jest.fn() },
+}));
 
 import NativeUmengShare from '../NativeUmengShare';
 import * as Share from '../share';
@@ -171,6 +174,39 @@ describe('Share', () => {
         },
         { platform: Platform.DINGTALK, installed: false, displayName: '钉钉' },
       ]);
+    });
+  });
+
+  describe('openSheet', () => {
+    it('delegates to shareSheetController.show', async () => {
+      const {
+        shareSheetController,
+      } = require('../ShareSheet/ShareSheetController');
+      (shareSheetController.show as jest.Mock).mockResolvedValue({
+        code: 'success',
+        platform: Platform.WECHAT_SESSION,
+      });
+      const r = await Share.openSheet({ type: 'text', text: 'hi' });
+      expect(shareSheetController.show).toHaveBeenCalledWith(
+        { type: 'text', text: 'hi' },
+        {}
+      );
+      expect(r.code).toBe('success');
+    });
+
+    it('forwards options', async () => {
+      const {
+        shareSheetController,
+      } = require('../ShareSheet/ShareSheetController');
+      (shareSheetController.show as jest.Mock).mockResolvedValue({
+        code: 'success',
+        platform: Platform.DINGTALK,
+      });
+      await Share.openSheet({ type: 'text', text: 'hi' }, { title: 'X' });
+      expect(shareSheetController.show).toHaveBeenCalledWith(
+        { type: 'text', text: 'hi' },
+        { title: 'X' }
+      );
     });
   });
 });

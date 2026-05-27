@@ -4,7 +4,9 @@ jest.mock('@unif/react-native-design', () => {
   return {
     ThemeProvider: ({ children }: any) => children,
     useTheme: () => ({
-      c: { surfaceContainer: '#f0f0f0', foreground: '#111' },
+      scheme: 'light',
+      colors: { surfaceContainer: '#f0f0f0', foreground: '#111' },
+      shadow: {},
     }),
     BottomSheet: ({ children }: any) =>
       React.createElement(View, { testID: 'bottom-sheet' }, children),
@@ -31,7 +33,6 @@ jest.mock('../share', () => ({
   listPlatforms: jest.fn(),
 }));
 
-import React from 'react';
 import { render, act, fireEvent } from '@testing-library/react-native';
 import { ShareSheetHost } from '../ShareSheet/ShareSheetHost';
 import { shareSheetController } from '../ShareSheet/ShareSheetController';
