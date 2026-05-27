@@ -30,5 +30,39 @@ target 'ReactNativeUmengExample' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # ─── RN 0.85.3 prebuilt RNCore patch (facebook/react-native#56862) ───
+    # Xcode 26 + RCT_USE_PREBUILT_RNCORE=1 时 ReactCodegen 编译 .cpp 报
+    # 'memory' file not found / could not build module 'ReactCodegen'。
+    # 根因:React umbrella 把 RCTBridgeConstants.h 放在 RCTDefines.h 之前
+    # + module.modulemap 用 wildcard 子模块隔离了 header 解析作用域。
+    # 这里原地 patch prebuilt xcframework 里那两个文件,等 RN 0.85.4 含
+    # PR #56862 backport 后可删除整段。
+    pods_root = installer.sandbox.root.to_s
+    umbrella_path = "#{pods_root}/React-Core-prebuilt/React.xcframework/Headers/React_Core/React_Core-umbrella.h"
+    if File.exist?(umbrella_path)
+      content = File.read(umbrella_path)
+      marker = '// RN-0.85.3-patch: load RCTDefines.h first (#56862)'
+      unless content.include?(marker)
+        # 在 `#import <React/CoreModulesPlugins.h>` 之前插入,确保宏先可见
+        patched = content.sub(
+          /^#import <React\/CoreModulesPlugins\.h>$/,
+          "#{marker}\n#import <React/RCTDefines.h>\n\n#import <React/CoreModulesPlugins.h>"
+        )
+        if patched != content
+          File.write(umbrella_path, patched)
+          Pod::UI.puts "  patched #{umbrella_path.sub(pods_root, 'Pods')}".yellow
+        end
+      end
+    end
+
+    Dir.glob("#{pods_root}/React-Core-prebuilt/React.xcframework/**/module.modulemap").each do |mm|
+      content = File.read(mm)
+      next unless content.include?('module * { export * }')
+      patched = content.gsub(/^\s*module \* \{ export \* \}\s*$\n?/, '')
+      File.write(mm, patched)
+      Pod::UI.puts "  patched #{mm.sub(pods_root, 'Pods')}".yellow
+    end
+    # ─── end RN 0.85.3 prebuilt RNCore patch ───
   end
 end
