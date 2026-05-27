@@ -122,8 +122,11 @@ jobs:
     env:
       XCODE_VERSION: 26
       TURBO_CACHE_DIR: .turbo/ios
-      RCT_USE_RN_DEP: 1
-      RCT_USE_PREBUILT_RNCORE: 1
+      # RN 0.85.3 + Xcode 26 + prebuilt RNCore 三者组合下 ReactCodegen .cpp
+      # 编译报 'memory' file not found（umbrella header 顺序 + module 隔离 bug）。
+      # 等 RN 0.85.4 含 PR #56862 fix 后可恢复 prebuilt。
+      RCT_USE_RN_DEP: 0
+      RCT_USE_PREBUILT_RNCORE: 0
 
     steps:
       - name: Checkout
