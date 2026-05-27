@@ -2618,6 +2618,25 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@testing-library/react-native@npm:^12.7.2":
+  version: 12.9.0
+  resolution: "@testing-library/react-native@npm:12.9.0"
+  dependencies:
+    jest-matcher-utils: "npm:^29.7.0"
+    pretty-format: "npm:^29.7.0"
+    redent: "npm:^3.0.0"
+  peerDependencies:
+    jest: ">=28.0.0"
+    react: ">=16.8.0"
+    react-native: ">=0.59"
+    react-test-renderer: ">=16.8.0"
+  peerDependenciesMeta:
+    jest:
+      optional: true
+  checksum: 10c0/d29a2c9a4f1318a8fbf7d53927e42c34bd3bc00c46ba7e4010828c927a2b504cbaa3284deba7780fa467b6b1b2d5ce1a4a2ab9f2d1d08d7a1740dc5b2242df21
+  languageName: node
+  linkType: hard
+
 "@turbo/darwin-64@npm:2.9.14":
   version: 2.9.14
   resolution: "@turbo/darwin-64@npm:2.9.14"
@@ -2775,7 +2794,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/react-test-renderer@npm:^19.1.0":
+"@types/react-test-renderer@npm:^19, @types/react-test-renderer@npm:^19.1.0":
   version: 19.1.0
   resolution: "@types/react-test-renderer@npm:19.1.0"
   dependencies:
@@ -3001,8 +3020,10 @@ __metadata:
     "@react-native/babel-preset": "npm:0.85.3"
     "@react-native/eslint-config": "npm:0.85.0"
     "@react-native/jest-preset": "npm:0.85.3"
+    "@testing-library/react-native": "npm:^12.7.2"
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.2.0"
+    "@types/react-test-renderer": "npm:^19"
     "@unif/react-native-design": "portal:../react-native-design"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.4"
@@ -3016,6 +3037,7 @@ __metadata:
     react-native-builder-bob: "npm:^0.41.0"
     react-native-gesture-handler: "npm:^2.21.0"
     react-native-svg: "npm:^15.15.5"
+    react-test-renderer: "npm:19.2.3"
     turbo: "npm:^2.8.21"
     typescript: "npm:^6.0.2"
   peerDependencies:
@@ -5710,6 +5732,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"indent-string@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "indent-string@npm:4.0.0"
+  checksum: 10c0/1e1904ddb0cb3d6cce7cd09e27a90184908b7a5d5c21b92e232c93579d314f0b83c246ffb035493d0504b1e9147ba2c9b21df0030f48673fba0496ecd698161f
+  languageName: node
+  linkType: hard
+
 "inflight@npm:^1.0.4":
   version: 1.0.6
   resolution: "inflight@npm:1.0.6"
@@ -7323,6 +7352,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"min-indent@npm:^1.0.0":
+  version: 1.0.1
+  resolution: "min-indent@npm:1.0.1"
+  checksum: 10c0/7e207bd5c20401b292de291f02913230cb1163abca162044f7db1d951fa245b174dc00869d40dd9a9f32a885ad6a5f3e767ee104cf278f399cb4e92d3f582d5c
+  languageName: node
+  linkType: hard
+
 "minimatch@npm:^10.2.2":
   version: 10.2.5
   resolution: "minimatch@npm:10.2.5"
@@ -8043,6 +8079,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-is@npm:^19.2.3":
+  version: 19.2.6
+  resolution: "react-is@npm:19.2.6"
+  checksum: 10c0/263177f370fc156b279d22570dd6e922a0ad641a4a426a4cb70284b8003b00ef532d59f2beca1d22a1ca0b37f85f9077d7733ca5d344ebecd2942e9bc2a2a3c0
+  languageName: node
+  linkType: hard
+
 "react-native-builder-bob@npm:^0.41.0":
   version: 0.41.0
   resolution: "react-native-builder-bob@npm:0.41.0"
@@ -8171,6 +8214,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"react-test-renderer@npm:19.2.3":
+  version: 19.2.3
+  resolution: "react-test-renderer@npm:19.2.3"
+  dependencies:
+    react-is: "npm:^19.2.3"
+    scheduler: "npm:^0.27.0"
+  peerDependencies:
+    react: ^19.2.3
+  checksum: 10c0/842b82239dbddbc536083a6260c3e1b0507c02a3400bd05879fc19160468fd0f8ab79fec5dceffa6113b131835cc7621212f8415b46ea5156ab66bbfd7e24297
+  languageName: node
+  linkType: hard
+
 "react@npm:19.2.3":
   version: 19.2.3
   resolution: "react@npm:19.2.3"
@@ -8186,6 +8241,16 @@ __metadata:
     string_decoder: "npm:^1.1.1"
     util-deprecate: "npm:^1.0.1"
   checksum: 10c0/e37be5c79c376fdd088a45fa31ea2e423e5d48854be7a22a58869b4e84d25047b193f6acb54f1012331e1bcd667ffb569c01b99d36b0bd59658fb33f513511b7
+  languageName: node
+  linkType: hard
+
+"redent@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "redent@npm:3.0.0"
+  dependencies:
+    indent-string: "npm:^4.0.0"
+    strip-indent: "npm:^3.0.0"
+  checksum: 10c0/d64a6b5c0b50eb3ddce3ab770f866658a2b9998c678f797919ceb1b586bab9259b311407280bd80b804e2a7c7539b19238ae6a2a20c843f1a7fcff21d48c2eae
   languageName: node
   linkType: hard
 
@@ -8452,7 +8517,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"scheduler@npm:0.27.0":
+"scheduler@npm:0.27.0, scheduler@npm:^0.27.0":
   version: 0.27.0
   resolution: "scheduler@npm:0.27.0"
   checksum: 10c0/4f03048cb05a3c8fddc45813052251eca00688f413a3cee236d984a161da28db28ba71bd11e7a3dd02f7af84ab28d39fb311431d3b3772fed557945beb00c452
@@ -8923,6 +8988,15 @@ __metadata:
   version: 2.0.0
   resolution: "strip-final-newline@npm:2.0.0"
   checksum: 10c0/bddf8ccd47acd85c0e09ad7375409d81653f645fda13227a9d459642277c253d877b68f2e5e4d819fe75733b0e626bac7e954c04f3236f6d196f79c94fa4a96f
+  languageName: node
+  linkType: hard
+
+"strip-indent@npm:^3.0.0":
+  version: 3.0.0
+  resolution: "strip-indent@npm:3.0.0"
+  dependencies:
+    min-indent: "npm:^1.0.0"
+  checksum: 10c0/ae0deaf41c8d1001c5d4fbe16cb553865c1863da4fae036683b474fa926af9fc121e155cb3fc57a68262b2ae7d5b8420aa752c97a6428c315d00efe2a3875679
   languageName: node
   linkType: hard
 
