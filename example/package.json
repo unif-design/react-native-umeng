@@ -10,8 +10,12 @@
     "build:ios": "react-native build-ios --mode Debug"
   },
   "dependencies": {
+    "@gorhom/bottom-sheet": "^5.2.14",
+    "@unif/react-native-design": "portal:../../react-native-design",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-native": "0.85.3",
+    "react-native-gesture-handler": "^2.21.0",
+    "react-native-svg": "^15.15.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
