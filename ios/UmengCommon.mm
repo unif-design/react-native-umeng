@@ -1,5 +1,5 @@
 #import "UmengCommon.h"
-#import "react_native_umeng-Swift.h"
+#import "UmengBootstrap.h"
 
 @implementation UmengCommon
 
@@ -12,12 +12,20 @@ RCT_EXPORT_MODULE(UmengCommon)
 
 - (void)init:(RCTPromiseResolveBlock)resolve
        reject:(RCTPromiseRejectBlock)reject {
-  [[UmengCommonImpl new] initResolve:resolve reject:reject];
+  NSError *error = nil;
+  BOOL ok = [[UmengBootstrap shared] ensureInit:&error];
+  if (ok) {
+    resolve([NSNull null]);
+  } else {
+    reject(@"E_UNKNOWN",
+           error.localizedDescription ?: @"init failed",
+           error);
+  }
 }
 
 - (void)isInited:(RCTPromiseResolveBlock)resolve
           reject:(RCTPromiseRejectBlock)reject {
-  [[UmengCommonImpl new] isInitedResolve:resolve reject:reject];
+  resolve(@([[UmengBootstrap shared] isInited]));
 }
 
 @end

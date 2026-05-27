@@ -16,7 +16,8 @@ Pod::Spec.new do |s|
   s.source_files = "ios/**/*.{h,m,mm,swift,cpp}"
   s.private_header_files = "ios/**/*.h"
 
-  # 友盟基础 + 分享
+  # 友盟基础 + 分享 (全 ObjC++ 实现,直接 #import <UMShare/UMShare.h> 无需
+  # modular_headers / DEFINES_MODULE 等 hack)
   s.dependency "UMCommon", "~> 7.5.10"
   s.dependency "UMDevice", "~> 3.6.0"
   s.dependency "UMShare/Core", "~> 6.11.1"
