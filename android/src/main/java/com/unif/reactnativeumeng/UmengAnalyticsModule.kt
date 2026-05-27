@@ -16,8 +16,11 @@ class UmengAnalyticsModule(reactContext: ReactApplicationContext) :
   override fun getName(): String = NAME
 
   override fun onEvent(eventId: String, params: ReadableMap?) {
-    // JS 端已 stringify 所有 value，这里 toHashMap 拿到 Map<String, Any>
-    val map: MutableMap<String, Any> = params?.toHashMap()?.toMutableMap() ?: mutableMapOf()
+    // ReadableMap.toHashMap() 在 RN 0.85 返回 HashMap<String, Any?>(value 可空)。
+    // 友盟 MobclickAgent.onEventObject 是 Java Map<String, Object>,接受 Any?。
+    // JS 层 src/analytics.ts onEvent 已经 stringify 了所有 value(num→string),
+    // 实际 null 不会进来,但类型上保留 Any? 才能编过。
+    val map: MutableMap<String, Any?> = params?.toHashMap()?.toMutableMap() ?: mutableMapOf()
     MobclickAgent.onEventObject(reactApplicationContext, eventId, map)
   }
 
