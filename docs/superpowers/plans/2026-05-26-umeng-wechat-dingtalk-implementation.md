@@ -14,6 +14,67 @@
 
 ---
 
+## Errata（实施过程发现的偏差，写于 2026-05-27）
+
+> 本 plan 在 native 配置上犯了"从头重写"的错。`create-react-native-library` 官方文档（[oss.callstack.com/react-native-builder-bob/create](https://oss.callstack.com/react-native-builder-bob/create)）强调 **"the boilerplate for the library doesn't need to be written from scratch"**，本 plan 的 task 1/3 没遵守 —— 把 npx 生成的 `package.json` 和 `android/build.gradle` 当成"重新设计对象"整段重写，丢了模板默认的关键字段，CI build-android 反复失败。下次类似项目应在生成物上做 minimal surgical patch，不做整段重写。
+
+### 已知漏抄 / 改坏
+
+| Task | 文件 | 错误 | 修复 commit |
+|---|---|---|---|
+| 1 | `package.json codegenConfig` | 漏 `"android": { "javaPackageName": "com.unif.reactnativeumeng" }` —— Android codegen 直接跳过,`NativeUmengCommonSpec`/`ShareSpec`/`AnalyticsSpec` 不生成,`compileDebugKotlin` 报一串 `Unresolved reference` | `17894d2` |
+| 3 | `android/build.gradle` | 用手抄简化版,缺 `ext.ReactNativeUmeng = []` 数组、`buildTypes { release { minifyEnabled false } }`、`lint { disable 'GradleCompatible' }`,加了不该有的 `sourceSets.main.java.srcDirs += [generated/java, generated/jni]`,`apply plugin` 顺序错（应 library → kotlin-android → react,而非 react 第一） | `8f6ce1f` |
+| 11 | `android/.../UmengCommonModule.kt` 等 | 注释说 `NativeUmengCommonSpec` IDE 报红可无视 → 实际是 codegenConfig 漏字段所以根本没生成,误导后续诊断 | 同 `17894d2`（codegen 修后此类报红自然消失） |
+| 23 | `example/package.json` | 后期排查时误加 `"@unif/react-native-umeng": "workspace:*"` —— 多余,RN autolinking 走 `example/react-native.config.js` 的 `dependencies.{pkg.name}.root`,metro 走 `withMetroConfig({ root: '..' })`,两者都不要 node_modules 软链 | `2aec094`（清理） |
+
+### 根因分析
+
+| 现象 | 表层根因 | 深层根因 |
+|---|---|---|
+| `Unresolved reference NativeUmeng*Spec` × 9 处 | Android codegen 没跑 | `codegenConfig.android.javaPackageName` 缺失 → codegen 不知道生成到哪个 package → 直接跳过 |
+| `'getName' overrides nothing` / `'onEvent' overrides nothing` 等串错 | Module 类的方法签名找不到父类对应签名 | 父类（生成的 Spec）不存在的连锁反应 |
+| `Return type mismatch: expected 'NativeModule?', actual 'Any?'` | `getModule` 实现返回 `Any?` | `when` 表达式分支返回 `UmengCommonModule(ctx)`,因 `UmengCommonModule` 的父类不存在 → 整个表达式类型回退到 `Any?` |
+
+**全部串错指向同一个根因** —— `codegenConfig.android.javaPackageName` 缺失。
+
+### 下次类似项目的 plan 写法（教训）
+
+1. **Task 1 应这样写**：
+   > "在 `npx create-react-native-library@latest --type turbo-module --languages kotlin-objc` 生成的 `package.json` 基础上,仅 patch:
+   > - `name` 改成 `@unif/react-native-umeng`
+   > - `description` / `author` / `homepage` / `repository` / `publishConfig` 改成 unif-design 元数据
+   > - `devDependencies` 加 `@gorhom/bottom-sheet`、`@unif/react-native-design` 等
+   > - `codegenConfig.name` 改成 `ReactNativeUmengSpec`
+   > - `codegenConfig.android.javaPackageName` 改成 `com.unif.reactnativeumeng`
+   >
+   > **其它字段保留模板原样,不重写整段 package.json**。"
+
+2. **Task 3 应这样写**：
+   > "在生成的 `android/build.gradle` 基础上,仅 patch:
+   > - `namespace` 改成 `com.unif.reactnativeumeng`
+   > - `ext.ReactNativeUmeng` 数组名跟着改
+   > - `dependencies` 追加友盟 / 微信 / 钉钉 SDK
+   >
+   > **其它块（buildscript / apply plugin / buildTypes / lint / compileOptions）保留模板原样**。"
+
+3. **不要在 plan 里贴整段新文件内容** —— 那是"重写"信号,违背 builder-bob 哲学。改为"列 diff"或"列要 patch 的行"。
+
+4. **Plan 执行前要 `git diff` 对比模板原貌** —— `task 1` commit 之后立刻 `git diff initial-commit -- package.json` 看 diff,确认没漏字段。
+
+5. **Native build 验证不能省** —— 之前我们靠 `yarn typecheck`/`yarn test` 验证 task 完成,但 `codegenConfig.android.javaPackageName` 漏抄不影响这两步,只在真跑 `yarn turbo run build:android` 才暴露。Plan task 26 终结验证早就要求跑 build,但当时本机无 Android SDK 跳过了 —— 应该提前 CI 触发,不要等所有 task 完成再跑。
+
+### 当前修复路径
+
+```
+17894d2  fix(android): codegenConfig.android.javaPackageName + 删 sourceSets
+8f6ce1f  chore(android): build.gradle 全面对齐 npx 0.62 模板
+2aec094  chore(example): 删 workspace dep 多余引用
+```
+
+iOS 端单独的 build 困境（CI Xcode 26.3 stdlib bug）见 commit `d8b6d5c` 注释。
+
+---
+
 ## File Structure（实施时创建/修改）
 
 ### 新建文件
