@@ -122,8 +122,13 @@ jobs:
     env:
       XCODE_VERSION: 26
       TURBO_CACHE_DIR: .turbo/ios
-      RCT_USE_RN_DEP: 1
-      RCT_USE_PREBUILT_RNCORE: 1
+      # CI macos-15 上的 Xcode 26 只到 26.3 (本地 Xcode 26.5 测过 prebuilt 能过,
+      # CI 26.3 上 ReactCodegen .cpp 报 'memory' file not found —— stdlib include
+      # path 在 26.3 配置不全。禁 prebuilt 让 React-Core 从源码编译,CI 慢 5-10
+      # 分钟但 100% 稳。Podfile post_install 的 PR #56862 patch 保留(本地
+      # prebuilt=1 走快路径时用)。
+      RCT_USE_RN_DEP: 0
+      RCT_USE_PREBUILT_RNCORE: 0
 
     steps:
       - name: Checkout
