@@ -72,7 +72,7 @@ static BOOL mapPlatform(NSString *p,
   UMSocialPlatformType umPlatform;
   if (!mapPlatform(platform, &umPlatform, reject)) return;
 
-  __weak typeof(self) weakSelf = self;
+  __weak UmengShare *weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
     UMSocialMessageObject *msg = [UMSocialMessageObject new];
     msg.text = text;
@@ -92,7 +92,7 @@ static BOOL mapPlatform(NSString *p,
   UMSocialPlatformType umPlatform;
   if (!mapPlatform(platform, &umPlatform, reject)) return;
 
-  __weak typeof(self) weakSelf = self;
+  __weak UmengShare *weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
     UMShareImageObject *img = [UMShareImageObject new];
     img.shareImage = image;
@@ -119,7 +119,7 @@ static BOOL mapPlatform(NSString *p,
   UMSocialPlatformType umPlatform;
   if (!mapPlatform(platform, &umPlatform, reject)) return;
 
-  __weak typeof(self) weakSelf = self;
+  __weak UmengShare *weakSelf = self;
   dispatch_async(dispatch_get_main_queue(), ^{
     UMShareWebpageObject *web =
         [UMShareWebpageObject shareObjectWithTitle:title
