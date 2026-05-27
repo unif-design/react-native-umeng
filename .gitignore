@@ -44,9 +44,12 @@ android.iml
 # Cocoapods
 #
 example/ios/Pods
+example/ios/Podfile.lock
+example/ios/*.xcworkspace
 
 # Ruby
 example/vendor/
+example/Gemfile.lock
 
 # node.js
 #
