@@ -1,8 +1,17 @@
 buildscript {
-  ext.getExtOrDefault = { name ->
-    return rootProject.ext.has(name)
-      ? rootProject.ext.get(name)
-      : project.properties["ReactNativeUmeng_" + name]
+  ext.ReactNativeUmeng = [
+    kotlinVersion: "2.0.21",
+    minSdkVersion: 24,
+    compileSdkVersion: 36,
+    targetSdkVersion: 36
+  ]
+
+  ext.getExtOrDefault = { prop ->
+    if (rootProject.ext.has(prop)) {
+      return rootProject.ext.get(prop)
+    }
+
+    return ReactNativeUmeng[prop]
   }
 
   repositories {
@@ -12,36 +21,45 @@ buildscript {
 
   dependencies {
     classpath "com.android.tools.build:gradle:8.7.2"
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault("kotlinVersion") ?: '2.1.20'}"
+    // noinspection DifferentKotlinGradleVersion
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault('kotlinVersion')}"
   }
 }
 
-apply plugin: "com.facebook.react"
-apply plugin: "com.android.library"
-apply plugin: "org.jetbrains.kotlin.android"
 
-def reactNativeArchitectures() {
-  def value = rootProject.getProperties().get("reactNativeArchitectures")
-  return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
-}
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+apply plugin: "com.facebook.react"
 
 android {
   namespace "com.unif.reactnativeumeng"
-  compileSdkVersion (getExtOrDefault("compileSdkVersion") as Integer) ?: 35
+
+  compileSdkVersion getExtOrDefault("compileSdkVersion")
 
   defaultConfig {
-    minSdkVersion (getExtOrDefault("minSdkVersion") as Integer) ?: 24
-    targetSdkVersion (getExtOrDefault("targetSdkVersion") as Integer) ?: 34
+    minSdkVersion getExtOrDefault("minSdkVersion")
+    targetSdkVersion getExtOrDefault("targetSdkVersion")
   }
 
-  buildFeatures { buildConfig true }
+  buildFeatures {
+    buildConfig true
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+
+  lint {
+    disable "GradleCompatible"
+  }
 
   compileOptions {
-    sourceCompatibility JavaVersion.VERSION_17
-    targetCompatibility JavaVersion.VERSION_17
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
   }
-
-  kotlinOptions { jvmTarget = "17" }
 }
 
 repositories {
