@@ -1,0 +1,81 @@
+name: 🚀 Feature request
+description: Suggest a new feature or enhancement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # Feature request
+
+        👋 谢谢花时间提建议!
+
+        请尽量填完下面信息,方便我们判断优先级和实现路径。
+  - type: checkboxes
+    attributes:
+      label: 提交前自检
+      options:
+        - label: 我搜过现有 issue / discussion,没有重复
+          required: true
+        - label: 我看过文档站 https://unif-design.github.io/react-native-umeng/,确认现有 API 满足不了
+          required: true
+        - label: 这不是友盟 / 微信 / 钉钉官方 SDK 本身的功能缺失(那些应该报给对应官方)
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题?
+      description: 描述你遇到的具体场景 / 痛点。"用户故事"格式最佳:作为 X,我希望 Y,这样 Z。
+      placeholder: |
+        作为接入友盟分享的开发者,我希望能 ...
+        因为现在 ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 期望的 API / 行为
+      description: 用代码 / 伪代码描述你设想的接口,或描述期望表现。
+      render: ts
+      placeholder: |
+        // 比如新增一个 method
+        Share.shareVideo({
+          platform: Platform.WECHAT_SESSION,
+          videoUrl: 'https://example.com/clip.mp4',
+        });
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的备选方案
+      description: 列出你尝试过 / 想过但没采用的替代方案,以及为什么不行。
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围
+      options:
+        - JS API (Common / Share / Analytics)
+        - ShareSheet UI 组件
+        - iOS native module
+        - Android native module
+        - TurboModule spec / codegen
+        - 文档 / 集成指南
+        - 其他
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: 是否破坏向后兼容?
+      options:
+        - 不破坏(新增 API / 行为)
+        - 可能破坏(修改现有签名 / 默认行为)
+        - 必须破坏(major bump)
+        - 不确定
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 截图、参考资料、相关 RN / 友盟 SDK 文档链接等。
