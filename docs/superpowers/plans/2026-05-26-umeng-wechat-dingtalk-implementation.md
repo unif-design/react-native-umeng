@@ -23,6 +23,7 @@
 | Task | 文件 | 错误 | 修复 commit |
 |---|---|---|---|
 | 1 | `package.json codegenConfig` | 漏 `"android": { "javaPackageName": "com.unif.reactnativeumeng" }` —— Android codegen 直接跳过,`NativeUmengCommonSpec`/`ShareSpec`/`AnalyticsSpec` 不生成,`compileDebugKotlin` 报一串 `Unresolved reference` | `17894d2` |
+| 2 | `ReactNativeUmeng.podspec` | 手加 `pod_target_xcconfig` 4 字段 (`DEFINES_MODULE` / `SWIFT_VERSION=5.0` / `CLANG_ENABLE_MODULES` / `OTHER_LDFLAGS -ObjC`),跟 `install_modules_dependencies(s)` 默认设值**重复**;`SWIFT_VERSION=5.0` 强制降级跟 RN 0.85 默认 Swift 5.10+ 不兼容,潜在风险。**缺** `s.private_header_files = "ios/**/*.h"`,导致 `.h` 暴露到 framework umbrella,污染消费者 import 空间 + 跟 RN modulemap 冲突 | `124b354` |
 | 3 | `android/build.gradle` | 用手抄简化版,缺 `ext.ReactNativeUmeng = []` 数组、`buildTypes { release { minifyEnabled false } }`、`lint { disable 'GradleCompatible' }`,加了不该有的 `sourceSets.main.java.srcDirs += [generated/java, generated/jni]`,`apply plugin` 顺序错（应 library → kotlin-android → react,而非 react 第一） | `8f6ce1f` |
 | 11 | `android/.../UmengCommonModule.kt` 等 | 注释说 `NativeUmengCommonSpec` IDE 报红可无视 → 实际是 codegenConfig 漏字段所以根本没生成,误导后续诊断 | 同 `17894d2`（codegen 修后此类报红自然消失） |
 | 23 | `example/package.json` | 后期排查时误加 `"@unif/react-native-umeng": "workspace:*"` —— 多余,RN autolinking 走 `example/react-native.config.js` 的 `dependencies.{pkg.name}.root`,metro 走 `withMetroConfig({ root: '..' })`,两者都不要 node_modules 软链 | `2aec094`（清理） |
@@ -49,7 +50,16 @@
    >
    > **其它字段保留模板原样,不重写整段 package.json**。"
 
-2. **Task 3 应这样写**：
+2. **Task 2 应这样写**（iOS podspec）：
+   > "在生成的 `ReactNativeUmeng.podspec` 基础上,仅 patch:
+   > - `s.name` 改成 `ReactNativeUmeng`
+   > - `s.source` git URL 改成 `unif-design/react-native-umeng`
+   > - `s.dependency` 追加 `UMCommon` / `UMDevice` / `UMShare/Core` / `UMShare/Social/WeChat` / `UMShare/Social/DingDing`
+   >
+   > **不要手加 `pod_target_xcconfig`** —— `install_modules_dependencies(s)` 默认会设 `DEFINES_MODULE` / `CLANG_ENABLE_MODULES` / `OTHER_LDFLAGS -ObjC` / Swift 版本,手设可能跟 RN 默认冲突。
+   > **保留 `s.private_header_files = 'ios/**/*.h'`** —— 模板默认有这行,把 .h 标 private 不暴露到 framework umbrella。"
+
+3. **Task 3 应这样写**：
    > "在生成的 `android/build.gradle` 基础上,仅 patch:
    > - `namespace` 改成 `com.unif.reactnativeumeng`
    > - `ext.ReactNativeUmeng` 数组名跟着改
@@ -57,11 +67,11 @@
    >
    > **其它块（buildscript / apply plugin / buildTypes / lint / compileOptions）保留模板原样**。"
 
-3. **不要在 plan 里贴整段新文件内容** —— 那是"重写"信号,违背 builder-bob 哲学。改为"列 diff"或"列要 patch 的行"。
+4. **不要在 plan 里贴整段新文件内容** —— 那是"重写"信号,违背 builder-bob 哲学。改为"列 diff"或"列要 patch 的行"。
 
-4. **Plan 执行前要 `git diff` 对比模板原貌** —— `task 1` commit 之后立刻 `git diff initial-commit -- package.json` 看 diff,确认没漏字段。
+5. **Plan 执行前要 `git diff` 对比模板原貌** —— `task 1` commit 之后立刻 `git diff initial-commit -- package.json` 看 diff,确认没漏字段。
 
-5. **Native build 验证不能省** —— 之前我们靠 `yarn typecheck`/`yarn test` 验证 task 完成,但 `codegenConfig.android.javaPackageName` 漏抄不影响这两步,只在真跑 `yarn turbo run build:android` 才暴露。Plan task 26 终结验证早就要求跑 build,但当时本机无 Android SDK 跳过了 —— 应该提前 CI 触发,不要等所有 task 完成再跑。
+6. **Native build 验证不能省** —— 之前我们靠 `yarn typecheck`/`yarn test` 验证 task 完成,但 `codegenConfig.android.javaPackageName` 漏抄不影响这两步,只在真跑 `yarn turbo run build:android` 才暴露。Plan task 26 终结验证早就要求跑 build,但当时本机无 Android SDK 跳过了 —— 应该提前 CI 触发,不要等所有 task 完成再跑。
 
 ### 当前修复路径
 
@@ -69,6 +79,7 @@
 17894d2  fix(android): codegenConfig.android.javaPackageName + 删 sourceSets
 8f6ce1f  chore(android): build.gradle 全面对齐 npx 0.62 模板
 2aec094  chore(example): 删 workspace dep 多余引用
+124b354  chore(ios): podspec 对齐 npx 0.62 模板 (删 pod_target_xcconfig + 加 private_header_files)
 ```
 
 iOS 端单独的 build 困境（CI Xcode 26.3 stdlib bug）见 commit `d8b6d5c` 注释。
