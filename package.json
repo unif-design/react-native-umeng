@@ -128,7 +128,10 @@
   "codegenConfig": {
     "name": "ReactNativeUmengSpec",
     "type": "modules",
-    "jsSrcsDir": "src"
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.unif.reactnativeumeng"
+    }
   },
   "jest": {
     "preset": "@react-native/jest-preset",
