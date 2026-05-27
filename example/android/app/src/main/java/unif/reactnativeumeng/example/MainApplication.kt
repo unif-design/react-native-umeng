@@ -1,4 +1,4 @@
-package unif.reactnativeumshare.example
+package unif.reactnativeumeng.example
 
 import android.app.Application
 import com.facebook.react.PackageList

@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "unif.reactnativeumshare.example"
+    namespace "unif.reactnativeumeng.example"
     defaultConfig {
-        applicationId "unif.reactnativeumshare.example"
+        applicationId "unif.reactnativeumeng.example"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
