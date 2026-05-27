@@ -1,6 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '@unif/react-native-design';
-import { Platform } from '../types';
+import { PLATFORM_BRAND_COLORS, Platform } from '../types';
 import { WeChatGlyph } from './WeChatGlyph';
 import { DingTalkGlyph } from './DingTalkGlyph';
 
@@ -25,7 +25,11 @@ export const PlatformLeading = ({
       <View
         style={[
           styles.container,
-          { width: size, height: size, backgroundColor: '#07C160' },
+          {
+            width: size,
+            height: size,
+            backgroundColor: PLATFORM_BRAND_COLORS[Platform.WECHAT_SESSION],
+          },
         ]}
       >
         <WeChatGlyph size={Math.round(size * 0.5625)} />
