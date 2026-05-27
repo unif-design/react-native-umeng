@@ -2970,9 +2970,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@unif/react-native-design@portal:../../react-native-design::locator=%40unif%2Freact-native-umeng-example%40workspace%3Aexample":
-  version: 0.0.0-use.local
-  resolution: "@unif/react-native-design@portal:../../react-native-design::locator=%40unif%2Freact-native-umeng-example%40workspace%3Aexample"
+"@unif/react-native-design@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@unif/react-native-design@npm:0.2.0"
   peerDependencies:
     "@gorhom/bottom-sheet": ">=5"
     "@sbaiahmed1/react-native-blur": ">=4"
@@ -2984,25 +2984,9 @@ __metadata:
     react-native-safe-area-context: ">=5"
     react-native-svg: ">=15"
     react-native-worklets: ">=0.9"
+  checksum: 10c0/5b9217d0eb712f971adf311c3b90c053432cf5a5e02193162ccbc89d701cd43636d2ad5060749772838064dd556b8368c1573347390faea50d2dba70f881f393
   languageName: node
-  linkType: soft
-
-"@unif/react-native-design@portal:../react-native-design::locator=%40unif%2Freact-native-umeng%40workspace%3A.":
-  version: 0.0.0-use.local
-  resolution: "@unif/react-native-design@portal:../react-native-design::locator=%40unif%2Freact-native-umeng%40workspace%3A."
-  peerDependencies:
-    "@gorhom/bottom-sheet": ">=5"
-    "@sbaiahmed1/react-native-blur": ">=4"
-    react: "*"
-    react-native: "*"
-    react-native-gesture-handler: ">=2"
-    react-native-reanimated: ">=4"
-    react-native-reanimated-carousel: ">=5.0.0-beta.0"
-    react-native-safe-area-context: ">=5"
-    react-native-svg: ">=15"
-    react-native-worklets: ">=0.9"
-  languageName: node
-  linkType: soft
+  linkType: hard
 
 "@unif/react-native-umeng-example@workspace:example":
   version: 0.0.0-use.local
@@ -3020,7 +3004,7 @@ __metadata:
     "@react-native/metro-config": "npm:0.85.3"
     "@react-native/typescript-config": "npm:0.85.3"
     "@types/react": "npm:^19.2.0"
-    "@unif/react-native-design": "portal:../../react-native-design"
+    "@unif/react-native-design": "npm:^0.2.0"
     react: "npm:19.2.3"
     react-native: "npm:0.85.3"
     react-native-builder-bob: "npm:^0.41.0"
@@ -3045,7 +3029,7 @@ __metadata:
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.2.0"
     "@types/react-test-renderer": "npm:^19"
-    "@unif/react-native-design": "portal:../react-native-design"
+    "@unif/react-native-design": "npm:^0.2.0"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.4"
     eslint-config-prettier: "npm:^10.1.8"
