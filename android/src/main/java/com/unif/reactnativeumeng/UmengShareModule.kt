@@ -47,17 +47,17 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
   }
 
   override fun onActivityResult(
-    activity: Activity?,
+    activity: Activity,
     requestCode: Int,
     resultCode: Int,
     data: Intent?
   ) {
-    activity?.let { UMShareAPI.get(it).onActivityResult(requestCode, resultCode, data) }
+    UMShareAPI.get(activity).onActivityResult(requestCode, resultCode, data)
   }
 
   // ActivityEventListener 接口强制实现,我们不处理 onNewIntent (微信/钉钉
   // 回跳走 Activity result 路径,不走 newIntent)
-  override fun onNewIntent(intent: Intent?) {}
+  override fun onNewIntent(intent: Intent) {}
 
   // ── LifecycleEventListener ────────────────────────────────
 
