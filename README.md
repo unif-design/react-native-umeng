@@ -24,7 +24,18 @@ import {
   ShareSheetHost,
 } from '@unif/react-native-umeng';
 
-// 1. 用户同意《隐私协议》后，启动数据采集
+// 1. App 启动后立刻预初始化 (可在 user 同意《隐私协议》之前)
+//    行为:存 config + setPlaform 注册微信/钉钉,**不上报数据**。
+await Common.preInit({
+  appkey: 'YOUR_UMENG_APPKEY',
+  channel: 'App Store',                      // 可选,默认 'App Store' (iOS) / 'default' (Android)
+  wechatAppId: 'wxXXXXXXXX',                 // 可选,配了才注册微信
+  wechatAppSecret: 'XXXXXXXX',               // 跟 wechatAppId 配套
+  wechatUniversalLink: 'https://your.host/', // iOS 微信 1.8.6+ 强制
+  dingtalkAppId: 'dingoaXXXXXXXX',           // 可选,配了才注册钉钉
+});
+
+// 2. 用户同意《隐私协议》后,正式启动数据采集 (preInit 必须先调过)
 await Common.init();
 
 // 2. 命令式分享面板（推荐）
@@ -74,22 +85,10 @@ export default function App() {
 
 #### `ios/<App>/Info.plist`
 
+> 友盟 appkey / appsecret / Universal Link 等配置通过 JS `Common.init(config)` 传,**不写在 Info.plist**。Info.plist 只配 iOS 系统强制的 URL Scheme 查询白名单 + 回调注册:
+
 ```xml
-<key>UMENG_APPKEY</key>
-<string>YOUR_UMENG_APPKEY</string>
-<key>UMENG_CHANNEL</key>
-<string>App Store</string>
-
-<key>UMENG_WECHAT_APPID</key>
-<string>wxXXXXXXXX</string>
-<key>UMENG_WECHAT_APPSECRET</key>
-<string>XXXXXXXX</string>
-<key>UMENG_WECHAT_UNIVERSAL_LINK</key>
-<string>https://your.host/path/</string>
-
-<key>UMENG_DINGTALK_APPID</key>
-<string>dingoaXXXXXXXX</string>
-
+<!-- iOS 9+ 强制:声明 App 想用哪些第三方 App 的 URL Scheme 查询/跳转 -->
 <key>LSApplicationQueriesSchemes</key>
 <array>
   <string>weixin</string>
@@ -101,6 +100,8 @@ export default function App() {
   <string>dingtalk-sso</string>
 </array>
 
+<!-- 接收微信/钉钉分享回调跳回 App。URL Scheme 由各平台开放平台分配:
+     微信 = "wx" + appid; 钉钉 = "dingoa" + appid -->
 <key>CFBundleURLTypes</key>
 <array>
   <dict>
@@ -122,23 +123,26 @@ export default function App() {
 
 ```swift
 import UIKit
-// UmengBootstrap 是 @unif/react-native-umeng 桥导出的 Swift class
-// 由桥 Pod 的 modular header 自动暴露，无需 bridging header
+// UmengBootstrap 是 @unif/react-native-umeng 桥导出的 Objective-C class,
+// CocoaPods 装好后由 ReactNativeUmeng pod 的 public headers 暴露给宿主,
+// Swift 端自动 bridge,无需写 bridging header。
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
   func application(_ app: UIApplication, open url: URL,
                    options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-    return UmengBootstrap.shared.handleOpen(url, options: options)
+    return UmengBootstrap.shared().handleOpenURL(url, options: options)
   }
 
   func application(_ application: UIApplication,
                    continue userActivity: NSUserActivity,
                    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-    return UmengBootstrap.shared.handleUniversalLink(userActivity)
+    return UmengBootstrap.shared().handleUniversalLink(userActivity)
   }
 }
 ```
+
+> Swift ↔ Objective-C 桥接命名规则:ObjC class method `+ (instancetype)shared;` Swift 端是 `UmengBootstrap.shared()`(带括号,不是属性);ObjC instance method `handleOpenURL:options:` Swift 端是 `handleOpenURL(_:options:)`(保留 `URL` 后缀,不会被自动简化成 `handleOpen`)。
 
 #### `ios/Podfile`
 
@@ -163,34 +167,22 @@ end
 
 #### `android/app/src/main/AndroidManifest.xml`
 
+> ✅ 不需要写 `<uses-permission>` 和 `<queries>` — `@unif/react-native-umeng` 的 library Manifest 已经声明,Android manifest merger 自动合并到宿主。
+> ✅ 不需要写友盟相关 `<meta-data>` — appkey 等通过 JS `Common.init(config)` 传。
+>
+> **仅需注册两个回调 Activity**（微信/钉钉 SDK 硬限制:必须在宿主包名下,SDK 用 `getPackageName() + ".wxapi.WXEntryActivity"` / `+ ".ddshare.DDShareActivity"` 反射查找,不能放在 library 包）:
+
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-  <uses-permission android:name="android.permission.INTERNET"/>
-  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-
-  <!-- Android 11+ 包可见性 -->
-  <queries>
-    <package android:name="com.tencent.mm"/>
-    <package android:name="com.alibaba.android.rimet"/>
-  </queries>
-
   <application>
-    <meta-data android:name="UMENG_APPKEY" android:value="@string/umeng_appkey"/>
-    <meta-data android:name="UMENG_CHANNEL" android:value="default"/>
-    <meta-data android:name="UMENG_WECHAT_APPID" android:value="@string/wechat_appid"/>
-    <meta-data android:name="UMENG_WECHAT_APPSECRET" android:value="@string/wechat_appsecret"/>
-    <meta-data android:name="UMENG_DINGTALK_APPID" android:value="@string/dingtalk_appid"/>
-
-    <!-- 微信回调 Activity（友盟提供基类，一行空类） -->
+    <!-- 微信回调 Activity（友盟提供基类,一行空类,见下） -->
     <activity
       android:name=".wxapi.WXEntryActivity"
       android:configChanges="keyboardHidden|orientation|screenSize"
       android:exported="true"
       android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
 
-    <!-- 钉钉回调 Activity（必须叫 DDShareActivity；包路径固定） -->
+    <!-- 钉钉回调 Activity（必须叫 DDShareActivity;包路径固定） -->
     <activity
       android:name=".ddshare.DDShareActivity"
       android:configChanges="keyboardHidden|orientation|screenSize"
@@ -229,9 +221,11 @@ class DDShareActivity : Activity(), IDDAPIEventHandler {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    val appId = packageManager
-      .getApplicationInfo(packageName, android.content.pm.PackageManager.GET_META_DATA)
-      .metaData.getString("UMENG_DINGTALK_APPID") ?: ""
+    // 改成你的钉钉 appid (跟 Common.init({ dingtalkAppId: '...' }) 一致)。
+    // 钉钉 SDK 7.3.7 要求 Activity onCreate 时传 appId 创建 ShareApi 实例,
+    // 这是钉钉 SDK 限制 — Activity 不能直接读 JS 端 config,只能写死或用
+    // BuildConfig.DINGTALK_APPID 这种构建时常量。
+    val appId = "dingoaXXXXXXXX"
     iddShareApi = DDShareApiFactory.createDDShareApi(this, appId, false)
     iddShareApi.handleIntent(intent, this)
   }
@@ -244,46 +238,13 @@ class DDShareActivity : Activity(), IDDAPIEventHandler {
 }
 ```
 
-#### 宿主 MainActivity — onActivityResult / onDestroy 转发
+#### 宿主 MainActivity
 
-```kotlin
-class MainActivity : ReactActivity() {
-  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    com.umeng.socialize.UMShareAPI.get(this).onActivityResult(requestCode, resultCode, data)
-  }
+✅ 不需要 override `onActivityResult` 或 `onDestroy` 转发给 `UMShareAPI` — `UmengShareModule` 实现 `ActivityEventListener`,会自动接管 Activity 回调链路,并在 `invalidate()` 时释放 `UMShareAPI`。
 
-  override fun onDestroy() {
-    super.onDestroy()
-    com.umeng.socialize.UMShareAPI.get(this).release()
-  }
-}
-```
+#### Proguard
 
-#### Proguard `app/proguard-rules.pro`
-
-```pro
--dontwarn com.umeng.**
--keepattributes *Annotation*
-
--keep class com.umeng.** { *; }
--keep class com.uyumao.** { *; }
--keep class com.uc.** { *; }
--keep class com.ut.** { *; }
--keep class com.ta.** { *; }
-
--keep class com.tencent.mm.opensdk.** { *; }
--keep class com.tencent.wxop.** { *; }
--keep class com.tencent.mm.sdk.** { *; }
--keep class com.alibaba.android.** { *; }
-
--keep public class **.R$* { public static final int *; }
--keepclassmembers class * { public <init> (org.json.JSONObject); }
--keepclassmembers enum * {
-  public static **[] values();
-  public static ** valueOf(java.lang.String);
-}
-```
+✅ 不需要写 — `@unif/react-native-umeng` 通过 `android/consumer-rules.pro` 自动给宿主 App 合并 R8/proguard 规则（保留友盟 / 微信 / 钉钉相关 class 不被混淆）。release build 直接跑 `./gradlew assembleRelease` 不会因为混淆 crash。
 
 ## 错误码
 

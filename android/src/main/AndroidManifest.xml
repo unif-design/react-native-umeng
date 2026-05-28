@@ -1,2 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- 友盟统计 / 分享需要的网络权限。Android manifest merger 会自动合并到宿主 -->
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+  <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+  <!-- Android 11+ 包可见性:声明本 library 想用哪些第三方 App
+       (PackageManager.queryIntentActivities 等查询接口需要) -->
+  <queries>
+    <package android:name="com.tencent.mm"/>
+    <package android:name="com.alibaba.android.rimet"/>
+  </queries>
+
 </manifest>

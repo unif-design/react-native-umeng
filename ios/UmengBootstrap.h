@@ -4,26 +4,42 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- * Umeng iOS 初始化共享单例(ObjC++ 版,继承自原 UmengBootstrap.swift)。
+ * Umeng iOS 初始化共享单例 (ObjC++ 版)。
  *
- * 友盟 iOS 公开 SDK 没有 preInit。PIPL 解法:用户同意《隐私协议》前完全不调
- * 任何友盟 API。`ensureInit:` 由 `UmengCommon.init` 触发,读 Info.plist 配置,
- * 跑 UMConfigure initWithAppkey + setPlaform(拼写遵循友盟 SDK 原始错误,
- * 少一个 t)。
+ * 两步初始化对齐友盟 Android 推荐姿态:
+ *   1. ensurePreInit:config:error: — 存 config + setPlaform 注册平台,
+ *      可在 user 同意《隐私协议》之前调。**不调 UMConfigure.initWithAppkey,
+ *      所以不上报数据**。
+ *   2. ensureInit:error: — user 同意后调,真正 [UMConfigure
+ *      initWithAppkey:channel:],开始统计上报。
  *
- * 选 ObjC++ 而非 Swift 是因为:
- * 1. RN 官方推荐 turbo-module 用 ObjC++ (.mm),Swift 需要 bridging header 等
- *    一堆 hack,而 library framework 不支持 bridging header
- * 2. 友盟 UMShare 用旧式 .framework 不带 modulemap,Swift `import UMShare`
- *    在 CocoaPods 严格模式下找不到 module,要 `:modular_headers => true` 兜底
- * 3. 友盟官方对 Swift 集成的唯一支持是 App 级 bridging header,**没考虑
- *    library 场景** —— 67 个 RN 友盟桥库全用 ObjC 是有原因的
+ * iOS 友盟公开 SDK 没有 preInit API,所以 preInit 阶段实际跑 setPlaform
+ * (无上报副作用) + 缓存 config;真正的 initWithAppkey 推迟到 ensureInit。
+ * 跟 Android UMConfigure.preInit + init 两步在 PIPL 合规上等价。
  */
 @interface UmengBootstrap : NSObject
 
 + (instancetype)shared;
 
+/**
+ * 预初始化。idempotent — 重复调只执行一次。
+ *
+ * @param config NSDictionary 含字段:
+ *   - appkey (NSString *, 必填)
+ *   - channel (NSString *, 可选, 默认 "App Store")
+ *   - wechatAppId (NSString *, 可选)
+ *   - wechatAppSecret (NSString *, 可选, 跟 wechatAppId 配套)
+ *   - wechatUniversalLink (NSString *, 可选, 微信 1.8.6+ 强制)
+ *   - dingtalkAppId (NSString *, 可选)
+ */
+- (BOOL)ensurePreInit:(NSDictionary *)config error:(NSError **)error;
+
+/**
+ * 正式初始化。idempotent。`ensurePreInit:` 必须先调过(没调则 return NO
+ * + error.code = -3)。
+ */
 - (BOOL)ensureInit:(NSError **)error;
+
 - (BOOL)isInited;
 
 /// 由宿主 App 的 `application:openURL:options:` 调

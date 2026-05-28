@@ -40,6 +40,8 @@ android {
   defaultConfig {
     minSdkVersion getExtOrDefault("minSdkVersion")
     targetSdkVersion getExtOrDefault("targetSdkVersion")
+    // 跟着 aar 一起发布,宿主 App R8 / proguard 时自动合并
+    consumerProguardFiles 'consumer-rules.pro'
   }
 
   buildFeatures {

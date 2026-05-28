@@ -90,6 +90,25 @@ export type ShareSheetPayload =
       thumb?: string;
     };
 
+/** 友盟初始化配置。`Common.init(config)` 接收。
+ *
+ *  PIPL 合规:user 同意《隐私协议》之后才调 `Common.init(config)`,
+ *  在那之前 native 完全不持有 appkey,不会调任何友盟 API。 */
+export interface UmengInitConfig {
+  /** 友盟 appkey,必填 */
+  appkey: string;
+  /** 渠道标识。默认 iOS = 'App Store',Android = 'default' */
+  channel?: string;
+  /** 微信平台 appid;不传则不注册微信分享 */
+  wechatAppId?: string;
+  /** 微信平台 appsecret;有 wechatAppId 才生效 */
+  wechatAppSecret?: string;
+  /** 微信 Universal Link (1.8.6+ 强制);iOS 才用,有 wechatAppId 才生效 */
+  wechatUniversalLink?: string;
+  /** 钉钉平台 appid;不传则不注册钉钉分享 */
+  dingtalkAppId?: string;
+}
+
 export interface ShareSheetOptions {
   /** 面板标题，默认 '分享至' */
   title?: string;

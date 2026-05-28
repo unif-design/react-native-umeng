@@ -21,6 +21,7 @@ export type {
   ShareLinkOptions,
   ShareSheetPayload,
   ShareSheetOptions,
+  UmengInitConfig,
 } from './types';
 
 export { ShareSheetHost } from './ShareSheet/ShareSheetHost';
