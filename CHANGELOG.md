@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/unif-design/react-native-umeng/compare/v0.1.3...v0.1.4) (2026-05-28)
+
+
+### Bug Fixes
+
+* ios 公开 UmengBootstrap.h header + 评审跟进 ([#16](https://github.com/unif-design/react-native-umeng/issues/16)) ([67f4517](https://github.com/unif-design/react-native-umeng/commit/67f4517669cc8f2168854ecbe33879e465692e6a))
+
 ## [0.1.3](https://github.com/unif-design/react-native-umeng/compare/v0.1.2...v0.1.3) (2026-05-28)
 
 ## [0.1.2](https://github.com/unif-design/react-native-umeng/compare/v0.1.0...v0.1.2) (2026-05-28)
