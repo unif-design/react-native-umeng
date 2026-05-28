@@ -1,5 +1,12 @@
 # Changelog
 
+# [0.2.0](https://github.com/unif-design/react-native-umeng/compare/v0.1.4...v0.2.0) (2026-05-28)
+
+
+### Features
+
+* jest mock export ([#19](https://github.com/unif-design/react-native-umeng/issues/19)) ([095bb89](https://github.com/unif-design/react-native-umeng/commit/095bb89ced9f2aab8636a30d812d89602aeb7e6c))
+
 ## [0.1.4](https://github.com/unif-design/react-native-umeng/compare/v0.1.3...v0.1.4) (2026-05-28)
 
 
