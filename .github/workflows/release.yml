@@ -83,16 +83,20 @@ jobs:
         id: bot
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          # 经 env 传入,不把 ${{ }} 直接插值进 run 脚本 —— GitHub 官方防 shell 注入最佳实践
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
         run: |
-          slug='${{ steps.app-token.outputs.app-slug }}'
-          uid=$(gh api "/users/${slug}[bot]" --jq .id)
-          echo "name=${slug}[bot]" >> "$GITHUB_OUTPUT"
-          echo "email=${uid}+${slug}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+          uid=$(gh api "/users/${APP_SLUG}[bot]" --jq .id)
+          echo "name=${APP_SLUG}[bot]" >> "$GITHUB_OUTPUT"
+          echo "email=${uid}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
 
       - name: Configure git
+        env:
+          BOT_NAME: ${{ steps.bot.outputs.name }}
+          BOT_EMAIL: ${{ steps.bot.outputs.email }}
         run: |
-          git config user.name "${{ steps.bot.outputs.name }}"
-          git config user.email "${{ steps.bot.outputs.email }}"
+          git config user.name "$BOT_NAME"
+          git config user.email "$BOT_EMAIL"
 
       # npm CLI 在 GitHub Actions OIDC 环境下(id-token: write + 包配过 Trusted Publisher)
       # 自动用临时 token publish,不需要写 ~/.npmrc。
