@@ -168,7 +168,7 @@ end
 #### `android/app/src/main/AndroidManifest.xml`
 
 > ✅ 不需要写 `<uses-permission>` 和 `<queries>` — `@unif/react-native-umeng` 的 library Manifest 已经声明,Android manifest merger 自动合并到宿主。
-> ✅ 不需要写友盟相关 `<meta-data>` — appkey 等通过 JS `Common.init(config)` 传。
+> ✅ 不需要写友盟相关 `<meta-data>` — appkey 等通过 JS `Common.preInit(config)` 传。
 >
 > **仅需注册两个回调 Activity**（微信/钉钉 SDK 硬限制:必须在宿主包名下,SDK 用 `getPackageName() + ".wxapi.WXEntryActivity"` / `+ ".ddshare.DDShareActivity"` 反射查找,不能放在 library 包）:
 
@@ -210,6 +210,7 @@ package com.example.app.ddshare
 
 import android.app.Activity
 import android.os.Bundle
+import com.example.app.BuildConfig
 import com.android.dingtalk.share.ddsharemodule.DDShareApiFactory
 import com.android.dingtalk.share.ddsharemodule.IDDAPIEventHandler
 import com.android.dingtalk.share.ddsharemodule.IDDShareApi
@@ -221,11 +222,12 @@ class DDShareActivity : Activity(), IDDAPIEventHandler {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    // 改成你的钉钉 appid (跟 Common.init({ dingtalkAppId: '...' }) 一致)。
-    // 钉钉 SDK 7.3.7 要求 Activity onCreate 时传 appId 创建 ShareApi 实例,
-    // 这是钉钉 SDK 限制 — Activity 不能直接读 JS 端 config,只能写死或用
-    // BuildConfig.DINGTALK_APPID 这种构建时常量。
-    val appId = "dingoaXXXXXXXX"
+    // ⚠️ 这个 appId 必须跟 JS 端 Common.preInit({ dingtalkAppId: '...' }) 传的值一致。
+    // 钉钉 SDK 要求 Activity onCreate 时就传 appId 建 ShareApi 实例,且冷启动可能直接
+    // 拉起本 Activity(JS 还没跑),所以只能 native 侧拿、读不到 JS config —— 这是钉钉
+    // 官方 Android 接入的固有形态(官方示例也是 onCreate 传常量)。为避免两处写死漂移,
+    // 用构建时单一数据源 BuildConfig.DINGTALK_APPID(定义见下)。
+    val appId = BuildConfig.DINGTALK_APPID
     iddShareApi = DDShareApiFactory.createDDShareApi(this, appId, false)
     iddShareApi.handleIntent(intent, this)
   }
@@ -237,6 +239,18 @@ class DDShareActivity : Activity(), IDDAPIEventHandler {
   }
 }
 ```
+
+> **单一数据源(推荐)**：钉钉 appId 在 `app/build.gradle` 用 `buildConfigField` 定义一次，`DDShareActivity` 读 `BuildConfig.DINGTALK_APPID`，同一个值再传给 JS 的 `Common.preInit({ dingtalkAppId })` —— 两处共用一个常量，避免漂移。
+>
+> ```gradle
+> // android/app/build.gradle
+> android {
+>   defaultConfig {
+>     buildConfigField "String", "DINGTALK_APPID", "\"dingoaXXXXXXXX\""
+>   }
+>   buildFeatures { buildConfig = true }   // AGP 8+ 默认关，需显式开
+> }
+> ```
 
 #### 宿主 MainActivity
 
