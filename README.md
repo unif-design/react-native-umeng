@@ -122,23 +122,26 @@ export default function App() {
 
 ```swift
 import UIKit
-// UmengBootstrap 是 @unif/react-native-umeng 桥导出的 Swift class
-// 由桥 Pod 的 modular header 自动暴露，无需 bridging header
+// UmengBootstrap 是 @unif/react-native-umeng 桥导出的 Objective-C class,
+// CocoaPods 装好后由 ReactNativeUmeng pod 的 public headers 暴露给宿主,
+// Swift 端自动 bridge,无需写 bridging header。
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
   func application(_ app: UIApplication, open url: URL,
                    options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-    return UmengBootstrap.shared.handleOpen(url, options: options)
+    return UmengBootstrap.shared().handleOpenURL(url, options: options)
   }
 
   func application(_ application: UIApplication,
                    continue userActivity: NSUserActivity,
                    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
-    return UmengBootstrap.shared.handleUniversalLink(userActivity)
+    return UmengBootstrap.shared().handleUniversalLink(userActivity)
   }
 }
 ```
+
+> Swift ↔ Objective-C 桥接命名规则:ObjC class method `+ (instancetype)shared;` Swift 端是 `UmengBootstrap.shared()`(带括号,不是属性);ObjC instance method `handleOpenURL:options:` Swift 端是 `handleOpenURL(_:options:)`(保留 `URL` 后缀,不会被自动简化成 `handleOpen`)。
 
 #### `ios/Podfile`
 
