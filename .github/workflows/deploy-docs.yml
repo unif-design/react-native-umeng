@@ -1,0 +1,66 @@
+name: Deploy Docs
+
+# Docusaurus 站点部署到 GitHub Pages。
+# 默认 URL:https://unif-design.github.io/react-native-umeng/
+#
+# 前置(一次性):
+#   GitHub repo → Settings → Pages → Source: GitHub Actions
+#
+# 触发:
+#   - push:main 且改了 website/src/package 等
+#   - 手动 workflow_dispatch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'src/**'                          # website 直接 import library 源码
+      - 'package.json'
+      - 'yarn.lock'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# GitHub Pages 官方推荐:同一时间只 1 个 deploy in flight,新的等老的跑完
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0          # docusaurus 算 last-updated 时间要全历史
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Build website
+        run: yarn workspace @unif/react-native-umeng-website build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

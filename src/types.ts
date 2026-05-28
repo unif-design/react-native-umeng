@@ -26,6 +26,12 @@ export const PLATFORM_DEFAULT_SUBTITLES: Readonly<Record<Platform, string>> = {
   [Platform.DINGTALK]: '发送至工作群',
 };
 
+/** 各平台官方品牌色，用作 ShareSheet 平台前导小块的实色填充。 */
+export const PLATFORM_BRAND_COLORS: Readonly<Record<Platform, string>> = {
+  [Platform.WECHAT_SESSION]: '#07C160',
+  [Platform.DINGTALK]: '#2595E8',
+};
+
 export type ShareCode = 'success' | 'cancel' | 'failed';
 
 export interface ShareResult {

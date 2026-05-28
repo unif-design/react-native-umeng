@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.14",
-    "@unif/react-native-design": "^0.2.0",
+    "@unif/react-native-design": "^0.3.0",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "^2.21.0",

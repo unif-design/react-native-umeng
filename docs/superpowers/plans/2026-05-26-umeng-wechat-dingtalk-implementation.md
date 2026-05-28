@@ -14,6 +14,89 @@
 
 ---
 
+## Errata（实施过程发现的偏差，写于 2026-05-27）
+
+> 本 plan 在 native 配置上犯了"从头重写"的错。`create-react-native-library` 官方文档（[oss.callstack.com/react-native-builder-bob/create](https://oss.callstack.com/react-native-builder-bob/create)）强调 **"the boilerplate for the library doesn't need to be written from scratch"**，本 plan 的 task 1/3 没遵守 —— 把 npx 生成的 `package.json` 和 `android/build.gradle` 当成"重新设计对象"整段重写，丢了模板默认的关键字段，CI build-android 反复失败。下次类似项目应在生成物上做 minimal surgical patch，不做整段重写。
+
+### 已知漏抄 / 改坏
+
+| Task | 文件 | 错误 | 修复 commit |
+|---|---|---|---|
+| 1 | `package.json codegenConfig` | 漏 `"android": { "javaPackageName": "com.unif.reactnativeumeng" }` —— Android codegen 直接跳过,`NativeUmengCommonSpec`/`ShareSpec`/`AnalyticsSpec` 不生成,`compileDebugKotlin` 报一串 `Unresolved reference` | `17894d2` |
+| 2 | `ReactNativeUmeng.podspec` | 手加 `pod_target_xcconfig` 4 字段 (`DEFINES_MODULE` / `SWIFT_VERSION=5.0` / `CLANG_ENABLE_MODULES` / `OTHER_LDFLAGS -ObjC`),跟 `install_modules_dependencies(s)` 默认设值**重复**;`SWIFT_VERSION=5.0` 强制降级跟 RN 0.85 默认 Swift 5.10+ 不兼容,潜在风险。**缺** `s.private_header_files = "ios/**/*.h"`,导致 `.h` 暴露到 framework umbrella,污染消费者 import 空间 + 跟 RN modulemap 冲突 | `124b354` |
+| 3 | `android/build.gradle` | 用手抄简化版,缺 `ext.ReactNativeUmeng = []` 数组、`buildTypes { release { minifyEnabled false } }`、`lint { disable 'GradleCompatible' }`,加了不该有的 `sourceSets.main.java.srcDirs += [generated/java, generated/jni]`,`apply plugin` 顺序错（应 library → kotlin-android → react,而非 react 第一） | `8f6ce1f` |
+| 11 | `android/.../UmengCommonModule.kt` 等 | 注释说 `NativeUmengCommonSpec` IDE 报红可无视 → 实际是 codegenConfig 漏字段所以根本没生成,误导后续诊断 | 同 `17894d2`（codegen 修后此类报红自然消失） |
+| 23 | `example/package.json` | 后期排查时误加 `"@unif/react-native-umeng": "workspace:*"` —— 多余,RN autolinking 走 `example/react-native.config.js` 的 `dependencies.{pkg.name}.root`,metro 走 `withMetroConfig({ root: '..' })`,两者都不要 node_modules 软链 | `2aec094`（清理） |
+| 16/17/18 | `ios/Umeng{Bootstrap,CommonImpl,AnalyticsImpl,ShareImpl}.swift` | 选 Swift Adapter Pattern (ObjC++ bridge + Swift Impl) 是**过度设计**。3 个事实链:① RN 官方原文 "Rename `.m` → `.mm` making it an Objective-C++ file" 明确推 ObjC++ ② 友盟 UMShare 6.11.1 用旧式 .framework 不带 Modules/ 目录,非 Clang module;友盟官方 Swift 集成指南只针对 App target 用 bridging header,**library framework 不支持 bridging header,Swift adapter 在友盟生态是孤儿路径** ③ GitHub 搜 react-native umeng 67 个桥库全部 ObjC,零 Swift。Swift adapter 引入 `-Swift.h` umbrella / `react_native_umeng-Swift.h` import / 可选 `:modular_headers => true` 一堆 hack,没换来任何好处 —— 友盟 SDK 全 ObjC API,Swift 调跟 ObjC++ 调代码量几乎一样。CI build-ios 长期挂 `Unable to find module dependency: 'UMShare'` 就是这条路径的报警 | `289cd8a`（全面迁移 ObjC++,删 4 个 Swift,合并 Impl 进各 Module .mm,撤回 podspec/Podfile 配套 hack） |
+
+### 根因分析
+
+| 现象 | 表层根因 | 深层根因 |
+|---|---|---|
+| `Unresolved reference NativeUmeng*Spec` × 9 处 | Android codegen 没跑 | `codegenConfig.android.javaPackageName` 缺失 → codegen 不知道生成到哪个 package → 直接跳过 |
+| `'getName' overrides nothing` / `'onEvent' overrides nothing` 等串错 | Module 类的方法签名找不到父类对应签名 | 父类（生成的 Spec）不存在的连锁反应 |
+| `Return type mismatch: expected 'NativeModule?', actual 'Any?'` | `getModule` 实现返回 `Any?` | `when` 表达式分支返回 `UmengCommonModule(ctx)`,因 `UmengCommonModule` 的父类不存在 → 整个表达式类型回退到 `Any?` |
+
+**全部串错指向同一个根因** —— `codegenConfig.android.javaPackageName` 缺失。
+
+### 下次类似项目的 plan 写法（教训）
+
+1. **Task 1 应这样写**：
+   > "在 `npx create-react-native-library@latest --type turbo-module --languages kotlin-objc` 生成的 `package.json` 基础上,仅 patch:
+   > - `name` 改成 `@unif/react-native-umeng`
+   > - `description` / `author` / `homepage` / `repository` / `publishConfig` 改成 unif-design 元数据
+   > - `devDependencies` 加 `@gorhom/bottom-sheet`、`@unif/react-native-design` 等
+   > - `codegenConfig.name` 改成 `ReactNativeUmengSpec`
+   > - `codegenConfig.android.javaPackageName` 改成 `com.unif.reactnativeumeng`
+   >
+   > **其它字段保留模板原样,不重写整段 package.json**。"
+
+2. **Task 2 应这样写**（iOS podspec）：
+   > "在生成的 `ReactNativeUmeng.podspec` 基础上,仅 patch:
+   > - `s.name` 改成 `ReactNativeUmeng`
+   > - `s.source` git URL 改成 `unif-design/react-native-umeng`
+   > - `s.dependency` 追加 `UMCommon` / `UMDevice` / `UMShare/Core` / `UMShare/Social/WeChat` / `UMShare/Social/DingDing`
+   >
+   > **不要手加 `pod_target_xcconfig`** —— `install_modules_dependencies(s)` 默认会设 `DEFINES_MODULE` / `CLANG_ENABLE_MODULES` / `OTHER_LDFLAGS -ObjC` / Swift 版本,手设可能跟 RN 默认冲突。
+   > **保留 `s.private_header_files = 'ios/**/*.h'`** —— 模板默认有这行,把 .h 标 private 不暴露到 framework umbrella。"
+
+3. **Task 3 应这样写**：
+   > "在生成的 `android/build.gradle` 基础上,仅 patch:
+   > - `namespace` 改成 `com.unif.reactnativeumeng`
+   > - `ext.ReactNativeUmeng` 数组名跟着改
+   > - `dependencies` 追加友盟 / 微信 / 钉钉 SDK
+   >
+   > **其它块（buildscript / apply plugin / buildTypes / lint / compileOptions）保留模板原样**。"
+
+4. **Task 16/17/18 不要选 Swift Adapter Pattern**：
+   > "iOS 端 turbo-module 实现**直接用 ObjC++ (.mm)**,跟 npx 生成的模板一致 + 跟 RN 官方推荐一致 + 跟友盟生态(67 个 RN 友盟桥库全 ObjC)一致。每个 module:
+   > - `UmengXxx.h`: `@interface UmengXxx : NSObject <NativeUmengXxxSpec> @end`
+   > - `UmengXxx.mm`: `RCT_EXPORT_MODULE(UmengXxx)` + `getTurboModule` + 直接 `#import <UMShare/UMShare.h>` 调友盟 ObjC API
+   > - 单独 singleton `UmengBootstrap.h/.mm` 处理 ensureInit + handleOpen + handleUniversalLink,被各 module 引用
+   >
+   > **不要写 .swift 文件**。友盟 UMShare 不是 Clang module,Swift `import UMShare` 在 library framework 里走不通(library framework 不能用 bridging header,且 cocoapods `:modular_headers => true` 是 hack,RN 0.85 prebuilt RNCore 严格模式还容易撞)。Swift 调跟 ObjC++ 调友盟 SDK 代码量几乎一样,没有用 Swift 的理由。"
+
+4. **不要在 plan 里贴整段新文件内容** —— 那是"重写"信号,违背 builder-bob 哲学。改为"列 diff"或"列要 patch 的行"。
+
+5. **Plan 执行前要 `git diff` 对比模板原貌** —— `task 1` commit 之后立刻 `git diff initial-commit -- package.json` 看 diff,确认没漏字段。
+
+6. **Native build 验证不能省** —— 之前我们靠 `yarn typecheck`/`yarn test` 验证 task 完成,但 `codegenConfig.android.javaPackageName` 漏抄不影响这两步,只在真跑 `yarn turbo run build:android` 才暴露。Plan task 26 终结验证早就要求跑 build,但当时本机无 Android SDK 跳过了 —— 应该提前 CI 触发,不要等所有 task 完成再跑。
+
+### 当前修复路径
+
+```
+17894d2  fix(android): codegenConfig.android.javaPackageName + 删 sourceSets
+8f6ce1f  chore(android): build.gradle 全面对齐 npx 0.62 模板
+2aec094  chore(example): 删 workspace dep 多余引用
+124b354  chore(ios): podspec 对齐 npx 0.62 模板 (删 pod_target_xcconfig + 加 private_header_files)
+9003025  fix(android): onEvent map value Any? 适配 ReadableMap.toHashMap()
+289cd8a  refactor(ios): swift adapter → 纯 objc++ (跟 rn 官方 + 友盟生态对齐)
+```
+
+iOS 端早期错误诊断曲折(commit `d8b6d5c` 注释提到的 prebuilt RNCore 假设最终被推翻)。真根因是 plan task 16/17/18 选了 Swift Adapter Pattern 在友盟非 modular pod 上走不通,详见 Errata 表格 task 16/17/18 行。
+
+---
+
 ## File Structure（实施时创建/修改）
 
 ### 新建文件

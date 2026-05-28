@@ -4,6 +4,7 @@ import {
   SUPPORTED_PLATFORMS,
   PLATFORM_DISPLAY_NAMES,
   PLATFORM_DEFAULT_SUBTITLES,
+  PLATFORM_BRAND_COLORS,
   UmengError,
 } from '../types';
 
@@ -24,6 +25,12 @@ describe('types', () => {
     for (const p of SUPPORTED_PLATFORMS) {
       expect(PLATFORM_DISPLAY_NAMES[p]).toBeTruthy();
       expect(PLATFORM_DEFAULT_SUBTITLES[p]).toBeTruthy();
+    }
+  });
+
+  it('every supported platform has a brand color (#RRGGBB)', () => {
+    for (const p of SUPPORTED_PLATFORMS) {
+      expect(PLATFORM_BRAND_COLORS[p]).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
   });
 

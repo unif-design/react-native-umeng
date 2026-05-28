@@ -1,0 +1,102 @@
+---
+sidebar_position: 2
+title: ShareSheet
+description: 命令式拉起微信/钉钉分享面板
+---
+
+# ShareSheet
+
+ShareSheet 是 `@unif/react-native-umeng` 提供的命令式分享面板 —— **一行调用拉起，Promise 拿结果**，不用自己写 Modal、不用维护可见状态。底层走 `@unif/react-native-design` 的 BottomSheet + Cell + Button，深浅主题自动跟随。
+
+## 必备前置
+
+应用根节点挂一次 `<ShareSheetHost />`：
+
+```tsx
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ThemeProvider } from '@unif/react-native-design';
+import { ShareSheetHost } from '@unif/react-native-umeng';
+
+export default function App() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <YourNavigationStack />
+        <ShareSheetHost />
+      </ThemeProvider>
+    </GestureHandlerRootView>
+  );
+}
+```
+
+## 命令式调用
+
+```tsx
+import { Share, UmengError } from '@unif/react-native-umeng';
+
+async function onTap() {
+  try {
+    const r = await Share.openSheet({
+      type: 'link',
+      title: '问问看',
+      url: 'https://example.com',
+      description: '一句话描述',
+      thumb: 'https://example.com/thumb.png',
+    });
+    console.log('shared:', r.code, r.platform);
+  } catch (e) {
+    if (e instanceof UmengError && e.code === 'E_USER_CANCEL') {
+      // 用户点了取消按钮
+    } else {
+      console.error(e);
+    }
+  }
+}
+```
+
+## payload 类型
+
+| `type` | 字段 |
+|---|---|
+| `'text'` | `text: string` |
+| `'image'` | `image: string` (URL/本地路径), `thumb?: string` |
+| `'link'` | `title: string`, `url: string`, `description?: string`, `thumb?: string` |
+
+## options
+
+```tsx
+Share.openSheet(payload, {
+  title: '分享至',            // 面板标题
+  cancelText: '取消',          // 取消按钮文案
+  hideUninstalled: false,     // true: 隐藏未安装平台;false(默认): 置灰但显示
+  subtitles: {
+    [Platform.WECHAT_SESSION]: '发送给好友或群',
+    [Platform.DINGTALK]: '发送至工作群',
+  },
+});
+```
+
+## 错误码
+
+| `code` | 含义 |
+|---|---|
+| `E_USER_CANCEL` | 用户点了取消 / scrim |
+| `E_PLATFORM_NOT_INSTALLED` | 微信/钉钉未安装 |
+| `E_PLATFORM_NOT_SUPPORTED` | platform 字串不在白名单 |
+| `E_INVALID_OPTIONS` | 参数缺失 |
+| `E_SHARE_FAILED` | 友盟回调失败（含 URL Scheme 未配 / 网络错） |
+| `E_UNKNOWN` | 其他 |
+
+## 跳过面板直拉
+
+不要面板、直接拉起单一平台：
+
+```tsx
+import { Share, Platform } from '@unif/react-native-umeng';
+
+await Share.shareLink({
+  platform: Platform.WECHAT_SESSION,
+  title: 'Direct',
+  url: 'https://example.com',
+});
+```
