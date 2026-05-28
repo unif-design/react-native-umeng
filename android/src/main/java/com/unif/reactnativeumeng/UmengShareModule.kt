@@ -1,6 +1,8 @@
 package com.unif.reactnativeumeng
 
 import android.app.Activity
+import android.content.Intent
+import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -14,11 +16,37 @@ import com.umeng.socialize.media.UMWeb
 
 @ReactModule(name = UmengShareModule.NAME)
 class UmengShareModule(reactContext: ReactApplicationContext) :
-  NativeUmengShareSpec(reactContext) {
+  NativeUmengShareSpec(reactContext), ActivityEventListener {
+
+  // PIPL: Module 构造期不调任何友盟 API。等 JS Common.init(config)
+  // 触发 UmengBootstrap.ensureInit() 才会注册微信/钉钉平台。本 module 的
+  // share* 方法依赖 PlatformConfig.setWeixin / setDing 已经调过 — 没 init
+  // 时调 share* 会失败,JS 层应该在 init 之后才调 share。
 
   init {
-    UmengBootstrap.ensurePreInit(reactContext)
+    // 自动接管宿主 Activity 的 onActivityResult 回调,转发给 UMShareAPI。
+    // 避免宿主 MainActivity 自己 override onActivityResult 手动转发。
+    reactContext.addActivityEventListener(this)
   }
+
+  override fun invalidate() {
+    super.invalidate()
+    reactApplicationContext.removeActivityEventListener(this)
+    currentActivity?.let { UMShareAPI.get(it).release() }
+  }
+
+  override fun onActivityResult(
+    activity: Activity?,
+    requestCode: Int,
+    resultCode: Int,
+    data: Intent?
+  ) {
+    activity?.let { UMShareAPI.get(it).onActivityResult(requestCode, resultCode, data) }
+  }
+
+  // ActivityEventListener 接口强制实现,我们不处理 onNewIntent (微信/钉钉
+  // 回跳走 Activity result 路径,不走 newIntent)
+  override fun onNewIntent(intent: Intent?) {}
 
   override fun getName(): String = NAME
 

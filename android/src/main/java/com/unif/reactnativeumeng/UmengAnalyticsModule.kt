@@ -9,9 +9,10 @@ import com.umeng.analytics.MobclickAgent
 class UmengAnalyticsModule(reactContext: ReactApplicationContext) :
   NativeUmengAnalyticsSpec(reactContext) {
 
-  init {
-    UmengBootstrap.ensurePreInit(reactContext)
-  }
+  // PIPL: Module 构造期不调任何友盟 API。等 JS Common.init(config)
+  // 触发 UmengBootstrap.ensureInit() 才会激活友盟。本 module 的 onEvent /
+  // signIn / signOut 在 init 之前调是 no-op 安全的 (MobclickAgent 未 init
+  // 状态下静默吞调用)。
 
   override fun getName(): String = NAME
 

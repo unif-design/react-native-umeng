@@ -53,7 +53,25 @@ function DemoScreen() {
 
       <Section title="Common">
         <RNButton
-          title="Common.init()（同意后调）"
+          title="Common.preInit(config)（App 启动后立刻调）"
+          onPress={async () => {
+            try {
+              await Common.preInit({
+                appkey: 'YOUR_UMENG_APPKEY',
+                channel: 'App Store',
+                wechatAppId: 'wxXXXXXXXX',
+                wechatAppSecret: 'XXXXXXXX',
+                wechatUniversalLink: 'https://your.host/path/',
+                dingtalkAppId: 'dingoaXXXXXXXX',
+              });
+              append('✓ Common.preInit OK');
+            } catch (e) {
+              append(`✗ Common.preInit: ${(e as Error).message}`);
+            }
+          }}
+        />
+        <RNButton
+          title="Common.init()（同意后调，preInit 之后）"
           onPress={async () => {
             try {
               await Common.init();
