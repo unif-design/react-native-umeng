@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.LifecycleEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.annotations.ReactModule
@@ -16,7 +17,9 @@ import com.umeng.socialize.media.UMWeb
 
 @ReactModule(name = UmengShareModule.NAME)
 class UmengShareModule(reactContext: ReactApplicationContext) :
-  NativeUmengShareSpec(reactContext), ActivityEventListener {
+  NativeUmengShareSpec(reactContext),
+  ActivityEventListener,
+  LifecycleEventListener {
 
   // PIPL: Module 构造期不调任何友盟 API。等 JS Common.init(config)
   // 触发 UmengBootstrap.ensureInit() 才会注册微信/钉钉平台。本 module 的
@@ -27,11 +30,19 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
     // 自动接管宿主 Activity 的 onActivityResult 回调,转发给 UMShareAPI。
     // 避免宿主 MainActivity 自己 override onActivityResult 手动转发。
     reactContext.addActivityEventListener(this)
+
+    // 监听宿主 Activity 生命周期,onHostDestroy 时 release UMShareAPI 缓存
+    // (友盟 UMShareAPI.get(activity) 按 activity 缓存 instance,如果不显式
+    // release 而 Activity 销毁,会泄漏 Activity 引用)。
+    // 这是 invalidate() 之外的兜底:invalidate 只在 catalyst instance
+    // destroy 时调,但宿主 Activity 在 JS 不重启时也可能销毁。
+    reactContext.addLifecycleEventListener(this)
   }
 
   override fun invalidate() {
     super.invalidate()
     reactApplicationContext.removeActivityEventListener(this)
+    reactApplicationContext.removeLifecycleEventListener(this)
     currentActivity?.let { UMShareAPI.get(it).release() }
   }
 
@@ -47,6 +58,16 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
   // ActivityEventListener 接口强制实现,我们不处理 onNewIntent (微信/钉钉
   // 回跳走 Activity result 路径,不走 newIntent)
   override fun onNewIntent(intent: Intent?) {}
+
+  // ── LifecycleEventListener ────────────────────────────────
+
+  override fun onHostResume() {}
+  override fun onHostPause() {}
+  override fun onHostDestroy() {
+    // 宿主 Activity 销毁时同步 release,避免友盟 UMShareAPI 缓存持有
+    // 已销毁 Activity 引用 (内存泄漏 / ActivityNotFoundException)
+    currentActivity?.let { UMShareAPI.get(it).release() }
+  }
 
   override fun getName(): String = NAME
 
