@@ -260,6 +260,26 @@ class DDShareActivity : Activity(), IDDAPIEventHandler {
 
 ✅ 不需要写 — `@unif/react-native-umeng` 通过 `android/consumer-rules.pro` 自动给宿主 App 合并 R8/proguard 规则（保留友盟 / 微信 / 钉钉相关 class 不被混淆）。release build 直接跑 `./gradlew assembleRelease` 不会因为混淆 crash。
 
+## 测试 / Mocking
+
+宿主 App 用 jest 测自己代码时，`@unif/react-native-umeng` 的 native 绑定在 jest 里加载会崩。库提供了开箱 mock，一行替换：
+
+```ts
+// jest setup 或单个测试文件
+jest.mock('@unif/react-native-umeng', () => require('@unif/react-native-umeng/mock'));
+```
+
+替换后：`Common` / `Share` / `Analytics` 方法都是 `jest.fn`，`Share.*` 默认 resolve 成功，`Common.isInited()` 默认 `false`，`ShareSheetHost` 渲染 `null`，纯枚举/常量（`Platform` 等）与 `UmengError` 仍是真实值。
+
+按需覆盖结果（mock 另导出 `shareSuccess` / `shareCancel` / `shareFailed` 助手）：
+
+```ts
+import { Share, Platform } from '@unif/react-native-umeng';
+import { shareCancel } from '@unif/react-native-umeng/mock';
+
+(Share.shareText as jest.Mock).mockResolvedValueOnce(shareCancel(Platform.WECHAT_SESSION));
+```
+
 ## 错误码
 
 | code | 含义 |
