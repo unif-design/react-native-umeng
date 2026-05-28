@@ -48,7 +48,8 @@ on:
 concurrency:
   # 同一时间只允许一个发版 run —— 防并发 release-it 互撞 tag/push,
   # 兼作死循环的第三道防线。cancel-in-progress: false —— 发版跑到一半不能打断。
-  group: release
+  # group 用 ${{ github.workflow }}(=本 workflow 名,唯一)而非静态串,避免跟别的 workflow 撞同名并发组。
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 permissions:
