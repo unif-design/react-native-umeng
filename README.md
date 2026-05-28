@@ -143,26 +143,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 #### `ios/Podfile`
 
 ```ruby
-use_frameworks! :linkage => :static
-use_modular_headers!
-
 target 'YourApp' do
   config = use_native_modules!
   use_react_native!(:path => config[:reactNativePath])
 
   post_install do |installer|
     react_native_post_install(installer, config[:reactNativePath])
-    # 清掉 UMShare 6.11.1 的 EXCLUDED_ARCHS=arm64 simulator，让 Apple Silicon Mac 模拟器跑起来
-    installer.pods_project.targets.each do |target|
-      if target.name.start_with?('UM')
-        target.build_configurations.each do |config|
-          config.build_settings.delete('EXCLUDED_ARCHS[sdk=iphonesimulator*]')
-        end
-      end
-    end
   end
 end
 ```
+
+> **真机测试**：友盟 UMShare 6.11.1 在 Apple Silicon Mac 模拟器上有 `EXCLUDED_ARCHS=arm64` 限制（友盟旧式 .framework 没出 arm64 simulator slice）。**用真机测试微信/钉钉分享即可**，模拟器跑不起来不影响生产。强制清 `EXCLUDED_ARCHS` 让模拟器跑起来反而可能在编译期触发 arm64 链接错。
 
 #### 微信 Universal Link
 
