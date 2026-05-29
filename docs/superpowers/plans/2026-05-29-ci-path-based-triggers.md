@@ -45,10 +45,13 @@
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
-          # 各区域 glob;code = 非纯文档聚合(anchor flatten),给 lint/test 用。
+          # 各区域 glob;code = 非纯文档聚合(给 lint/test 用)。
           # 注意:不要给本 workflow 加 on.paths —— 那会让 required check 永远 pending 卡死 PR。
+          # code 显式列全所有非文档 glob,不用 YAML anchor —— anchor 在标准 YAML 里展开成
+          # nested array,得靠 dorny 内部 flatten 才生效;这是安全关键 gate(失效会让 lint/test
+          # 永远 skip、误放行坏代码),不赌该行为。code 须 = shared+js+android+ios 全并集(含 *.podspec)。
           filters: |
-            shared: &shared
+            shared:
               - 'package.json'
               - 'yarn.lock'
               - 'tsconfig*.json'
@@ -56,18 +59,25 @@
               - 'react-native.config.js'
               - '.nvmrc'
               - '.github/**'
-            js: &js
+            js:
               - 'src/**'
-            android: &android
+            android:
               - 'android/**'
-            ios: &ios
+            ios:
               - 'ios/**'
               - '*.podspec'
             code:
-              - *shared
-              - *js
-              - *android
-              - *ios
+              - 'package.json'
+              - 'yarn.lock'
+              - 'tsconfig*.json'
+              - 'babel.config.js'
+              - 'react-native.config.js'
+              - '.nvmrc'
+              - '.github/**'
+              - 'src/**'
+              - 'android/**'
+              - 'ios/**'
+              - '*.podspec'
 
   lint:
 ```
