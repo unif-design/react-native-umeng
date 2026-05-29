@@ -131,7 +131,7 @@ import UIKit
 class AppDelegate: UIResponder, UIApplicationDelegate {
   func application(_ app: UIApplication, open url: URL,
                    options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-    return UmengBootstrap.shared().handleOpenURL(url, options: options)
+    return UmengBootstrap.shared().handleOpen(url, options: options)
   }
 
   func application(_ application: UIApplication,
@@ -142,7 +142,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 ```
 
-> Swift ↔ Objective-C 桥接命名规则:ObjC class method `+ (instancetype)shared;` Swift 端是 `UmengBootstrap.shared()`(带括号,不是属性);ObjC instance method `handleOpenURL:options:` Swift 端是 `handleOpenURL(_:options:)`(保留 `URL` 后缀,不会被自动简化成 `handleOpen`)。
+> Swift ↔ Objective-C 桥接命名规则:ObjC class method `+ (instancetype)shared;` Swift 端是 `UmengBootstrap.shared()`(带括号,不是属性);ObjC instance method `handleOpenURL:options:` 首参类型是 `NSURL`,Swift 的 omit-needless-words 规则会去掉方法名末尾跟首参类型重复的 `URL`,导入成 **`handleOpen(_:options:)`**(不是 `handleOpenURL`,写 `handleOpenURL` 会编译报 `has been renamed to 'handleOpen(_:options:)'`)。`handleUniversalLink:` 首参 `NSUserActivity`、方法名末尾 `Link` 非类型名,不简化,保持 `handleUniversalLink(_:)`。
 
 #### `ios/Podfile`
 
