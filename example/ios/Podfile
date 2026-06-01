@@ -30,37 +30,5 @@ target 'ReactNativeUmengExample' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
-
-    # ─── prebuilt RNCore patch (facebook/react-native#56862) ───
-    # 即便 RN 0.86.0-rc.2 ios-prebuild templates 含 fix,CI macos-latest
-    # 上 ReactCodegen .cpp 仍报 'memory' file not found。强制 idempotent
-    # 二次 patch xcframework 里的 umbrella + modulemap,以 marker 跳过已修
-    # 文件,不破坏 RN ≥ 0.86 自带 fix 的版本。
-    pods_root = installer.sandbox.root.to_s
-    umbrella_path = "#{pods_root}/React-Core-prebuilt/React.xcframework/Headers/React_Core/React_Core-umbrella.h"
-    if File.exist?(umbrella_path)
-      content = File.read(umbrella_path)
-      marker = '// RN-patch: load RCTDefines.h first (#56862)'
-      already_top = content.lines.first(30).any? { |l| l.include?('#import <React/RCTDefines.h>') }
-      unless content.include?(marker) || already_top
-        patched = content.sub(
-          /^#import <React\/CoreModulesPlugins\.h>$/,
-          "#{marker}\n#import <React/RCTDefines.h>\n\n#import <React/CoreModulesPlugins.h>"
-        )
-        if patched != content
-          File.write(umbrella_path, patched)
-          Pod::UI.puts "  patched #{umbrella_path.sub(pods_root, 'Pods')}".yellow
-        end
-      end
-    end
-
-    Dir.glob("#{pods_root}/React-Core-prebuilt/React.xcframework/**/module.modulemap").each do |mm|
-      content = File.read(mm)
-      next unless content.include?('module * { export * }')
-      patched = content.gsub(/^\s*module \* \{ export \* \}\s*$\n?/, '')
-      File.write(mm, patched)
-      Pod::UI.puts "  patched #{mm.sub(pods_root, 'Pods')}".yellow
-    end
-    # ─── end prebuilt RNCore patch ───
   end
 end
