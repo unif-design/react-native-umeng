@@ -192,20 +192,23 @@ jobs:
           yarn turbo run build:android --cache-dir="${{ env.TURBO_CACHE_DIR }}"
 
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: changes
     if: needs.changes.outputs.ios == 'true' || needs.changes.outputs.js == 'true' || needs.changes.outputs.shared == 'true'
 
     env:
-      XCODE_VERSION: 26
+      # macos-26 runner(2026-02-26 GA)装了 Xcode 26.5;26.5 修好了 26.3 上
+      # ReactCodegen .cpp 报 'memory' file not found 的 stdlib include path 问题
+      # (本地 Xcode 26.5 验证过 prebuilt 能过)。换 macos-26 + 显式 pin 26.5
+      # (镜像默认 26.4.1,未验证不用),按官方模板默认开 prebuilt 走预编译
+      # React.xcframework,省掉源码编译的 5-10 分钟。Podfile 用官方原版即可,
+      # 26.5 上不再需要 #56862 umbrella/modulemap patch。
+      # TODO: 待 GitHub 把 macos-latest 滚到 26,可改回 macos-latest +
+      # XCODE_VERSION 26,与 create-react-native-library 模板完全一致。
+      XCODE_VERSION: "26.5"
       TURBO_CACHE_DIR: .turbo/ios
-      # CI macos-15 上的 Xcode 26 只到 26.3 (本地 Xcode 26.5 测过 prebuilt 能过,
-      # CI 26.3 上 ReactCodegen .cpp 报 'memory' file not found —— stdlib include
-      # path 在 26.3 配置不全。禁 prebuilt 让 React-Core 从源码编译,CI 慢 5-10
-      # 分钟但 100% 稳。Podfile post_install 的 PR #56862 patch 保留(本地
-      # prebuilt=1 走快路径时用)。
-      RCT_USE_RN_DEP: 0
-      RCT_USE_PREBUILT_RNCORE: 0
+      RCT_USE_RN_DEP: 1
+      RCT_USE_PREBUILT_RNCORE: 1
 
     steps:
       - name: Checkout
