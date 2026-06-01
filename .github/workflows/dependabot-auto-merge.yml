@@ -1,3 +1,6 @@
+# 目标路径:.github/workflows/dependabot-auto-merge.yml
+# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
+# 文件名统一 dependabot-auto-merge.yml(历史上有仓叫 dependabot-automerge.yml,sync 会覆盖为本名)。
 name: Dependabot Auto-merge
 
 # 自动批准 + 合并 dependabot 的 patch / minor 类 PR,跳过人审。
@@ -35,6 +38,8 @@ jobs:
       - name: Fetch Dependabot metadata
         id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Approve PR
         if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'

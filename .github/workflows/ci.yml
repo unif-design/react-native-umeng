@@ -1,3 +1,13 @@
+# 目标路径:.github/workflows/ci.yml
+# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
+# 改 CI 标准请改 .github/templates/workflows/ci.yml 再 sync-repo.sh 下发,不要直接改本文件。
+#
+# 这是「四仓最优并集」:
+#   - actionlint 显式 -shellcheck=shellcheck 加固(camera 写法)
+#   - changes paths-filter job(dorny/paths-filter v4)跳过纯文档/无关 PR
+#   - build-android distribution: temurin(design,避 zulu/Azul CDN 偶发 520)
+#   - build-ios macos-26 + Xcode 26.5 + RCT_USE_PREBUILT_RNCORE(umeng/hms-scan)
+#   - setup-xcode pin v1.6.0 + macos-26(umeng/hms-scan 真实在跑的组合)
 name: CI
 on:
   push:
@@ -25,12 +35,14 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Run actionlint
         # 下载 pinned binary 校验所有 workflow 的 YAML / 表达式 / run 里的 shell。
-        # shell 检查:actionlint 默认自动从 PATH 调 shellcheck(ubuntu-latest 已预装,无需 -shellcheck= 参数)。
         # release.yml 那次 YAML 引号 bug 当初就是缺这道 lint 才漏到 main 的。
+        # ubuntu-latest 预装 shellcheck;actionlint 默认自动集成它检查 run: 脚本(SC2086 等)。
+        # 显式断言 shellcheck 存在 + 传 -shellcheck=shellcheck,防 runner 未来变更导致 shell 检查静默降级。
         run: |
           ACTIONLINT_VERSION=1.7.12
           curl -sSfL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" | tar -xz actionlint
-          ./actionlint -color
+          shellcheck --version
+          ./actionlint -color -shellcheck=shellcheck
         shell: bash
 
   changes:
@@ -48,7 +60,7 @@ jobs:
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
-          # 各区域 glob;code = 非纯文档聚合(anchor flatten),给 lint/test 用。
+          # 各区域 glob;code = 非纯文档聚合,给 lint/test 用。
           # 注意:不要给本 workflow 加 on.paths —— 那会让 required check 永远 pending 卡死 PR。
           filters: |
             shared:
@@ -165,14 +177,15 @@ jobs:
         if: env.turbo_cache_hit != 1
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
-          distribution: 'zulu'
+          # temurin:ubuntu runner toolcache 预装 JDK 17,setup-java 本地命中、
+          # 不走远端下载,避开 zulu(Azul CDN)偶发 520(error code: 520)。
+          distribution: 'temurin'
           java-version: '17'
 
       - name: Finalize Android SDK
         if: env.turbo_cache_hit != 1
         run: |
           /bin/bash -c "yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null"
-
 
       - name: Cache Gradle
         if: env.turbo_cache_hit != 1
@@ -250,4 +263,3 @@ jobs:
       - name: Build example for iOS
         run: |
           yarn turbo run build:ios --cache-dir="${{ env.TURBO_CACHE_DIR }}"
-
