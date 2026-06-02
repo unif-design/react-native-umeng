@@ -16,11 +16,11 @@ import com.umeng.socialize.media.UMImage
 import com.umeng.socialize.media.UMWeb
 
 @ReactModule(name = UmengShareModule.NAME)
-class UmengShareModule(reactContext: ReactApplicationContext) :
-  NativeUmengShareSpec(reactContext),
+class UmengShareModule(
+  reactContext: ReactApplicationContext,
+) : NativeUmengShareSpec(reactContext),
   ActivityEventListener,
   LifecycleEventListener {
-
   // PIPL: Module 构造期不调任何友盟 API。等 JS Common.init(config)
   // 触发 UmengBootstrap.ensureInit() 才会注册微信/钉钉平台。本 module 的
   // share* 方法依赖 PlatformConfig.setWeixin / setDing 已经调过 — 没 init
@@ -50,7 +50,7 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
     activity: Activity,
     requestCode: Int,
     resultCode: Int,
-    data: Intent?
+    data: Intent?,
   ) {
     UMShareAPI.get(activity).onActivityResult(requestCode, resultCode, data)
   }
@@ -62,7 +62,9 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
   // ── LifecycleEventListener ────────────────────────────────
 
   override fun onHostResume() {}
+
   override fun onHostPause() {}
+
   override fun onHostDestroy() {
     // 宿主 Activity 销毁时同步 release,避免友盟 UMShareAPI 缓存持有
     // 已销毁 Activity 引用 (内存泄漏 / ActivityNotFoundException)
@@ -71,12 +73,17 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
 
   override fun getName(): String = NAME
 
-  override fun shareText(platform: String, text: String, promise: Promise) {
+  override fun shareText(
+    platform: String,
+    text: String,
+    promise: Promise,
+  ) {
     runOnUi {
-      val activity = currentActivity ?: run {
-        promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
-        return@runOnUi
-      }
+      val activity =
+        currentActivity ?: run {
+          promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
+          return@runOnUi
+        }
       val media = mapPlatform(platform, promise) ?: return@runOnUi
       ShareAction(activity)
         .withText(text)
@@ -86,12 +93,18 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  override fun shareImage(platform: String, image: String, thumb: String?, promise: Promise) {
+  override fun shareImage(
+    platform: String,
+    image: String,
+    thumb: String?,
+    promise: Promise,
+  ) {
     runOnUi {
-      val activity = currentActivity ?: run {
-        promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
-        return@runOnUi
-      }
+      val activity =
+        currentActivity ?: run {
+          promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
+          return@runOnUi
+        }
       val media = mapPlatform(platform, promise) ?: return@runOnUi
       val img = UMImage(activity, image)
       if (!thumb.isNullOrEmpty()) img.setThumb(UMImage(activity, thumb))
@@ -109,13 +122,14 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
     url: String,
     description: String?,
     thumb: String?,
-    promise: Promise
+    promise: Promise,
   ) {
     runOnUi {
-      val activity = currentActivity ?: run {
-        promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
-        return@runOnUi
-      }
+      val activity =
+        currentActivity ?: run {
+          promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
+          return@runOnUi
+        }
       val media = mapPlatform(platform, promise) ?: return@runOnUi
       val web = UMWeb(url)
       web.title = title
@@ -129,7 +143,10 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  override fun isInstalled(platform: String, promise: Promise) {
+  override fun isInstalled(
+    platform: String,
+    promise: Promise,
+  ) {
     val media = mapPlatform(platform, promise) ?: return
     val activity = currentActivity
     if (activity == null) {
@@ -142,39 +159,59 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
 
   // ── helpers ──────────────────────────────────────────────
 
-  private fun mapPlatform(p: String, promise: Promise): SHARE_MEDIA? {
-    return when (p) {
-      "wechat_session" -> SHARE_MEDIA.WEIXIN
-      "dingtalk" -> SHARE_MEDIA.DINGTALK
+  private fun mapPlatform(
+    p: String,
+    promise: Promise,
+  ): SHARE_MEDIA? =
+    when (p) {
+      "wechat_session" -> {
+        SHARE_MEDIA.WEIXIN
+      }
+
+      "dingtalk" -> {
+        SHARE_MEDIA.DINGTALK
+      }
+
       else -> {
         promise.reject("E_PLATFORM_NOT_SUPPORTED", "Platform '$p' is not supported")
         null
       }
     }
-  }
 
   private fun runOnUi(block: () -> Unit) {
     val mainLooper = android.os.Looper.getMainLooper()
-    if (android.os.Looper.myLooper() == mainLooper) block()
-    else android.os.Handler(mainLooper).post(block)
+    if (android.os.Looper.myLooper() == mainLooper) {
+      block()
+    } else {
+      android.os.Handler(mainLooper).post(block)
+    }
   }
 
-  private fun buildListener(platform: String, promise: Promise): UMShareListener {
-    return object : UMShareListener {
+  private fun buildListener(
+    platform: String,
+    promise: Promise,
+  ): UMShareListener =
+    object : UMShareListener {
       override fun onStart(p0: SHARE_MEDIA?) {}
+
       override fun onResult(p0: SHARE_MEDIA?) {
         val map = Arguments.createMap()
         map.putString("code", "success")
         map.putString("platform", platform)
         promise.resolve(map)
       }
-      override fun onError(p0: SHARE_MEDIA?, t: Throwable?) {
+
+      override fun onError(
+        p0: SHARE_MEDIA?,
+        t: Throwable?,
+      ) {
         val map = Arguments.createMap()
         map.putString("code", "failed")
         map.putString("message", t?.message ?: "unknown error")
         map.putString("platform", platform)
         promise.resolve(map)
       }
+
       override fun onCancel(p0: SHARE_MEDIA?) {
         val map = Arguments.createMap()
         map.putString("code", "cancel")
@@ -182,7 +219,6 @@ class UmengShareModule(reactContext: ReactApplicationContext) :
         promise.resolve(map)
       }
     }
-  }
 
   companion object {
     const val NAME = "UmengShare"

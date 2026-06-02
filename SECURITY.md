@@ -1,31 +1,44 @@
-# Security Policy
+# 安全策略
 
-## 报告漏洞
+## 报告安全漏洞
 
-如果你发现 `@unif/react-native-umeng` 中的安全漏洞，**请不要在公开 Issue 里描述细节**，避免在补丁发布前被利用。
+请**不要**在 GitHub Issues 公开报告安全漏洞 —— 公开 issue 在修复前可能被人利用。
 
-请通过 GitHub 的 **Private vulnerability reporting** 提交：
+请通过以下任一**私下**渠道报告:
 
-👉 https://github.com/unif-design/react-native-umeng/security/advisories/new
+- **GitHub Security Advisory**(推荐):进对应 repo → Security tab → "Report a vulnerability"
+- **邮件**:382724935@qq.com(主题加 `[security]`)
 
-我们会在 **3 个工作日内**回复，确认漏洞后通常 **2 周内**发布 patch 版本 + GitHub Security Advisory。
+报告时请尽量包含:
 
-## 范围
+- 受影响的 repo + 版本范围
+- 漏洞类型 + 触发场景
+- 复现步骤(若已有)
+- 可能的影响 + 严重性评估
 
-| 在范围 | 不在范围 |
+## 响应时间承诺
+
+| 阶段 | 承诺时间 |
 |---|---|
-| Native module 桥代码（iOS Swift/ObjC++、Android Kotlin） | 友盟 SDK 本身的漏洞（请直接报给 [友盟](https://developer.umeng.com/)）|
-| JS / TypeScript 层逻辑（`src/`） | 微信 / 钉钉官方 SDK 漏洞（请报给腾讯 / 阿里）|
-| TurboModule spec / codegen 配置 | example 工程的演示代码 |
-| README / 文档站建议的宿主集成步骤 | 第三方 npm 依赖（请到对应仓库报）|
+| 收到报告 → 维护者确认 | 7 天内 |
+| 确认 → 修复方案 / 时间线公布 | 30 天内 |
+| 高危漏洞修复后 | 按 [CVE 流程](https://www.cve.org/) 申请编号(如适用)+ GitHub Security Advisory 公示 |
 
-## 已支持的版本
+## 支持的版本
 
-| 版本 | 支持情况 |
+各 repo 默认只对**最新 major 版本**提供安全更新。具体到 npm 包(如 `@unif/react-native-design`):
+
+| 版本 | 是否支持 |
 |---|---|
-| `0.x` (latest) | ✅ 接受安全报告 + 提供 patch |
-| `< 0.1.0` | ❌ 早期开发版,请升级 |
+| 当前 minor(0.x.y)| ✅ 完整支持 |
+| 旧 major(如 0.0.x 而当前是 0.2.x)| ⚠️ 仅 critical 漏洞回 patch,非 critical 建议升级 |
 
-## 致谢
+## 公开披露
 
-负责任报告（responsible disclosure）的研究者将在 Security Advisory 致谢列表中显式提及（除非要求匿名）。
+漏洞修复后,我们会:
+
+- 发新 patch 版本(走 `fix:` commit + 自动发版)
+- 在 GitHub Security Advisory 公开漏洞细节(CVE 编号 / 影响 / 修复版本)
+- 在 CHANGELOG 标注 security-related
+
+我们不会在修复前公开漏洞信息。

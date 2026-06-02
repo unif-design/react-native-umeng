@@ -17,9 +17,7 @@ RCT_EXPORT_MODULE(UmengAnalytics)
     NSMutableDictionary<NSString *, NSString *> *attrs = [NSMutableDictionary new];
     for (NSString *k in params) {
       id v = params[k];
-      attrs[k] = [v isKindOfClass:[NSString class]]
-                     ? (NSString *)v
-                     : [NSString stringWithFormat:@"%@", v];
+      attrs[k] = [v isKindOfClass:[NSString class]] ? (NSString *)v : [NSString stringWithFormat:@"%@", v];
     }
     [MobClick event:eventId attributes:attrs];
   } else {

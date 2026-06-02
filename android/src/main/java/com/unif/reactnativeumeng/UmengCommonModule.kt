@@ -9,16 +9,19 @@ import com.facebook.react.module.annotations.ReactModule
 // src/NativeUmengCommon.ts。signature: preInit(config: Object): Promise<void>
 //                                     init(): Promise<void>
 @ReactModule(name = UmengCommonModule.NAME)
-class UmengCommonModule(reactContext: ReactApplicationContext) :
-  NativeUmengCommonSpec(reactContext) {
-
+class UmengCommonModule(
+  reactContext: ReactApplicationContext,
+) : NativeUmengCommonSpec(reactContext) {
   // PIPL 合规:Module 构造期不调任何友盟 API。等 JS Common.preInit(config)
   // 触发,把 appkey 等配置传过来才开始 preInit。user 同意后再调 Common.init()
   // 真正开始上报。
 
   override fun getName(): String = NAME
 
-  override fun preInit(config: ReadableMap, promise: Promise) {
+  override fun preInit(
+    config: ReadableMap,
+    promise: Promise,
+  ) {
     try {
       UmengBootstrap.ensurePreInit(reactApplicationContext, config)
       promise.resolve(null)
