@@ -10,17 +10,17 @@ export default function Home(): React.JSX.Element {
     >
       <header className="unif-hero">
         <div className="unif-hero__inner">
-          <span className="unif-hero__pill">@UNIF/REACT-NATIVE-UMENG · v0.1</span>
+          <span className="unif-hero__pill">@UNIF/REACT-NATIVE-UMENG</span>
           <h1 className="unif-hero__title">Unif Umeng</h1>
           <p className="unif-hero__lede">
             友盟 U-Share(微信会话 / 钉钉)+ U-App 移动统计的 React Native 桥。命令式 ShareSheet,PIPL 合规默认就绪。
           </p>
           <div className="unif-hero__ctas">
-            <Link to="/docs/intro" className="unif-hero__cta unif-hero__cta--primary">
+            <Link to="/docs/getting-started/installation" className="unif-hero__cta unif-hero__cta--primary">
               开始使用 →
             </Link>
-            <Link to="/docs/share-sheet" className="unif-hero__cta unif-hero__cta--ghost">
-              ShareSheet
+            <Link to="/docs/guides/sharing" className="unif-hero__cta unif-hero__cta--ghost">
+              分享指南
             </Link>
           </div>
         </div>
