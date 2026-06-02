@@ -66,8 +66,8 @@ Swift omit-needless-words 规则：ObjC `handleOpenURL:options:` 导入 Swift �
 
 ---
 
-### ❓ 后台调 `Share.openSheet()` 时报 `E_NO_ACTIVITY`
+### ❓ 后台调 `Share.openSheet()` 时报 `E_UNKNOWN`（message 含 "No current Activity"）
 
 ✅ **分享 API 依赖前台 Activity，不可在后台或 App 不可见时调用。**
 
-确保在用户有操作行为的前台场景（如点击按钮回调）中调用分享 API。
+Android 在无前台 Activity 时会 reject `E_UNKNOWN`，`message` 为 `No current Activity; cannot invoke share` —— 用 `message` 字段区分此场景与其它 `E_UNKNOWN`。确保在用户有操作行为的前台场景（如点击按钮回调）中调用分享 API。
