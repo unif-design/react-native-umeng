@@ -290,6 +290,7 @@ import { shareCancel } from '@unif/react-native-umeng/mock';
 | `E_USER_CANCEL` | 用户取消 |
 | `E_SHARE_FAILED` | 友盟回调失败（含未配 URL Scheme、网络错等） |
 | `E_NOT_INITIALIZED` | （预留） |
+| `E_NO_ACTIVITY` | 无前台 Activity（Android：app 在后台时调 share） |
 | `E_UNKNOWN` | 其它 |
 
 ## PIPL 合规

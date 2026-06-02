@@ -81,7 +81,7 @@ class UmengShareModule(
     runOnUi {
       val activity =
         currentActivity ?: run {
-          promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
+          promise.reject("E_NO_ACTIVITY", "No current Activity; cannot invoke share")
           return@runOnUi
         }
       val media = mapPlatform(platform, promise) ?: return@runOnUi
@@ -102,7 +102,7 @@ class UmengShareModule(
     runOnUi {
       val activity =
         currentActivity ?: run {
-          promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
+          promise.reject("E_NO_ACTIVITY", "No current Activity; cannot invoke share")
           return@runOnUi
         }
       val media = mapPlatform(platform, promise) ?: return@runOnUi
@@ -127,7 +127,7 @@ class UmengShareModule(
     runOnUi {
       val activity =
         currentActivity ?: run {
-          promise.reject("E_UNKNOWN", "No current Activity; cannot invoke share")
+          promise.reject("E_NO_ACTIVITY", "No current Activity; cannot invoke share")
           return@runOnUi
         }
       val media = mapPlatform(platform, promise) ?: return@runOnUi

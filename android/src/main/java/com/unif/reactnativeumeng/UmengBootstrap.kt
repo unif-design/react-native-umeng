@@ -60,6 +60,8 @@ object UmengBootstrap {
 
       UMConfigure.preInit(app, ak, ch)
 
+      // PlatformConfig.setWeixin/setDing 只写 SDK 内部静态 dict[platform→appKey/secret],
+      // 无网络/上报副作用(友盟官方:平台密钥配置非个人信息采集),preInit 阶段(同意前)调合规。
       if (!wxId.isNullOrEmpty() && !wxSecret.isNullOrEmpty()) {
         PlatformConfig.setWeixin(wxId, wxSecret)
       }

@@ -47,6 +47,7 @@ export type ErrorCode =
   | 'E_USER_CANCEL'
   | 'E_SHARE_FAILED'
   | 'E_NOT_INITIALIZED'
+  | 'E_NO_ACTIVITY'
   | 'E_UNKNOWN';
 
 export class UmengError extends Error {
