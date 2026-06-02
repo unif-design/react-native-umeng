@@ -16,10 +16,11 @@ const config: Config = {
   projectName: 'react-native-umeng',
   trailingSlash: false,
 
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
+  onBrokenAnchors: 'throw',
   markdown: {
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownLinks: 'throw',
     },
   },
 
@@ -99,7 +100,9 @@ const config: Config = {
           title: '文档',
           items: [
             { label: '简介', to: '/docs/intro' },
-            { label: 'ShareSheet', to: '/docs/share-sheet' },
+            { label: '快速上手', to: '/docs/getting-started/quick-start' },
+            { label: '分享指南', to: '/docs/guides/sharing' },
+            { label: '原生配置', to: '/docs/native-setup/ios' },
           ],
         },
         {
