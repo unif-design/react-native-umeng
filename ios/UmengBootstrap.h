@@ -43,8 +43,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)isInited;
 
 /// 由宿主 App 的 `application:openURL:options:` 调
-- (BOOL)handleOpenURL:(NSURL *)url
-              options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options;
+- (BOOL)handleOpenURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options;
 
 /// 由宿主 App 的 `application:continueUserActivity:restorationHandler:` 调
 /// (微信 Universal Link 必需)

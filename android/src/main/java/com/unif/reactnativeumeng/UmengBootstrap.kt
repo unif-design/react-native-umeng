@@ -21,11 +21,13 @@ import com.umeng.socialize.PlatformConfig
  */
 object UmengBootstrap {
   @Volatile private var preInited = false
+
   @Volatile private var inited = false
   private val lock = Any()
 
   // 缓存 preInit 时传的 appkey + channel,init 时用
   @Volatile private var appkey: String? = null
+
   @Volatile private var channel: String = "default"
 
   /**
@@ -34,7 +36,10 @@ object UmengBootstrap {
    *
    * @throws IllegalArgumentException 当 appkey 缺失或为空
    */
-  fun ensurePreInit(context: Context, config: ReadableMap) {
+  fun ensurePreInit(
+    context: Context,
+    config: ReadableMap,
+  ) {
     if (preInited) return
     synchronized(lock) {
       if (preInited) return
@@ -89,7 +94,7 @@ object UmengBootstrap {
         ak,
         channel,
         UMConfigure.DEVICE_TYPE_PHONE,
-        ""
+        "",
       )
 
       inited = true
@@ -98,7 +103,5 @@ object UmengBootstrap {
 
   fun isInited(): Boolean = inited
 
-  private fun ReadableMap.getStringOrNull(key: String): String? {
-    return if (hasKey(key) && !isNull(key)) getString(key) else null
-  }
+  private fun ReadableMap.getStringOrNull(key: String): String? = if (hasKey(key) && !isNull(key)) getString(key) else null
 }

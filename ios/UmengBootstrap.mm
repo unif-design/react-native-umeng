@@ -41,7 +41,7 @@
     if (error) {
       *error = [NSError errorWithDomain:@"UmengBootstrap"
                                    code:-1
-                               userInfo:@{NSLocalizedDescriptionKey: @"`appkey` is required"}];
+                               userInfo:@{NSLocalizedDescriptionKey : @"`appkey` is required"}];
     }
     [_lock unlock];
     return NO;
@@ -64,8 +64,8 @@
   // iOS 友盟 SDK 没 preInit API,这里跑 setPlaform — 友盟文档原文:
   // "setPlaform 必须在 init 之前调",preInit 阶段调正合适,且 setPlaform
   // 只更新 SDK 内部 dict[platform→appKey],无上报副作用。
-  if ([wxId isKindOfClass:[NSString class]] && wxId.length > 0 &&
-      [wxSecret isKindOfClass:[NSString class]] && wxSecret.length > 0) {
+  if ([wxId isKindOfClass:[NSString class]] && wxId.length > 0 && [wxSecret isKindOfClass:[NSString class]] &&
+      wxSecret.length > 0) {
     // 友盟 SDK 拼写遵循原始错误: setPlaform 少一个 t
     [[UMSocialManager defaultManager] setPlaform:UMSocialPlatformType_WechatSession
                                           appKey:wxId
@@ -74,9 +74,7 @@
 
     if ([wxUL isKindOfClass:[NSString class]] && wxUL.length > 0) {
       // 微信 Universal Link 1.8.6+ 强制要求,key 必须 rawInt 不能枚举
-      [UMSocialGlobal shareInstance].universalLinkDic = @{
-        @(UMSocialPlatformType_WechatSession): wxUL
-      };
+      [UMSocialGlobal shareInstance].universalLinkDic = @{@(UMSocialPlatformType_WechatSession) : wxUL};
     }
   }
 
@@ -101,9 +99,12 @@
   }
   if (!_preInited) {
     if (error) {
-      *error = [NSError errorWithDomain:@"UmengBootstrap"
-                                   code:-3
-                               userInfo:@{NSLocalizedDescriptionKey: @"`Common.preInit(config)` must be called before `Common.init()`"}];
+      *error = [NSError
+          errorWithDomain:@"UmengBootstrap"
+                     code:-3
+                 userInfo:@{
+                   NSLocalizedDescriptionKey : @"`Common.preInit(config)` must be called before `Common.init()`"
+                 }];
     }
     [_lock unlock];
     return NO;
@@ -124,8 +125,7 @@
   return v;
 }
 
-- (BOOL)handleOpenURL:(NSURL *)url
-              options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options {
+- (BOOL)handleOpenURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options {
   return [[UMSocialManager defaultManager] handleOpenURL:url options:options];
 }
 
