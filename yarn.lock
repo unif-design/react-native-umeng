@@ -6169,9 +6169,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@unif/react-native-design@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@unif/react-native-design@npm:0.3.0"
+"@unif/react-native-design@npm:0.5.1":
+  version: 0.5.1
+  resolution: "@unif/react-native-design@npm:0.5.1"
   peerDependencies:
     "@gorhom/bottom-sheet": ">=5"
     "@sbaiahmed1/react-native-blur": ">=4"
@@ -6183,43 +6183,7 @@ __metadata:
     react-native-safe-area-context: ">=5"
     react-native-svg: ">=15"
     react-native-worklets: ">=0.9"
-  checksum: 10c0/5a842bd5f72f9df80aca4e6e66a7c8e22bd73040384a06590a444e1f7c460c8119da9e075d7c3e976ace3aa88ab8eea0a269f87d9ae8696cf4112c1f87f58f10
-  languageName: node
-  linkType: hard
-
-"@unif/react-native-design@npm:^0.4.34":
-  version: 0.4.34
-  resolution: "@unif/react-native-design@npm:0.4.34"
-  peerDependencies:
-    "@gorhom/bottom-sheet": ">=5"
-    "@sbaiahmed1/react-native-blur": ">=4"
-    react: "*"
-    react-native: "*"
-    react-native-gesture-handler: ">=2"
-    react-native-reanimated: ">=4"
-    react-native-reanimated-carousel: ">=5.0.0-beta.0"
-    react-native-safe-area-context: ">=5"
-    react-native-svg: ">=15"
-    react-native-worklets: ">=0.9"
-  checksum: 10c0/925d7483b72dc0c3e07f9e72f55f690370b8a869e72c29d484c07ff2e3a17a44479688d47b97082cd71017bb06a0c1d5b87314adee9cf36e768fc55b22b9277c
-  languageName: node
-  linkType: hard
-
-"@unif/react-native-design@npm:^0.5.0":
-  version: 0.5.0
-  resolution: "@unif/react-native-design@npm:0.5.0"
-  peerDependencies:
-    "@gorhom/bottom-sheet": ">=5"
-    "@sbaiahmed1/react-native-blur": ">=4"
-    react: "*"
-    react-native: "*"
-    react-native-gesture-handler: ">=2"
-    react-native-reanimated: ">=4"
-    react-native-reanimated-carousel: ">=5.0.0-beta.0"
-    react-native-safe-area-context: ">=5"
-    react-native-svg: ">=15"
-    react-native-worklets: ">=0.9"
-  checksum: 10c0/7882a35646c04efeb781aab10b1bb323570e0186377ab16356aae4a78af1fab477892132dcdf507119d2dc8b4576b82cb6f64171f26f3d819a93ebb5ee6767af
+  checksum: 10c0/80e5ffe7530ac92d7a8c437f5a472e3c3afef236ff9a3c6cbd02011bb21988c18c2fca6d8d59d803393f05f4460b85fa87ddc51e4cebf15b93a247ab3f146ea7
   languageName: node
   linkType: hard
 
@@ -6239,7 +6203,7 @@ __metadata:
     "@react-native/metro-config": "npm:0.85.3"
     "@react-native/typescript-config": "npm:0.85.3"
     "@types/react": "npm:^19.2.0"
-    "@unif/react-native-design": "npm:^0.3.0"
+    "@unif/react-native-design": "npm:0.5.1"
     react: "npm:19.2.3"
     react-native: "npm:0.85.3"
     react-native-builder-bob: "npm:^0.41.0"
@@ -6262,7 +6226,7 @@ __metadata:
     "@gorhom/bottom-sheet": "npm:^5.2.14"
     "@mdx-js/react": "npm:^3.0.0"
     "@sbaiahmed1/react-native-blur": "npm:^4.6.2"
-    "@unif/react-native-design": "npm:^0.5.0"
+    "@unif/react-native-design": "npm:0.5.1"
     "@unif/react-native-umeng": "workspace:*"
     clsx: "npm:^2.0.0"
     prism-react-renderer: "npm:^2.3.0"
@@ -6297,7 +6261,7 @@ __metadata:
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.2.0"
     "@types/react-test-renderer": "npm:^19"
-    "@unif/react-native-design": "npm:^0.4.34"
+    "@unif/react-native-design": "npm:0.5.1"
     commitlint: "npm:^20.5.0"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.4"

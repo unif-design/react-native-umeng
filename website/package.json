@@ -21,7 +21,7 @@
     "@gorhom/bottom-sheet": "^5.2.14",
     "@mdx-js/react": "^3.0.0",
     "@sbaiahmed1/react-native-blur": "^4.6.2",
-    "@unif/react-native-design": "^0.5.0",
+    "@unif/react-native-design": "0.5.1",
     "@unif/react-native-umeng": "workspace:*",
     "clsx": "^2.0.0",
     "prism-react-renderer": "^2.3.0",
