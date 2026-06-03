@@ -1,65 +1,79 @@
 ---
 sidebar_position: 3
 title: Analytics
-description: onEvent / signIn / signOut — U-App 移动统计 API 完整参考。
+description: "Analytics API 全量参考：onEvent(eventId, params?) / signIn(userId, provider?) / signOut() —— U-App 移动统计。三个方法都是同步 void、不返回 Promise、不要 await；onEvent 的 number 值会自动 stringify（友盟 iOS attributes 强制 NSString）。"
 ---
 
 # Analytics
 
-U-App 移动统计 API。
+U-App 移动统计 API。三个方法都是**同步 `void`**，不返回 Promise。
 
-## 引用
+## 引用 {#import}
 
 ```ts
 import { Analytics } from '@unif/react-native-umeng';
 ```
 
+| 方法 | 签名 | 返回 |
+| --- | --- | --- |
+| [`onEvent`](#onevent) | `onEvent(eventId, params?)` | `void` |
+| [`signIn`](#signin) | `signIn(userId, provider?)` | `void` |
+| [`signOut`](#signout) | `signOut()` | `void` |
+
+:::warning 同步 void，不要 await
+`Analytics.*` 全是同步方法，**没有 Promise**。`await Analytics.onEvent(...)` 只会 await 一个 `undefined`，没有意义。
+:::
+
 ---
 
-## `Analytics.onEvent(eventId, params?)`
+## `Analytics.onEvent(eventId, params?)` {#onevent}
 
 自定义事件埋点。
 
 ```ts
-Analytics.onEvent(
+function onEvent(
   eventId: string,
   params?: Record<string, string | number>
-): void
+): void;
 ```
 
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `eventId` | `string` | ✅ | 友盟后台定义的事件 ID |
-| `params` | `Record<string, string \| number>?` | — | 事件属性；`number` 值自动 stringify（友盟 iOS attributes 强制 `NSString`） |
+| `params` | `Record<string, string \| number>` | — | 事件属性；`number` 值自动 `String()` stringify（友盟 iOS attributes 强制 `NSString`） |
+
+```ts
+Analytics.onEvent('share_tap', { source: 'detail', count: 1 }); // count 自动转 '1'
+```
 
 ---
 
-## `Analytics.signIn(userId, provider?)`
+## `Analytics.signIn(userId, provider?)` {#signin}
 
 用户登录账号埋点。
 
 ```ts
-Analytics.signIn(userId: string, provider?: string): void
+function signIn(userId: string, provider?: string): void;
 ```
 
 | 参数 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `userId` | `string` | ✅ | 业务用户 ID |
-| `provider` | `string?` | — | 登录方式标识，如 `'WX'` / `'DD'` |
+| `provider` | `string` | — | 登录方式标识，如 `'WX'` / `'DD'` |
 
 ---
 
-## `Analytics.signOut()`
+## `Analytics.signOut()` {#signout}
 
 用户登出。
 
 ```ts
-Analytics.signOut(): void
+function signOut(): void;
 ```
 
 ---
 
-## 平台支持
+## 平台支持 {#platform-support}
 
 | API | iOS | Android |
 | --- | --- | --- |
@@ -67,7 +81,9 @@ Analytics.signOut(): void
 | `signIn` | ✅ | ✅ |
 | `signOut` | ✅ | ✅ |
 
-## 相关
+> 埋点需要先完成 [`Common.init()`](./common#init) 才会真正上报；未 `init` 时调用不会崩溃，但数据不上报。
 
-- [统计埋点指南](../guides/analytics)
-- [Common API](./common)
+## 相关 {#related}
+
+- [统计埋点指南](../guides/analytics) —— 任务导向用法
+- [Common API](./common) —— 初始化（埋点上报的前提）
