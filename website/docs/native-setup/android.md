@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Android 原生配置
-description: "Android 原生接入:AndroidManifest 注册两个回调 Activity —— WXEntryActivity（超类 com.umeng.socialize.weixin.view.WXCallbackActivity）与 DDShareActivity（继承 Activity + IDDAPIEventHandler），必须放在宿主包名下（SDK 反射查 getPackageName() + .wxapi.WXEntryActivity / .ddshare.DDShareActivity）。钉钉 appId 在 onCreate 写死、要与 preInit({ dingtalkAppId }) 一致（推荐 BuildConfig.DINGTALK_APPID 单一数据源）。权限 / queries / consumer proguard 由 library Manifest + consumer-rules.pro 自动合并，宿主不用写。"
+description: "Android 原生接入:AndroidManifest 注册两个回调 Activity —— WXEntryActivity（超类 com.umeng.socialize.weixin.view.WXCallbackActivity）与 DDShareActivity（继承 Activity + IDDAPIEventHandler），必须放在宿主包名下（SDK 反射查 getPackageName() + .wxapi.WXEntryActivity / .ddshare.DDShareActivity）。钉钉 appId 在 onCreate 写死、要与 preInit({ dingtalkAppId }) 一致（推荐 BuildConfig.DINGTALK_APPID 单一数据源）。权限 / queries / consumer proguard 由 library Manifest + consumer-rules.pro 自动合并，宿主不用写。钉钉 / 微信 SDK 是 library 的 implementation 依赖（不传递编译期），宿主 build.gradle 需显式声明。"
 ---
 
 # Android 原生配置
@@ -117,6 +117,23 @@ android {
 
 ---
 
+## 宿主依赖 — 显式声明钉钉 / 微信 SDK {#sdk-deps}
+
+回调 Activity 落在**宿主包名**下、直接 `import` 钉钉 / 友盟微信 SDK 类,而 `@unif/react-native-umeng` 以 Gradle `implementation` 声明这些 SDK(不向宿主传递编译期依赖)。因此宿主 `app/build.gradle` 需显式声明:
+
+```gradle
+// android/app/build.gradle —— 版本对齐 @unif/react-native-umeng 的 android/build.gradle
+dependencies {
+  implementation "com.alibaba.android:ddsharesdk:1.2.2"             // DDShareActivity import 的钉钉 SDK
+  implementation "com.umeng.umsdk:share-wx:7.3.7"                   // WXEntryActivity 继承的 WXCallbackActivity
+  implementation "com.tencent.mm.opensdk:wechat-sdk-android:6.8.34" // 上者超类链(编译期可见)
+}
+```
+
+> 仅做钉钉分享:只需 `ddsharesdk`;仅做微信:只需 `share-wx` + `wechat-sdk-android`。runtime 所需的其余友盟 SDK(`common` / `asms` / `share-core` / `share-dingding`)由 library 的 `implementation` 经 runtime classpath 提供,宿主不用重复。
+
+---
+
 ## 宿主 MainActivity {#mainactivity}
 
 :::tip 不需要 override 任何回调
@@ -140,6 +157,7 @@ android {
 | AndroidManifest 回调 Activity | — | ✅ 必填 |
 | `WXEntryActivity.kt` | — | ✅ 必填 |
 | `DDShareActivity.kt` | — | ✅ 必填 |
+| 宿主 `build.gradle` 声明钉钉/微信 SDK | — | ✅ 必填(**不自动**,见 [#sdk-deps](#sdk-deps)) |
 | 权限 / `<queries>` | — | ✅ 自动合并 |
 | MainActivity override | — | ❌ 不需要 |
 | Proguard rules | — | ❌ 不需要（自动合并） |
