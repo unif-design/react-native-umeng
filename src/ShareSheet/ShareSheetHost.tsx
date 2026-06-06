@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { BottomSheet, Cell, Button, useTheme } from '@unif/react-native-design';
+import { Modal, Pressable, View, Text, StyleSheet } from 'react-native';
+import { Cell, Button, useThemedStyles } from '@unif/react-native-design';
+import type { ColorTokens } from '@unif/react-native-design';
 import {
   PLATFORM_DEFAULT_SUBTITLES,
   PLATFORM_DISPLAY_NAMES,
@@ -29,8 +30,13 @@ const INITIAL_STATE: SheetState = {
   platforms: [],
 };
 
+/**
+ * 分享面板宿主 —— state-driven(shareSheetController 订阅 show/dismiss)。
+ * 原生 RN `Modal`(transparent + slide 底部弹出)实现,替代原 design 的
+ * @gorhom BottomSheet,去第三方依赖。backdrop 点击取消、内层 sheet 拦截冒泡。
+ */
 export const ShareSheetHost: React.FC = () => {
-  const theme = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [state, setState] = useState<SheetState>(INITIAL_STATE);
 
   useEffect(() => {
@@ -111,8 +117,6 @@ export const ShareSheetHost: React.FC = () => {
     shareSheetController.dismiss('cancel');
   }, []);
 
-  if (!state.open) return null;
-
   const title = state.options.title ?? '分享至';
   const cancelText = state.options.cancelText ?? '取消';
   const subtitles = state.options.subtitles ?? {};
@@ -123,49 +127,74 @@ export const ShareSheetHost: React.FC = () => {
   );
 
   return (
-    <BottomSheet
-      snapPoints={['30%']}
-      grabber
-      backdrop="scrim"
-      onClose={handleCancel}
+    <Modal
+      visible={state.open}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={handleCancel}
     >
-      <View style={styles.head}>
-        <Text style={[styles.title, { color: theme.colors.foreground }]}>
-          {title}
-        </Text>
-      </View>
-      <View>
-        {visiblePlatforms.map((info) => (
-          <Cell
-            key={info.platform}
-            testID={`umeng-share-cell-${info.platform}`}
-            title={info.displayName}
-            desc={
-              subtitles[info.platform] ??
-              PLATFORM_DEFAULT_SUBTITLES[info.platform]
-            }
-            leading={<PlatformLeading platform={info.platform} />}
-            arrow
-            disabled={!info.installed}
-            onPress={() => handlePlatformPress(info)}
-          />
-        ))}
-      </View>
-      <Button
-        testID="umeng-share-cancel"
-        variant="secondary"
-        size="lg"
-        block
-        label={cancelText}
-        style={styles.cancel}
+      {/* backdrop 点击取消;内层 sheet onPress 空占位拦截冒泡 */}
+      <Pressable
+        style={styles.backdrop}
         onPress={handleCancel}
-      />
-    </BottomSheet>
+        accessibilityRole="button"
+        accessibilityLabel="关闭"
+      >
+        <Pressable style={styles.sheet} onPress={() => {}}>
+          <View style={styles.head}>
+            <Text style={styles.title}>{title}</Text>
+          </View>
+          <View>
+            {visiblePlatforms.map((info) => (
+              <Cell
+                key={info.platform}
+                testID={`umeng-share-cell-${info.platform}`}
+                title={info.displayName}
+                desc={
+                  subtitles[info.platform] ??
+                  PLATFORM_DEFAULT_SUBTITLES[info.platform]
+                }
+                leading={<PlatformLeading platform={info.platform} />}
+                arrow
+                disabled={!info.installed}
+                onPress={() => handlePlatformPress(info)}
+              />
+            ))}
+          </View>
+          <Button
+            testID="umeng-share-cancel"
+            variant="secondary"
+            size="lg"
+            block
+            label={cancelText}
+            style={styles.cancel}
+            onPress={handleCancel}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 };
 
-const styles = StyleSheet.create({
-  head: { paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
-  title: { fontSize: 15, fontWeight: '600', letterSpacing: -0.1 },
-  cancel: { marginTop: 14 },
-});
+const makeStyles = (c: ColorTokens) =>
+  StyleSheet.create({
+    backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: c.scrim },
+    sheet: {
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      // 固定底部留白覆盖 home indicator(umeng 不引 safe-area-context 依赖)
+      paddingBottom: 34,
+      backgroundColor: c.surface,
+    },
+    head: { paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
+    title: {
+      fontSize: 15,
+      fontWeight: '600',
+      letterSpacing: -0.1,
+      color: c.foreground,
+    },
+    cancel: { marginTop: 14 },
+  });
