@@ -70,7 +70,6 @@
     "@eslint/compat": "^2.0.3",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
-    "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native/babel-preset": "0.85.3",
     "@react-native/eslint-config": "0.85.0",
     "@react-native/jest-preset": "0.85.3",
@@ -100,7 +99,6 @@
     "typescript": "^6.0.2"
   },
   "peerDependencies": {
-    "@gorhom/bottom-sheet": ">=5",
     "@unif/react-native-design": ">=0.1.2",
     "react": "*",
     "react-native": "*",

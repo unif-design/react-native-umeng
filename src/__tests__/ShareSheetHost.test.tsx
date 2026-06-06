@@ -1,15 +1,18 @@
 jest.mock('@unif/react-native-design', () => {
   const React = require('react');
-  const { View, Text, TouchableOpacity } = require('react-native');
+  const { Text, TouchableOpacity } = require('react-native');
   return {
     ThemeProvider: ({ children }: any) => children,
     useTheme: () => ({
       scheme: 'light',
-      colors: { surfaceContainer: '#f0f0f0', foreground: '#111' },
+      colors: {
+        surfaceContainer: '#f0f0f0',
+        surface: '#fff',
+        scrim: 'rgba(0,0,0,0.5)',
+        foreground: '#111',
+      },
       shadow: {},
     }),
-    BottomSheet: ({ children }: any) =>
-      React.createElement(View, { testID: 'bottom-sheet' }, children),
     Cell: ({ title, desc, onPress, disabled, testID }: any) =>
       React.createElement(
         TouchableOpacity,
