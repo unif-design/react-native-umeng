@@ -142,6 +142,11 @@
       "<rootDir>/example/node_modules",
       "<rootDir>/lib/"
     ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/website/",
+      "<rootDir>/example/"
+    ],
     "passWithNoTests": true
   },
   "prettier": {

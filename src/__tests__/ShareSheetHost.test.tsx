@@ -1,18 +1,17 @@
 jest.mock('@unif/react-native-design', () => {
   const React = require('react');
   const { Text, TouchableOpacity } = require('react-native');
+  const colors = {
+    surfaceContainer: '#f0f0f0',
+    surface: '#fff',
+    scrim: 'rgba(0,0,0,0.5)',
+    foreground: '#111',
+  };
   return {
     ThemeProvider: ({ children }: any) => children,
-    useTheme: () => ({
-      scheme: 'light',
-      colors: {
-        surfaceContainer: '#f0f0f0',
-        surface: '#fff',
-        scrim: 'rgba(0,0,0,0.5)',
-        foreground: '#111',
-      },
-      shadow: {},
-    }),
+    useTheme: () => ({ scheme: 'light', colors, shadow: {} }),
+    // 组件用 useThemedStyles(maker):用 mock 色板调真实 makeStyles,产出真实 StyleSheet
+    useThemedStyles: (maker: any) => maker(colors, {}),
     Cell: ({ title, desc, onPress, disabled, testID }: any) =>
       React.createElement(
         TouchableOpacity,
