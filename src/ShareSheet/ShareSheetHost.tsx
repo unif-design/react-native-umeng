@@ -42,7 +42,7 @@ export const ShareSheetHost: React.FC = () => {
   useEffect(() => {
     const unsub = shareSheetController.subscribe((e) => {
       if (e.kind === 'show') {
-        void (async () => {
+        const openWithPlatforms = async () => {
           const platforms = await Share.listPlatforms().catch(() =>
             SUPPORTED_PLATFORMS.map((p) => ({
               platform: p,
@@ -56,7 +56,8 @@ export const ShareSheetHost: React.FC = () => {
             options: e.options,
             platforms,
           });
-        })();
+        };
+        openWithPlatforms();
       } else if (e.kind === 'dismiss') {
         setState((prev) => ({ ...prev, open: false }));
       }
@@ -77,7 +78,7 @@ export const ShareSheetHost: React.FC = () => {
       }
       const { payload } = state;
       if (!payload) return;
-      void (async () => {
+      const runShare = async () => {
         try {
           let result: ShareResult;
           if (payload.type === 'text') {
@@ -108,7 +109,8 @@ export const ShareSheetHost: React.FC = () => {
               : new UmengError('E_UNKNOWN', String(err), err);
           shareSheetController.settleError(ue);
         }
-      })();
+      };
+      runShare();
     },
     [state]
   );

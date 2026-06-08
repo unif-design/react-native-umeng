@@ -23,7 +23,7 @@ describe('ShareSheetController', () => {
     controller.subscribe(listener);
     const payload: ShareSheetPayload = { type: 'link', title: 'T', url: 'u' };
     const opts: ShareSheetOptions = { title: '分享至 X' };
-    void controller.show(payload, opts).catch(() => {});
+    controller.show(payload, opts).catch(() => {});
     expect(listener).toHaveBeenCalledWith({
       kind: 'show',
       payload,
@@ -53,7 +53,7 @@ describe('ShareSheetController', () => {
     const listener = jest.fn();
     const unsub = controller.subscribe(listener);
     unsub();
-    void controller.show({ type: 'text', text: 'hi' }).catch(() => {});
+    controller.show({ type: 'text', text: 'hi' }).catch(() => {});
     expect(listener).not.toHaveBeenCalled();
   });
 
