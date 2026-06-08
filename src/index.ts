@@ -1,3 +1,4 @@
+// @unif/react-native-umeng 公共 API:Common(初始化)/ Share(微信分享)/ Analytics(友盟统计)。
 export * as Common from './common';
 export * as Share from './share';
 export * as Analytics from './analytics';
