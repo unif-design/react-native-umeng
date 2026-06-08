@@ -60,9 +60,9 @@ Platform / SUPPORTED_PLATFORMS / PLATFORM_* / UmengError   分享目标枚举 + 
 
 - **`Share.openSheet(payload, options?)` 是推荐用法** —— 命令式拉起分享面板。`payload` 是判别联合 `{ type: 'text' | 'image' | 'link', ... }`。**取消 / 失败都 reject(抛 `UmengError`),只有成功才 resolve(`r.code === 'success'`)** —— 必须 try/catch。
 - **底层直拉 `shareText` / `shareImage` / `shareLink`** 跳过面板,直接发到指定 `platform`(必传)。面板的 cell 点击内部也是调这三个。
-- **ShareSheet 是模块级单例 controller + Host 组件**:`shareSheetController`(`ShareSheet/ShareSheetController.ts`)持有 pending Promise,`openSheet` 调 `controller.show()` emit 事件,`<ShareSheetHost />`(订阅 controller)渲染 design 的 `BottomSheet` + `Cell`。**Host 必须在 app 根挂一次**,否则 `openSheet` 立即 reject;**一次只能开一个 sheet**,重入直接 reject。这套 host + 单例注册表的模式与 design 的 `toast()` / `confirm()` 同源。
+- **ShareSheet 是模块级单例 controller + Host 组件**:`shareSheetController`(`ShareSheet/ShareSheetController.ts`)持有 pending Promise,`openSheet` 调 `controller.show()` emit 事件,`<ShareSheetHost />`(订阅 controller)用 RN `Modal`(transparent + slide,替代原 @gorhom `BottomSheet`)+ design 的 `Cell` 渲染面板。**Host 必须在 app 根挂一次**,否则 `openSheet` 立即 reject;**一次只能开一个 sheet**,重入直接 reject。这套 host + 单例注册表的模式与 design 的 `toast()` / `confirm()` 同源。
 - `Platform` 是**分享目标枚举**(`wechat_session` / `dingtalk`),**不是 RN 的 `Platform`** —— 它没有 `.OS`。判 OS 用 `react-native` 的 `Platform`。
-- `ShareSheetHost.tsx` 用 design 的 `useTheme` / `BottomSheet` / `Cell` / `Button`,需在 design 的 `ThemeProvider` + `GestureHandlerRootView` 内渲染。`PlatformLeading` / `WeChatGlyph` / `DingTalkGlyph` 是面板里平台前导小块(品牌色取自 `PLATFORM_BRAND_COLORS`)。
+- `ShareSheetHost.tsx` 用 design 的 `Cell` / `Button` / `useThemedStyles`(+ `ColorTokens` 类型)+ RN `Modal` 自绘面板(`PlatformLeading` 用 design 的 `useTheme`),需在 design 的 `ThemeProvider` 内渲染;`Cell` / `Button` 内部用 `react-native-gesture-handler` 的 `Pressable`,故宿主仍要 `GestureHandlerRootView` 包裹。`PlatformLeading` / `WeChatGlyph` / `DingTalkGlyph` 是面板里平台前导小块(品牌色取自 `PLATFORM_BRAND_COLORS`)。
 
 ### Analytics
 
