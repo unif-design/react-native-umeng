@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.3.1](https://github.com/unif-design/react-native-umeng/compare/v0.3.0...v0.3.1) (2026-06-08)
+
 # [0.3.0](https://github.com/unif-design/react-native-umeng/compare/v0.2.1...v0.3.0) (2026-06-06)
 
 
