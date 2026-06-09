@@ -1,13 +1,13 @@
 ---
 title: AI Skill
-description: "using-unif-umeng 是一个 Agent Skill,教 AI 编码助手正确调用 @unif/react-native-umeng 的 API、避免常见幻觉。"
+description: "unif-umeng 是一个 Agent Skill,教 AI 编码助手正确调用 @unif/react-native-umeng 的 API、避免常见幻觉。"
 ---
 
-# AI Skill：using-unif-umeng
+# AI Skill：unif-umeng
 
 ## 这是什么
 
-`using-unif-umeng` 是一个 **Agent Skill**,教 AI 编码助手(Claude Code / Cursor / Codex)正确调用 `@unif/react-native-umeng` 的 API、避免常见幻觉。
+`unif-umeng` 是一个 **Agent Skill**,教 AI 编码助手(Claude Code / Cursor / Codex)正确调用 `@unif/react-native-umeng` 的 API、避免常见幻觉。
 
 它把友盟分享与统计的关键约定、易错点和参考索引打包给 AI,让助手在你的项目里写代码时按真实 API 来,而不是凭记忆瞎猜。
 
@@ -29,21 +29,21 @@ description: "using-unif-umeng 是一个 Agent Skill,教 AI 编码助手正确�
 **Claude Code 插件市场:**
 
 ```bash
-/plugin marketplace add unif-design/react-native-skills
-/plugin install
+/plugin marketplace add unif-design/skills
+/plugin install unif@unif-skills
 ```
 
 **或用 skills CLI:**
 
 ```bash
-npx skills add unif-design/react-native-skills
+npx skills add unif-design/skills
 ```
 
 ## 在 GitHub 查看
 
-skills 全部开源,发布在插件市场仓库 `unif-design/react-native-skills`。本 skill 的源码与参考文档:
+skills 全部开源,发布在插件市场仓库 `unif-design/skills`。本 skill 的源码与参考文档:
 
-👉 **[github.com/unif-design/react-native-skills · using-unif-umeng](https://github.com/unif-design/react-native-skills/tree/main/skills/using-unif-umeng)**
+👉 **[github.com/unif-design/skills · unif-umeng](https://github.com/unif-design/skills/tree/main/skills/unif-umeng)**
 
 ---
 
