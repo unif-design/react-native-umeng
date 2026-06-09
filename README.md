@@ -69,7 +69,7 @@ try {
 
 - 文档站：<https://unif-design.github.io/react-native-umeng/>（安装 · iOS/Android 原生配置 · API · 错误码 · PIPL 合规）
 - AI 索引：<https://unif-design.github.io/react-native-umeng/llms.txt> · 全文：<https://unif-design.github.io/react-native-umeng/llms-full.txt>
-- AI 编码助手用 [`using-unif-umeng`](https://github.com/unif-design/react-native-skills) skill（含验证过的 API / 坑 / 原生 setup）。
+- AI 编码助手用 [`unif-umeng`](https://github.com/unif-design/skills) skill（含验证过的 API / 坑 / 原生 setup）。
 
 ## 兼容性
 

@@ -1,8 +1,5 @@
 # CLAUDE.md
 
-<!-- Cross-agent rules live in AGENTS.md (Cursor / Codex / Copilot read it directly). Claude Code does not read AGENTS.md, so CLAUDE.md @import-s it below to keep a single source of truth. Add Claude-specific instructions under this comment. -->
-@AGENTS.md
-
 ## 仓库定位
 
 `@unif/react-native-umeng` —— 友盟 RN 新架构桥,做两件事:**U-Share**(微信会话 + 钉钉分享)与 **U-App 移动统计**。目标运行时:**RN 0.85 新架构**(TurboModule)、React 19、TypeScript 6。UI 文案中文。首版只支持微信会话 + 钉钉(无朋友圈 / QQ / 微博)。
@@ -38,13 +35,13 @@ yarn example android  # 构建并跑 Android
 
 三个命名空间 + 类型/常量/Error 的 barrel:
 
-```
-Common      preInit / init / isInited —— 两段式初始化(PIPL)
-Share       shareText / shareImage / shareLink / openSheet / isInstalled / listPlatforms
-Analytics   onEvent / signIn / signOut —— 同步 void
-ShareSheetHost   命令式分享面板的宿主组件(根上挂一次)
-Platform / SUPPORTED_PLATFORMS / PLATFORM_* / UmengError   分享目标枚举 + 品牌色/文案常量 + 错误类
-```
+| 导出 | 内容 |
+| --- | --- |
+| `Common` | `preInit` / `init` / `isInited` —— 两段式初始化(PIPL) |
+| `Share` | `shareText` / `shareImage` / `shareLink` / `openSheet` / `isInstalled` / `listPlatforms` |
+| `Analytics` | `onEvent` / `signIn` / `signOut` —— 同步 void |
+| `ShareSheetHost` | 命令式分享面板的宿主组件(根上挂一次) |
+| `Platform` / `SUPPORTED_PLATFORMS` / `PLATFORM_*` / `UmengError` | 分享目标枚举 + 品牌色 / 文案常量 + 错误类 |
 
 每个命名空间一个文件(`common.ts` / `share.ts` / `analytics.ts`),对应一个 TurboModule spec(`NativeUmengCommon.ts` / `NativeUmengShare.ts` / `NativeUmengAnalytics.ts`,`TurboModuleRegistry.getEnforcing`)。JS 层做参数校验 + 把 native 结果翻成 `ShareResult` / 抛 `UmengError`;codegen 名 `ReactNativeUmengSpec`,Android 包名 `com.unif.reactnativeumeng`。
 
@@ -52,17 +49,41 @@ Platform / SUPPORTED_PLATFORMS / PLATFORM_* / UmengError   分享目标枚举 + 
 
 合规核心:用户同意《隐私协议》前 native 不持有 appkey、不上报。
 
-- **`Common.preInit(config)`** —— App 启动后立刻调(同意之前也可)。**所有 config 都在这里给**(`appkey` 必填;`channel` / `wechatAppId` / `wechatAppSecret` / `wechatUniversalLink` / `dingtalkAppId` 可选)。行为:存 config + 注册微信/钉钉平台(`PlatformConfig.setWeixin/setDing`),**不上报**。
-- **`Common.init()`** —— 用户同意后调,**无参**(config 已给 preInit)。真正调 `UMConfigure.init` 开始采集。没先 `preInit` 直接 `init` 会 reject。
-- 两个方法都 **idempotent**(模块级 `preInitPromise` / `initPromise` 缓存,重复调只触发一次;native 侧 `UmengBootstrap` 也用 `@Volatile` flag 双重保险)。
+- **`Common.preInit(config)`** — App 启动后立刻调(同意之前也可)。**所有 config 都在这里给**。
+  - 行为 — 存 config + 注册微信/钉钉平台(`PlatformConfig.setWeixin/setDing`),**不上报**。
+- **`Common.init()`** — 用户同意后调,**无参**(config 已给 preInit),真正调 `UMConfigure.init` 开始采集。
+  - 例外 — 没先 `preInit` 直接 `init` 会 reject。
+
+`preInit` 的 config 字段:
+
+| 字段 | 必填 |
+| --- | --- |
+| `appkey` | 必填 |
+| `channel` / `wechatAppId` / `wechatAppSecret` / `wechatUniversalLink` / `dingtalkAppId` | 可选 |
+
+> **两个方法都 idempotent。**
+> 模块级 `preInitPromise` / `initPromise` 缓存 → 重复调只触发一次;native 侧 `UmengBootstrap` 用 `@Volatile` flag 双重保险。
 
 ### Share + ShareSheet
 
-- **`Share.openSheet(payload, options?)` 是推荐用法** —— 命令式拉起分享面板。`payload` 是判别联合 `{ type: 'text' | 'image' | 'link', ... }`。**取消 / 失败都 reject(抛 `UmengError`),只有成功才 resolve(`r.code === 'success'`)** —— 必须 try/catch。
-- **底层直拉 `shareText` / `shareImage` / `shareLink`** 跳过面板,直接发到指定 `platform`(必传)。面板的 cell 点击内部也是调这三个。
-- **ShareSheet 是模块级单例 controller + Host 组件**:`shareSheetController`(`ShareSheet/ShareSheetController.ts`)持有 pending Promise,`openSheet` 调 `controller.show()` emit 事件,`<ShareSheetHost />`(订阅 controller)用 RN `Modal`(transparent + slide,替代原 @gorhom `BottomSheet`)+ design 的 `Cell` 渲染面板。**Host 必须在 app 根挂一次**,否则 `openSheet` 立即 reject;**一次只能开一个 sheet**,重入直接 reject。这套 host + 单例注册表的模式与 design 的 `toast()` / `confirm()` 同源。
-- `Platform` 是**分享目标枚举**(`wechat_session` / `dingtalk`),**不是 RN 的 `Platform`** —— 它没有 `.OS`。判 OS 用 `react-native` 的 `Platform`。
-- `ShareSheetHost.tsx` 用 design 的 `Cell` / `Button` / `useThemedStyles`(+ `ColorTokens` 类型)+ RN `Modal` 自绘面板(`PlatformLeading` 用 design 的 `useTheme`),需在 design 的 `ThemeProvider` 内渲染;`Cell` / `Button` 内部用 `react-native-gesture-handler` 的 `Pressable`,故宿主仍要 `GestureHandlerRootView` 包裹。`PlatformLeading` / `WeChatGlyph` / `DingTalkGlyph` 是面板里平台前导小块(品牌色取自 `PLATFORM_BRAND_COLORS`)。
+发分享有两条路径:
+
+- **`Share.openSheet(payload, options?)`(推荐)** — 命令式拉起分享面板。`payload` 是判别联合 `{ type: 'text' | 'image' | 'link', ... }`。**取消 / 失败都 reject(抛 `UmengError`),只有成功才 resolve(`r.code === 'success'`)** —— 必须 try/catch。
+- **底层 `shareText` / `shareImage` / `shareLink`** — 跳过面板,直接发到指定 `platform`(必传);面板的 cell 点击内部也是调这三个。
+
+**ShareSheet = 模块级单例 controller + Host 组件**(host + 单例注册表的模式与 design 的 `toast()` / `confirm()` 同源):
+
+- **实现** — `shareSheetController`(`ShareSheet/ShareSheetController.ts`)持有 pending Promise;`openSheet` 调 `controller.show()` emit 事件,`<ShareSheetHost />`(订阅 controller)用 RN `Modal`(transparent + slide,替代原 @gorhom `BottomSheet`)+ design 的 `Cell` 渲染面板。
+- **宿主装配**(`ShareSheetHost.tsx` 自绘面板,靠 design + gesture-handler,易漏):
+  - **ThemeProvider** — 用 design 的 `Cell` / `Button` / `useThemedStyles`(+ `ColorTokens` 类型)+ RN `Modal`(`PlatformLeading` 用 design 的 `useTheme`),**需在 design 的 `ThemeProvider` 内渲染**。
+  - **GestureHandlerRootView** — `Cell` / `Button` 内部用 `react-native-gesture-handler` 的 `Pressable`,故宿主仍要 **`GestureHandlerRootView` 包裹**。
+  - **平台前导块** — `PlatformLeading` / `WeChatGlyph` / `DingTalkGlyph` 是面板里平台前导小块(品牌色取自 `PLATFORM_BRAND_COLORS`)。
+
+> **Host 必须在 app 根挂一次,且一次只能开一个 sheet。**
+> 没挂 Host → `openSheet` 立即 reject;已有 sheet 未关时重入 → 直接 reject。
+
+> **`Platform` 是分享目标枚举(`wechat_session` / `dingtalk`),不是 RN 的 `Platform` —— 它没有 `.OS`。**
+> 判 OS 用 `react-native` 的 `Platform`。
 
 ### Analytics
 
@@ -72,8 +93,13 @@ Platform / SUPPORTED_PLATFORMS / PLATFORM_* / UmengError   分享目标枚举 + 
 
 分享回调能不能跳回 App 全靠原生注册,**模板别凭记忆编**,以文档站 / `llms-full.txt` 为准:
 
-- **iOS** —— `Info.plist` 配 `LSApplicationQueriesSchemes`(weixin/dingtalk 等 scheme 白名单)+ `CFBundleURLTypes`(回调 scheme:`wx`+appid、`dingoa`+appid);`AppDelegate` 把 `open url` / `continue userActivity` 转发给桥导出的 `UmengBootstrap`。注意方法名是 **`handleOpen(_:options:)`**(Swift omit-needless-words),不是 `handleOpenURL`。
-- **Android** —— `WXEntryActivity`(超类 `WXCallbackActivity`)/ `DDShareActivity` **必须在宿主包名下**(微信/钉钉 SDK 反射查 `getPackageName() + ".wxapi.WXEntryActivity"` / `+ ".ddshare.DDShareActivity"`,不能放 library 包)。钉钉 `appId` 在 Activity `onCreate` 写死,要和 JS `preInit({ dingtalkAppId })` 一致(推荐 `BuildConfig.DINGTALK_APPID` 单一数据源)。权限 / `<queries>` / consumer proguard 由 library Manifest + `consumer-rules.pro` 自动合并,宿主不用写。
+- **iOS**
+  - `Info.plist` — `LSApplicationQueriesSchemes`(weixin/dingtalk 等 scheme 白名单)+ `CFBundleURLTypes`(回调 scheme:`wx`+appid、`dingoa`+appid)。
+  - `AppDelegate` — 把 `open url` / `continue userActivity` 转发给桥导出的 `UmengBootstrap`。注意方法名是 **`handleOpen(_:options:)`**(Swift omit-needless-words),不是 `handleOpenURL`。
+- **Android**
+  - Activity 位置 — `WXEntryActivity`(超类 `WXCallbackActivity`)/ `DDShareActivity` **必须在宿主包名下**(微信/钉钉 SDK 反射查 `getPackageName() + ".wxapi.WXEntryActivity"` / `+ ".ddshare.DDShareActivity"`,不能放 library 包)。
+  - 钉钉 `appId` — 在 Activity `onCreate` 写死,要和 JS `preInit({ dingtalkAppId })` 一致(推荐 `BuildConfig.DINGTALK_APPID` 单一数据源)。
+  - 自动合并 — 权限 / `<queries>` / consumer proguard 由 library Manifest + `consumer-rules.pro` 自动合并,宿主不用写。
 
 ### 测试
 
@@ -91,23 +117,26 @@ Platform / SUPPORTED_PLATFORMS / PLATFORM_* / UmengError   分享目标枚举 + 
 
 ## 关键坑(踩过的)
 
+接入 / 改动时最容易踩的,按高频排序:
+
 - **把 cancel/failure 当 resolve** —— `Share.openSheet` / `share*` 取消、失败都 **reject**(`UmengError`,code `E_USER_CANCEL` / `E_SHARE_FAILED`),resolve 到手的 `r.code` 必为 `'success'`。永远 try/catch,别 `if (r.code === 'cancel')`(到不了)。
 - **`init` 带参** —— config 只给 `preInit`,`init()` **无参**。没先 `preInit` 直接 `init` 会 reject。
 - **没挂 `<ShareSheetHost />`** —— `openSheet` 立即 reject(`No <ShareSheetHost /> mounted`)。根上挂一次,且一次只能开一个 sheet。
 - **把 umeng 的 `Platform` 当成 RN 的** —— 它是分享目标枚举,没有 `.OS`。判 OS 用 `react-native` 的 `Platform`;混用时给一个起别名。
 - **`Analytics.*` 去 await** —— 它们是同步 void,await 一个 `undefined` 没意义。
 
-## 文档指针
+## 文档与 skill 同步
 
-- **文档站 + AI 文档**:`website/docs/**`(Docusaurus,中文)是单一真相源;`llms.txt` / `llms-full.txt` 由 `website/scripts/build-llms.js` 从 docs 生成。**改组件 / API / 类型时同步改 `website/docs/`**(AI 读的是它,不是源码注释)。
-- **消费者用法**:verified skill `using-unif-umeng`(`unif-react-native` plugin)—— API / 坑 / 原生 setup 的优先来源。
-- **远程**:索引 <https://unif-design.github.io/react-native-umeng/llms.txt> · 全文 <https://unif-design.github.io/react-native-umeng/llms-full.txt>。
+改了组件 / API / 类型,或想知道「消费者怎么接这个库」时看这里。
 
-## 自动化流程标准
-
-CI / 发版 / 依赖管理 / PR review / branch protection 全套自动化的配置 + 排查 SOP,**集中维护在 org 共享文档**:
-
-→ https://github.com/unif-design/.github/blob/main/AUTOMATION.md
+- **API / props / 类型全量** → 文档站 + 远程 llms.txt(按需 fetch,**不在本仓镜像**):
+  - 文档站:<https://unif-design.github.io/react-native-umeng/>
+  - llms 索引:<https://unif-design.github.io/react-native-umeng/llms.txt>
+  - llms 全文:<https://unif-design.github.io/react-native-umeng/llms-full.txt>
+- **website docs 是 llms.txt 的唯一来源** —— 改了组件 / API / 类型,**同步改 `website/docs/`**(Docusaurus,中文;AI 读的是它,不是源码注释)再 `node website/scripts/build-llms.js` 重生成,否则 AI 读到的会过时。
+- **改 API 也要同步消费侧 skill** —— skill `unif-umeng`(`unif-design/skills` 仓 `skills/unif-umeng/SKILL.md`):**手写部分**(快速开始 / 坑 / `assets/` 模板)手动改;**全量 props** 已路由 llms.txt,随 docs 自动跟随。
+- **作为消费者接入** → Agent Skill `unif-umeng`(`unif` 插件),装:`/plugin marketplace add unif-design/skills` → `/plugin install unif@unif-skills`。经核实的 API / 坑 / 原生 setup,是接入侧首选入口。
+- **CI / release / native-lint 约定**见 `README` + `.github/`;CI / 发版 / 依赖管理 / PR review / branch protection 全套自动化的配置 + 排查 SOP,集中维护在 org 共享文档 → <https://github.com/unif-design/.github/blob/main/AUTOMATION.md>。
 
 ## 仓库内注释风格
 
