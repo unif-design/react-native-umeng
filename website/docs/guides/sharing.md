@@ -90,7 +90,7 @@ await Share.shareImage({
 | `type` | 字段 | 说明 |
 | --- | --- | --- |
 | `'text'` | `text` | 纯文本 |
-| `'image'` | `image`、`thumb?` | 图片(URL / 本地路径) |
+| `'image'` | `image`、`thumb?` | 图片(**仅网络 URL**;本地路径 / base64 传不进原生层,暂不支持) |
 | `'link'` | `title`、`url`、`description?`、`thumb?` | 图文链接 |
 
 直拉变体一一对应:`shareText({ platform, text })`、`shareImage({ platform, image, thumb? })`、`shareLink({ platform, title, url, description?, thumb? })`。完整参数表见 [Share API](../api/share)。

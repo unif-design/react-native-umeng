@@ -54,7 +54,7 @@ type ShareSheetPayload =
 | `type` | 字段 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `'text'` | `text: string` | ✅ | 纯文字内容 |
-| `'image'` | `image: string` | ✅ | 图片 URL 或本地路径 |
+| `'image'` | `image: string` | ✅ | 图片网络 URL(本地路径 / base64 暂不支持) |
 |  | `thumb?: string` | — | 缩略图 |
 | `'link'` | `title: string` | ✅ | 链接标题 |
 |  | `url: string` | ✅ | 链接 URL |
@@ -116,10 +116,10 @@ function shareImage(options: ShareImageOptions): Promise<ShareResult>;
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `platform` | `Platform` | ✅ | 目标平台 |
-| `image` | `string` | ✅ | 图片 URL 或本地路径 |
+| `image` | `string` | ✅ | 图片网络 URL(本地路径 / base64 暂不支持) |
 | `thumb` | `string` | — | 缩略图 URL |
 
-`image` 为空时抛 `E_INVALID_OPTIONS`。
+`image` 为空时抛 `E_INVALID_OPTIONS`。本地图(截图 / 相册路径 / base64)传不进原生层 —— 需先上传拿到 `https://` URL 再分享。
 
 ---
 

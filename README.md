@@ -10,7 +10,7 @@
 ## 特性
 
 - **U-Share** — 微信会话 + 钉钉分享，支持文本 / 图片 / 链接三种内容。
-- **命令式分享面板** — 根上挂一次 `<ShareSheetHost />`，`Share.openSheet()` 即可拉起，基于 `@unif/react-native-design` 的 BottomSheet 渲染。
+- **命令式分享面板** — 根上挂一次 `<ShareSheetHost />`，`Share.openSheet()` 即可拉起，RN `Modal` 底部弹层 + `@unif/react-native-design` 组件渲染。
 - **U-App 统计** — `onEvent` 自定义事件 + `signIn` / `signOut` 账号埋点。
 - **PIPL 合规** — 两段式初始化（`preInit` 存配置不上报 → 用户同意后 `init` 才采集）。
 - **TypeScript 优先** — 全量类型 + `UmengError` 错误码，随包附带官方 Jest mock。
@@ -22,7 +22,6 @@
 ```sh
 yarn add @unif/react-native-umeng \
   @unif/react-native-design \
-  @gorhom/bottom-sheet \
   react-native-gesture-handler \
   react-native-svg
 ```
