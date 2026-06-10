@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: 安装
-description: "安装 @unif/react-native-umeng 及全部 peerDependencies（@unif/react-native-design、@gorhom/bottom-sheet、react-native-gesture-handler、react-native-svg），运行 pod install，并指向 iOS / Android 原生回调配置。"
+description: "安装 @unif/react-native-umeng 及全部 peerDependencies（@unif/react-native-design、react-native-gesture-handler、react-native-svg），运行 pod install，并指向 iOS / Android 原生回调配置。"
 ---
 
 # 安装
@@ -30,7 +30,6 @@ description: "安装 @unif/react-native-umeng 及全部 peerDependencies（@unif
 ```sh
 yarn add @unif/react-native-umeng \
   @unif/react-native-design \
-  @gorhom/bottom-sheet \
   react-native-gesture-handler \
   react-native-svg
 ```
@@ -39,15 +38,14 @@ yarn add @unif/react-native-umeng \
 
 | 包 | 版本约束 | 作用 |
 | --- | --- | --- |
-| `@unif/react-native-design` | `>=0.1.2` | 分享面板 UI(`BottomSheet` / `Cell` / `Button` / `useTheme`),**必装**(见下) |
-| `@gorhom/bottom-sheet` | `>=5` | 分享面板底层 BottomSheet |
-| `react-native-gesture-handler` | `>=2.21.0` | BottomSheet 手势 |
+| `@unif/react-native-design` | `>=0.1.2` | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`),**必装**(见下) |
+| `react-native-gesture-handler` | `>=2.21.0` | design 组件的手势底层(design 的 peer,连带必装) |
 | `react-native-svg` | `>=15` | 面板平台图标 |
 
 > `react` / `react-native` 也声明为 peer(`*`),任何 RN 工程都已自带,无需为本库单独安装。
 
 :::warning `@unif/react-native-design` 是分享面板的 UI 壳,不能省
-`<ShareSheetHost />` 用 design 的 `BottomSheet` / `Cell` / `Button` / `useTheme` 渲染,并且**必须在 design 的 `ThemeProvider` 与 `GestureHandlerRootView` 内**才能工作。这套挂载约定见[快速上手](./quick-start)。缺 design 或缺 `ThemeProvider`,分享面板无法渲染。
+`<ShareSheetHost />` 面板本体是 RN `Modal` 底部弹层,内部用 design 的 `Cell` / `Button` / `useThemedStyles` 渲染,并且**必须在 design 的 `ThemeProvider` 与 `GestureHandlerRootView` 内**才能工作(design 组件的触摸经 gesture-handler)。这套挂载约定见[快速上手](./quick-start)。缺 design 或缺 `ThemeProvider`,分享面板无法渲染。
 :::
 
 :::note 只用统计、不用分享?
