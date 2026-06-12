@@ -94,3 +94,7 @@ nitrogen/
 
 # Playwright MCP scratch files
 .playwright-mcp/
+
+# codegraph: 提交 .codegraph/.gitignore 规则,daemon 运行时(pid/sock)不入库
+.codegraph/*.pid
+.codegraph/*.sock
