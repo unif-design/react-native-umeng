@@ -94,8 +94,12 @@ jobs:
         uses: ./.github/actions/setup
 
       # npm Trusted Publishing 需要 npm CLI ≥ 11.5.1;.nvmrc 的 node 24 自带的 npm 可能不够新。
+      # **不要写 npm@latest** —— npm 的 engines 下限会先于 .nvmrc 钉死的 node 往前跳,一跳就断。
+      # 2026-07-08 npm 12 发布后实测:engines 要 node ^22.22.2 || ^24.15.0 || >=26,而 runner 按
+      # .nvmrc 装 node 24.13.0 → `npm i -g npm@latest` 直接 EBADENGINE 挂掉(camera #92 发版即断此)。
+      # 锁 11.x:既保住 OIDC 下限,又不追 npm engines 漂移。对齐 design / camera 修法。
       - name: Upgrade npm CLI (required for OIDC)
-        run: npm install -g npm@latest
+        run: npm install -g "npm@^11"
 
       - name: Verify
         run: |
