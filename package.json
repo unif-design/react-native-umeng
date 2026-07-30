@@ -159,7 +159,8 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "<rootDir>/website/",
-      "<rootDir>/example/"
+      "<rootDir>/example/",
+      "<rootDir>/src/__tests__/fixtures/"
     ],
     "passWithNoTests": true
   },
