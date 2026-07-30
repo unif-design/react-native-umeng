@@ -1,34 +1,51 @@
+import { Platform as ReactNativePlatform } from 'react-native';
 import NativeUmengCommon from './NativeUmengCommon';
+import { normalizeError } from './internal/errors';
+import {
+  areInitConfigsEqual,
+  normalizeInitConfig,
+  toNativeInitConfig,
+  type NormalizedUmengInitConfig,
+} from './internal/initConfig';
 import { UmengError, type UmengInitConfig } from './types';
 
-let preInitPromise: Promise<void> | null = null;
+let configSnapshot: Readonly<NormalizedUmengInitConfig> | null = null;
+let nativeStarted = false;
+let initialized = false;
 let initPromise: Promise<void> | null = null;
 
 /**
  * 预初始化友盟 SDK (可在 user 同意《隐私协议》之前调,推荐 App 启动后立刻调)。
  *
- * 行为:存 config + 注册微信/钉钉平台,**不上报数据**。详见 NativeUmengCommon.ts。
- *
- * idempotent — 重复调只触发一次。
+ * 仅在 JS 校验并保存不可变配置快照，不调用 native。
  */
 export function preInit(config: UmengInitConfig): Promise<void> {
-  if (!config?.appkey) {
-    return Promise.reject(
-      new UmengError(
-        'E_INVALID_OPTIONS',
-        '`appkey` is required for Common.preInit'
-      )
+  try {
+    const normalizedConfig = normalizeInitConfig(
+      config,
+      ReactNativePlatform.OS === 'ios' ? 'ios' : 'android'
     );
+
+    if (
+      configSnapshot !== null &&
+      areInitConfigsEqual(configSnapshot, normalizedConfig)
+    ) {
+      return Promise.resolve();
+    }
+    if (nativeStarted) {
+      return Promise.reject(
+        new UmengError(
+          'E_INVALID_OPTIONS',
+          'Common.preInit config cannot change after Common.init has started'
+        )
+      );
+    }
+
+    configSnapshot = normalizedConfig;
+    return Promise.resolve();
+  } catch (error) {
+    return Promise.reject(error);
   }
-  if (preInitPromise === null) {
-    preInitPromise = NativeUmengCommon.preInit(
-      config as unknown as object
-    ).catch((err) => {
-      preInitPromise = null;
-      throw err;
-    });
-  }
-  return preInitPromise;
 }
 
 /**
@@ -37,22 +54,53 @@ export function preInit(config: UmengInitConfig): Promise<void> {
  * idempotent — 重复调只触发一次。
  */
 export function init(): Promise<void> {
-  if (initPromise === null) {
-    initPromise = NativeUmengCommon.init().catch((err) => {
-      initPromise = null;
-      throw err;
-    });
+  if (initialized) {
+    return Promise.resolve();
   }
-  return initPromise;
+  if (initPromise !== null) {
+    return initPromise;
+  }
+  if (configSnapshot === null) {
+    return Promise.reject(
+      new UmengError(
+        'E_NOT_INITIALIZED',
+        'Common.preInit must be called before Common.init'
+      )
+    );
+  }
+
+  nativeStarted = true;
+  try {
+    initPromise = NativeUmengCommon.initialize(
+      toNativeInitConfig(configSnapshot)
+    )
+      .then(() => {
+        initialized = true;
+      })
+      .catch((error: unknown) => {
+        initPromise = null;
+        throw normalizeError(error, 'E_UNKNOWN', 'Failed to initialize Umeng');
+      });
+    return initPromise;
+  } catch (error) {
+    initPromise = null;
+    return Promise.reject(
+      normalizeError(error, 'E_UNKNOWN', 'Failed to initialize Umeng')
+    );
+  }
 }
 
-/** 查询是否已完成 init。 */
-export function isInited(): Promise<boolean> {
-  return NativeUmengCommon.isInited();
-}
+/** 查询 native 是否已完成 init。 */
+export async function isInited(): Promise<boolean> {
+  const fallbackMessage = 'Failed to query Umeng initialization state';
 
-/** @internal 仅给 jest 用 */
-export function __resetForTests(): void {
-  preInitPromise = null;
-  initPromise = null;
+  try {
+    const result: unknown = await NativeUmengCommon.isInited();
+    if (typeof result !== 'boolean') {
+      throw new UmengError('E_UNKNOWN', fallbackMessage, result);
+    }
+    return result;
+  } catch (error) {
+    throw normalizeError(error, 'E_UNKNOWN', fallbackMessage);
+  }
 }

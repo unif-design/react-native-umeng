@@ -1,8 +1,10 @@
 // @unif/react-native-umeng 公共 API:Common(初始化)/ Share(微信分享)/ Analytics(友盟统计)。
 // 文档站:https://unif-design.github.io/react-native-umeng/(版本随发版自动部署)。
-export * as Common from './common';
-export * as Share from './share';
-export * as Analytics from './analytics';
+import * as Common from './common';
+import * as Share from './share';
+import * as Analytics from './analytics';
+
+export { Common, Share, Analytics };
 
 export {
   Platform,
