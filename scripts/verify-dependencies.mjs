@@ -14,10 +14,73 @@ const designPeers = [
   'react-native-svg',
   'react-native-worklets',
 ];
+const installedPackageNames = [
+  ...new Set([
+    ...designPeers,
+    '@unif/react-native-design',
+    '@babel/core',
+    '@react-native/metro-config',
+  ]),
+];
 const shared = {
   '@unif/react-native-design': '^0.20.0',
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
+};
+const lockedPackageContracts = {
+  '@unif/react-native-design': {
+    version: '0.20.0',
+    peerDependencies: {
+      '@sbaiahmed1/react-native-blur': '>=4',
+      react: '*',
+      'react-native': '*',
+      'react-native-gesture-handler': '>=3.0.0 <4.0.0',
+      'react-native-reanimated': '>=4.1.0',
+      'react-native-reanimated-carousel': '>=5.0.0 <6.0.0',
+      'react-native-safe-area-context': '>=5',
+      'react-native-svg': '>=15',
+      'react-native-worklets': '>=0.9',
+    },
+  },
+  'react-native-gesture-handler': {
+    version: '3.1.0',
+    peerDependencies: {
+      react: '*',
+      'react-native': '*',
+    },
+  },
+  'react-native-reanimated': {
+    peerDependencies: {
+      react: '*',
+      'react-native': '0.83 - 0.86',
+      'react-native-worklets': '0.10.x - 0.11.x',
+    },
+  },
+  'react-native-reanimated-carousel': {
+    version: '5.0.0',
+    peerDependencies: {
+      react: '>=18.0.0',
+      'react-native': '>=0.80.0',
+      'react-native-gesture-handler': '>=2.9.0 <3.0.0',
+      'react-native-reanimated': '>=4.1.0',
+      'react-native-worklets': '>=0.5.0',
+    },
+  },
+  'react-native-worklets': {
+    peerDependencies: {
+      '@babel/core': '*',
+      '@react-native/metro-config': '*',
+      react: '*',
+      'react-native': '0.83 - 0.86',
+    },
+  },
+};
+const approvedPeerException = {
+  packageName: 'react-native-reanimated-carousel',
+  packageVersion: '5.0.0',
+  peerName: 'react-native-gesture-handler',
+  peerRange: '>=2.9.0 <3.0.0',
+  installedVersion: '3.1.0',
 };
 
 async function readJson(relativePath) {
@@ -39,6 +102,60 @@ function assertInstalledPackageSatisfiesRange({ semver, packageName, version, ra
     semver.satisfies(version, range, { includePrerelease: true }),
     `${packageName}@${version} must satisfy ${source} range ${range}`,
   );
+}
+
+function assertRequiredPeer(manifest, packageName, peerName) {
+  assert.equal(
+    typeof manifest.peerDependencies?.[peerName],
+    'string',
+    `${packageName}@${manifest.version} must declare ${peerName} in peerDependencies`,
+  );
+}
+
+function assertLockedPackageContract(packageName, manifest, contract) {
+  if (contract.version) {
+    assert.equal(manifest.version, contract.version, `${packageName} version must remain locked`);
+  }
+  if (contract.peerDependencies) {
+    assert.deepEqual(
+      manifest.peerDependencies,
+      contract.peerDependencies,
+      `${packageName}@${manifest.version} peerDependencies must remain locked`,
+    );
+  }
+}
+
+function assertPackagePeerCompatibility({ semver, packageName, manifest, installedPackages }) {
+  for (const [peerName, peerRange] of Object.entries(manifest.peerDependencies ?? {})) {
+    const peerManifest = installedPackages[peerName];
+    assert.ok(peerManifest, `${packageName}@${manifest.version} requires installed ${peerName}`);
+
+    if (
+      packageName === approvedPeerException.packageName &&
+      manifest.version === approvedPeerException.packageVersion &&
+      peerName === approvedPeerException.peerName &&
+      peerRange === approvedPeerException.peerRange
+    ) {
+      assert.equal(
+        peerManifest.version,
+        approvedPeerException.installedVersion,
+        'approved Carousel/Gesture Handler exception must remain version-locked',
+      );
+      assert.ok(
+        !semver.satisfies(peerManifest.version, peerRange, { includePrerelease: true }),
+        'approved Carousel/Gesture Handler exception must remain an explicit incompatibility',
+      );
+      continue;
+    }
+
+    assertInstalledPackageSatisfiesRange({
+      semver,
+      packageName: peerName,
+      version: peerManifest.version,
+      range: peerRange,
+      source: `${packageName}@${manifest.version} peerDependencies`,
+    });
+  }
 }
 
 const [root, example, website] = await Promise.all([
@@ -65,58 +182,54 @@ assertDesignPeers(website, 'dependencies', 'website/package.json');
 
 const semverModule = await import('semver');
 const semver = semverModule.default ?? semverModule;
-const [reactNative, reanimated, worklets] = await Promise.all([
-  readJson('node_modules/react-native/package.json'),
-  readJson('node_modules/react-native-reanimated/package.json'),
-  readJson('node_modules/react-native-worklets/package.json'),
-]);
+const installedPackages = Object.fromEntries(
+  await Promise.all(
+    installedPackageNames.map(async (packageName) => [
+      packageName,
+      await readJson(`node_modules/${packageName}/package.json`),
+    ]),
+  ),
+);
 
-assertInstalledPackageSatisfiesRange({
-  semver,
-  packageName: 'react-native-reanimated',
-  version: reanimated.version,
-  range: root.peerDependencies['react-native-reanimated'],
-  source: '@unif/react-native-umeng peerDependencies',
-});
-assertInstalledPackageSatisfiesRange({
-  semver,
-  packageName: 'react-native-worklets',
-  version: worklets.version,
-  range: root.peerDependencies['react-native-worklets'],
-  source: '@unif/react-native-umeng peerDependencies',
-});
+assertRequiredPeer(
+  installedPackages['react-native-reanimated'],
+  'react-native-reanimated',
+  'react-native-worklets',
+);
+assertRequiredPeer(
+  installedPackages['react-native-reanimated'],
+  'react-native-reanimated',
+  'react-native',
+);
+assertRequiredPeer(installedPackages['react-native-worklets'], 'react-native-worklets', 'react-native');
 
-for (const [peerName, peerRange] of Object.entries(reanimated.peerDependencies ?? {})) {
-  if (peerName === 'react-native-worklets') {
-    assertInstalledPackageSatisfiesRange({
+for (const [packageName, contract] of Object.entries(lockedPackageContracts)) {
+  assertLockedPackageContract(packageName, installedPackages[packageName], contract);
+}
+
+for (const [packageName, range] of Object.entries(root.peerDependencies)) {
+  const installedPackage = installedPackages[packageName];
+  assert.ok(installedPackage, `@unif/react-native-umeng peer ${packageName} must be installed`);
+  assertInstalledPackageSatisfiesRange({
+    semver,
+    packageName,
+    version: installedPackage.version,
+    range,
+    source: '@unif/react-native-umeng peerDependencies',
+  });
+}
+
+for (const [packageName, contract] of Object.entries(lockedPackageContracts)) {
+  if (contract.peerDependencies) {
+    assertPackagePeerCompatibility({
       semver,
-      packageName: peerName,
-      version: worklets.version,
-      range: peerRange,
-      source: `react-native-reanimated@${reanimated.version} peerDependencies`,
-    });
-  }
-  if (peerName === 'react-native') {
-    assertInstalledPackageSatisfiesRange({
-      semver,
-      packageName: peerName,
-      version: reactNative.version,
-      range: peerRange,
-      source: `react-native-reanimated@${reanimated.version} peerDependencies`,
+      packageName,
+      manifest: installedPackages[packageName],
+      installedPackages,
     });
   }
 }
 
-for (const [peerName, peerRange] of Object.entries(worklets.peerDependencies ?? {})) {
-  if (peerName === 'react-native') {
-    assertInstalledPackageSatisfiesRange({
-      semver,
-      packageName: peerName,
-      version: reactNative.version,
-      range: peerRange,
-      source: `react-native-worklets@${worklets.version} peerDependencies`,
-    });
-  }
-}
-
-console.log('Dependency contract verified.');
+console.log(
+  'Dependency contract verified with the approved Carousel/Gesture Handler peer exception.',
+);
