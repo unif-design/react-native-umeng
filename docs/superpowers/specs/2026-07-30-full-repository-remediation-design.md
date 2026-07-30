@@ -2,7 +2,7 @@
 
 > 日期：2026-07-30  
 > 状态：已确认设计，等待书面规格复核  
-> 范围：`@unif/react-native-umeng` 的 JS、ShareSheet、Android、iOS、example、website、CI 与发布链路
+> 范围：`@unif/react-native-umeng` 的 JS、ShareSheet、Android、iOS、example、website、Agent 指令、消费侧 skill、CI 与发布链路
 
 ## 1. 背景与目标
 
@@ -17,6 +17,7 @@
 - iOS 的 Universal Link 配置顺序、主线程要求、Codegen 注册、Swift module 与回调转发不完整。
 - example、website 和 CI 没有真实覆盖消费者需要的依赖、Metro bundle、发布压缩包与原生接入配置。
 - 文档、首页、llms 产物和发布触发条件与实际 API 或产物存在漂移。
+- 仓库 Agent 指令以 `CLAUDE.md` 为主体、`AGENTS.md` 反向跳转，且消费侧 skill 仍使用过时的目录名和初始化说明。
 
 本设计的目标是一次性修复已识别问题，同时保持现有公共能力和视觉体系：
 
@@ -25,6 +26,7 @@
 - 用户同意隐私协议前，不调用友盟、微信或钉钉的任何 native SDK API。
 - 取消和失败继续 reject；只有分享成功 resolve。
 - 所有开发、示例、文档、测试与发布入口使用同一套可验证依赖组合。
+- `AGENTS.md` 成为仓库 Agent 指令唯一真相源，库文档与消费侧 `umeng-share` skill 建立强制同步门禁。
 - 修复以一个版本交付，但实现计划可以按 JS、Android、iOS、工具链并行，最终统一验证。
 
 本轮不新增分享平台、分享内容类型、授权登录、推送或新的 UI variant。Android SDK 本地构建按用户要求暂不作为本地完成条件，但 Android 代码、配置、静态检查与 CI 验证入口仍必须实现；有 SDK 的 CI 或测试环境随后完成编译和真机验证。
@@ -43,6 +45,8 @@
 | Bottom Sheet | `design@0.20.x` 已移除 `@gorhom/bottom-sheet` peer；Umeng、example 与文档同步移除它 |
 | ShareSheet | 继续使用 RN `Modal`，Modal 内容内部增加 `GestureHandlerRootView` |
 | Android SDK | 本机暂不要求 assemble；CI/有 SDK 环境必须补齐 release、merged manifest 与 R8 验证 |
+| Agent 指令 | `AGENTS.md` 为唯一真相源；`CLAUDE.md` 精确保留一行 `@AGENTS.md` |
+| 消费侧 skill | 对应目录为 `unif-design/skills` 仓的 `skills/umeng-share/`；库改动后必须检查，本轮确定同步更新 |
 | 交付方式 | 所有已识别问题在同一修复版本完成，不拆成多个用户可见版本 |
 
 截至 2026-07-30，npm 官方 registry 的 `@unif/react-native-design` 最新版本为 `0.20.0`。版本声明统一使用 `^0.20.0`，锁文件记录本次安装实际解析结果。
@@ -526,9 +530,68 @@ plugins: ['react-native-worklets/plugin']
 
 example 显式依赖 `@unif/react-native-umeng: "workspace:*"`，而不是靠根 workspace 的隐式可见性。这样 example 的依赖图更接近真实消费者，也能由 Yarn 的 ghost dependency 检查发现缺失声明。
 
-## 9. 文档、网站与 llms
+## 9. 文档、Agent 指令、消费侧 skill 与 llms
 
-所有公共行为变化同步到 README、CLAUDE.md、website docs 与生成的 llms 文件：
+### 9.1 仓库 Agent 指令唯一真相源
+
+`AGENTS.md` 重写为本仓所有 coding agent 的完整规范，不机械搬运当前 `CLAUDE.md` 中已经过时的事实。它以本轮修复后的最终代码为准，并至少包含：
+
+- 默认使用中文交流，技术专有名词与代码标识符保持英文。
+- 仓库定位、目录结构、包管理器、常用命令与验证入口。
+- 最终公共 API、初始化隐私边界、ShareSheet 会话模型、原生接入、mock、构建与发布约束。
+- 文档、llms 和消费侧 skill 的同步门禁。
+- Android SDK 本地缺失时只能记录待外部验证，不能声称 assemble 已通过。
+
+`CLAUDE.md` 不再重复任何项目规则，文件内容精确为：
+
+```text
+@AGENTS.md
+```
+
+文件末尾保留一个换行，不加标题、说明或反向链接。仓库中不能再出现“`AGENTS.md` 的规范见 `CLAUDE.md`”之类的循环引用；所有后续项目规则只改 `AGENTS.md`。
+
+专用轻量校验必须断言：
+
+- `CLAUDE.md` 只有 `@AGENTS.md` 一行。
+- `AGENTS.md` 不引用 `CLAUDE.md` 作为规范源。
+- `AGENTS.md` 不包含授权前 native pre-init、`skills/unif-umeng` 等本轮已知过时事实。
+- 公共 API、依赖范围、文档/skill 路径与最终代码及 `package.json` 一致。
+
+### 9.2 消费侧 `umeng-share` skill 同步门禁
+
+消费侧对应 skill 的规范位置是 `unif-design/skills` 仓的 `skills/umeng-share/`；本机存在 sibling checkout 时使用 `../skills/skills/umeng-share/`，不能继续使用旧名称 `unif-umeng`。
+
+`AGENTS.md` 必须要求：每次库变更完成后都检查该 skill；如果改动触及公共 API、类型、运行时行为、依赖与安装步骤、原生配置、错误语义、mock、消费者示例或已知排障结论，则必须同步更新受影响内容。检查范围包括：
+
+- `SKILL.md` 的快速开始、核心模式、易错点、测试与远程 llms 路由。
+- `references/` 中的原生接入与排障说明。
+- `assets/` 中可复制的 TS/原生模板。
+- `scripts/` 中的 doctor 检查和自包含测试。
+- `metadata.version` 及 skill 仓需要同步的 marketplace 元数据。
+
+判断受影响时，同一交付中更新 skill 并在它自己的仓库单独提交；判断不受影响时，也要在最终交付说明中记录“已检查，无需更新”及依据。skill 仓不可访问或没有写权限时必须明确报告阻塞，不能声称已同步。
+
+本轮不属于“无需更新”：现有 `umeng-share` skill 没有说明 `preInit` 只在 JS 校验和缓存配置，且 troubleshooting 仍按授权前 native 平台注册的旧路径排障。实现完成后按最终代码处理：
+
+- `SKILL.md` 明确 JS-only `preInit`、授权后 `init`、init 前 Share 的 `E_NOT_INITIALIZED`、Analytics no-op、完整 peers 与 Worklets Babel plugin，并提升 skill 版本。
+- `references/native-setup.md` 同步 FileProvider、Jetifier、精确 `.wxapi`/`.ddshare` Activity、iOS URL Types 原值、Associated Domains/AASA 及 AppDelegate/SceneDelegate 双路转发。
+- `references/troubleshooting.md` 删除旧 native pre-init 推断，加入初始化门禁和新的错误契约。
+- `assets/WXEntryActivity.kt` 从不可编译占位改为可编译模板，补充 `DDShareActivity.kt`；`assets/ShareEntry.tsx` 明确分享前必须完成 `preInit`、用户授权和 `init`。
+- `scripts/doctor.sh` 与 `scripts/doctor.test.sh` 增加完整 peers/版本、Worklets plugin 顺序、Jetifier、Activity 包路径/超类及 iOS Universal Link/回调要件的正反向检查。
+
+skill 更新遵守其仓库 `AGENTS.md`，并运行：
+
+```sh
+python3 scripts/validate_repository.py
+python3 scripts/validate_portal_consistency.py
+for test_file in skills/*/scripts/doctor.test.sh; do bash "$test_file"; done
+```
+
+库仓与 skill 仓分别报告 commit、验证结果和未完成的真机/Android SDK 验收；跨仓同步不能被库仓单独通过测试所替代。
+
+### 9.3 README、网站与 llms
+
+所有公共行为变化同步到 README、AGENTS.md、website docs、消费侧 `umeng-share` skill 与生成的 llms 文件：
 
 - 隐私指南改成授权前只调用 JS `preInit`，授权后 `init` 才进入全部 native SDK。
 - 删除“友盟 Android preInit 可在授权前调用且无副作用”的过时描述。
@@ -575,9 +638,12 @@ example workspace 的 native build task 使用 `$TURBO_ROOT$` 引用仓库根输
 | `example/android/**`、`android/**` | Android build/manifest/minify 验证 |
 | `example/ios/**`、`ios/**`、Podspec、Codegen 配置 | iOS Pod/Codegen/build 验证 |
 | `website/**` | llms script tests、生成产物断言、website typecheck、production build |
+| `AGENTS.md`、`CLAUDE.md` | Agent 指令唯一来源校验、过时术语扫描、Markdown 链接检查 |
 | repo 专用 workflow 自身、`turbo.json` | 对应全部受影响 job |
 
 纯 Markdown 且不进入 website/llms 的历史设计文档可以跳过 native build；任何消费者文档变更仍运行链接与 llms 验证。
+
+消费侧 `skills/umeng-share/**` 位于独立仓库，不伪装成本仓 path filter；其修改在 skill 仓运行第 9.2 节的全套验证。
 
 ### 10.3 消费者与发布产物冒烟
 
@@ -692,6 +758,9 @@ Android CI/有 SDK 环境：
 - Yarn 安装不再依靠 website hoist 补齐 example 缺失依赖。
 - workspace 外 fixture 断言全部 peers 满足，source、lib、tarball 三种入口均能 bundle。
 - website llms tests、生成产物断言、typecheck 与 production build 通过。
+- `AGENTS.md` 是完整且唯一的项目指令源，`CLAUDE.md` 的唯一字节内容为 `@AGENTS.md\n`，两者不存在循环引用。
+- 生效的 `AGENTS.md`、README、website 与消费侧 skill 内容不再使用旧目录名 `skills/unif-umeng`；历史设计记录不纳入该扫描。`AGENTS.md` 明确要求每次库改动后检查并记录 skill 同步结论。
+- `skills/umeng-share` 已按最终初始化、依赖、原生接入和错误契约更新，skill 仓 validator 与全部 doctor tests 通过。
 - 文档中不存在授权前调用 native preInit、旧 Bottom Sheet 接入或错误回调 Activity。
 - 文档中不存在 `{ share }`、Umeng `Platform.OS`、不完整微信配置或未处理的 LiveDemo 形式。
 - 发布路径和 Pod tag 与实际产物一致，publish contract 变化至少产生 patch。
