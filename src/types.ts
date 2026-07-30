@@ -90,10 +90,7 @@ export type ShareSheetPayload =
       thumb?: string;
     };
 
-/** 友盟初始化配置。`Common.init(config)` 接收。
- *
- *  PIPL 合规:user 同意《隐私协议》之后才调 `Common.init(config)`,
- *  在那之前 native 完全不持有 appkey,不会调任何友盟 API。 */
+/** 友盟预初始化配置，仅传给 JS 的 `Common.preInit(config)`；`Common.init()` 无参。 */
 export interface UmengInitConfig {
   /** 友盟 appkey,必填 */
   appkey: string;
