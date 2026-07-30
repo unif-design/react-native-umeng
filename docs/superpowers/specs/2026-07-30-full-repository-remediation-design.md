@@ -37,7 +37,8 @@
 | 隐私边界 | `preInit` 仅在 JS 内校验并缓存配置；授权前零 native SDK 调用 |
 | Native 初始化 | 授权后的 `init()` 通过单次内部 `initialize(config)` 执行平台阶段状态机 |
 | Design | 全仓统一使用 `"@unif/react-native-design": "^0.20.0"` |
-| Worklets | 包、example、website 和开发环境统一声明 `"react-native-worklets": "^0.10.1"` |
+| Reanimated | 包、example、website 和开发环境统一声明 `"react-native-reanimated": "^4.5.3"` |
+| Worklets | 包、example、website 和开发环境统一声明 `"react-native-worklets": "^0.11.3"` |
 | Design peers | 因 `design@0.20.x` 仍只有根入口并静态导出完整组件树，Umeng 明确声明并在测试工程安装其运行时 peers |
 | Bottom Sheet | `design@0.20.x` 已移除 `@gorhom/bottom-sheet` peer；Umeng、example 与文档同步移除它 |
 | ShareSheet | 继续使用 RN `Modal`，Modal 内容内部增加 `GestureHandlerRootView` |
@@ -486,7 +487,8 @@ example 只提交可辨识的占位值或由本地构建配置注入的值，不
 
 ```json
 "@unif/react-native-design": "^0.20.0",
-"react-native-worklets": "^0.10.1"
+"react-native-reanimated": "^4.5.3",
+"react-native-worklets": "^0.11.3"
 ```
 
 `design@0.20.x` 的发布包仍只有根入口，根入口静态导出完整 UI 组件树。Umeng 从根入口导入 `Cell`、`Button`、`useTheme` 与 `useThemedStyles` 时，Metro 仍需解析其他静态导出使用的 native/singleton peers。因此 Umeng 的 `peerDependencies` 明确声明以下范围，根 `devDependencies`、example 和 website 也显式安装兼容版本：
@@ -498,15 +500,15 @@ example 只提交可辨识的占位值或由本地构建配置注入的值，不
 | `react` | `*`；fixture 继续使用 React 19 |
 | `react-native` | `*`；fixture 继续使用 RN 0.85 |
 | `react-native-gesture-handler` | `>=3.0.0 <4.0.0` |
-| `react-native-reanimated` | `~4.4.2` |
+| `react-native-reanimated` | `^4.5.3` |
 | `react-native-reanimated-carousel` | `>=5.0.0 <6.0.0` |
 | `react-native-safe-area-context` | `>=5` |
 | `react-native-svg` | `>=15` |
-| `react-native-worklets` | `^0.10.1` |
+| `react-native-worklets` | `^0.11.3` |
 
 不把真实静态依赖标成 optional，也不依赖 workspace hoist 掩盖缺失声明。
 
-Reanimated 不使用 `^4.4.0`：该范围可以自动进入 4.6，而官方兼容矩阵显示 4.6 需要 Worklets 0.12。npm 发布元数据显示 4.4.0/4.4.1 只接受 Worklets 0.9，4.4.2 起才接受 0.10，因此 `~4.4.2` 与用户指定的 Worklets `^0.10.1`、RN 0.85 形成当前测试组合。
+截至 2026-07-30，npm 官方元数据显示 Reanimated 4.5.3 接受 RN 0.83–0.86 与 Worklets 0.10.x–0.11.x，Worklets 0.11.3 接受 RN 0.83–0.86，因此这组范围覆盖当前 RN 0.85 fixture。两者按用户要求保留 `^`；锁文件记录实际解析版本，隔离 consumer CI 必须验证 Reanimated 自身 peer 仍接受解析到的 Worklets。未来 caret 漂移到不兼容组合时直接失败，不能静默发布。
 
 `@gorhom/bottom-sheet` 不再属于 `design@0.20.x` peers，且 Umeng 当前 ShareSheet 使用 RN `Modal`，所以从 Umeng、example、website 与安装文档中删除。
 
@@ -530,7 +532,7 @@ example 显式依赖 `@unif/react-native-umeng: "workspace:*"`，而不是靠根
 
 - 隐私指南改成授权前只调用 JS `preInit`，授权后 `init` 才进入全部 native SDK。
 - 删除“友盟 Android preInit 可在授权前调用且无副作用”的过时描述。
-- 安装页列出完整 peers、`design@^0.20.0`、`worklets@^0.10.1` 和 Worklets Babel plugin。
+- 安装页列出完整 peers、`design@^0.20.0`、`reanimated@^4.5.3`、`worklets@^0.11.3` 和 Worklets Babel plugin。
 - 删除 Bottom Sheet 依赖和旧集成方式。
 - Android 页补 FileProvider 自动合并、Jetifier、正确微信/钉钉 Activity 与编译依赖。
 - iOS 页补 URL Types、Associated Domains、AppDelegate/SceneDelegate 双路转发。
@@ -634,7 +636,7 @@ Android CI/有 SDK 环境：
 - `Common.preInit` 不再调用 native；依赖“授权前已注册分享平台”的代码必须改为授权后等待 `Common.init()`。
 - `share*`、`isInstalled`、`listPlatforms` 和 `openSheet` 在 `Common.init()` 前会 reject `E_NOT_INITIALIZED`。
 - 公共 `ShareCode`/`ShareResult.code` 收窄为 `'success'`；曾处理 resolved cancel/failed 的 TypeScript 分支需要删除并改为 catch。
-- Design floor 升到 `^0.20.0`，Gesture Handler 升到 3.x，Reanimated 固定 `~4.4.2`，Worklets 使用 `^0.10.1`；消费者必须同步安装 peers 和 Babel plugin。
+- Design floor 升到 `^0.20.0`，Gesture Handler 升到 3.x，Reanimated 使用 `^4.5.3`，Worklets 使用 `^0.11.3`；消费者必须同步安装 peers 和 Babel plugin。
 - Android 首次初始化会启用已配置平台的回调组件；支持撤回同意的宿主需要接入文档中的禁用与进程重启步骤。
 
 当前包仍处于 `0.x`，本轮包含公共类型收窄、peer floor 与初始化行为变化，因此发布级别至少为 minor，而不是 patch。CHANGELOG 和迁移文档必须逐项列出以上变化。
@@ -686,7 +688,7 @@ Android CI/有 SDK 环境：
 
 ### 12.4 工具链与文档
 
-- 根、example、website 都解析 `design@^0.20.0`、`reanimated@~4.4.2` 与 `worklets@^0.10.1`。
+- 根、example、website 都声明 `design@^0.20.0`、`reanimated@^4.5.3` 与 `worklets@^0.11.3`，更新后的锁文件实际解析组合通过 peer 校验。
 - Yarn 安装不再依靠 website hoist 补齐 example 缺失依赖。
 - workspace 外 fixture 断言全部 peers 满足，source、lib、tarball 三种入口均能 bundle。
 - website llms tests、生成产物断言、typecheck 与 production build 通过。
