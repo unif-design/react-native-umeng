@@ -548,7 +548,7 @@ example 显式依赖 `@unif/react-native-umeng: "workspace:*"`，而不是靠根
 @AGENTS.md
 ```
 
-文件末尾保留一个换行，不加标题、说明或反向链接。仓库中不能再出现“`AGENTS.md` 的规范见 `CLAUDE.md`”之类的循环引用；所有后续项目规则只改 `AGENTS.md`。
+`CLAUDE.md` 只保留 `@AGENTS.md` 这一行，不加标题、说明、反向链接或其他内容。仓库中不能再出现“`AGENTS.md` 的规范见 `CLAUDE.md`”之类的循环引用；所有后续项目规则只改 `AGENTS.md`。
 
 专用轻量校验必须断言：
 
@@ -758,7 +758,7 @@ Android CI/有 SDK 环境：
 - Yarn 安装不再依靠 website hoist 补齐 example 缺失依赖。
 - workspace 外 fixture 断言全部 peers 满足，source、lib、tarball 三种入口均能 bundle。
 - website llms tests、生成产物断言、typecheck 与 production build 通过。
-- `AGENTS.md` 是完整且唯一的项目指令源，`CLAUDE.md` 的唯一字节内容为 `@AGENTS.md\n`，两者不存在循环引用。
+- `AGENTS.md` 是完整且唯一的项目指令源，`CLAUDE.md` 只包含 `@AGENTS.md`，两者不存在循环引用。
 - 生效的 `AGENTS.md`、README、website 与消费侧 skill 内容不再使用旧目录名 `skills/unif-umeng`；历史设计记录不纳入该扫描。`AGENTS.md` 明确要求每次库改动后检查并记录 skill 同步结论。
 - `skills/umeng-share` 已按最终初始化、依赖、原生接入和错误契约更新，skill 仓 validator 与全部 doctor tests 通过。
 - 文档中不存在授权前调用 native preInit、旧 Bottom Sheet 接入或错误回调 Activity。
