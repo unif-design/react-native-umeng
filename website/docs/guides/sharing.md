@@ -46,7 +46,11 @@ async function onShareTap() {
 | `title` | `string` | `'分享至'` | 面板标题 |
 | `cancelText` | `string` | `'取消'` | 取消按钮文案 |
 | `subtitles` | `Partial<Record<Platform, string>>` | 内置 | 各平台副标题覆盖 |
-| `hideUninstalled` | `boolean` | `false` | `true` 隐藏未安装平台(默认置灰) |
+| `hideUninstalled` | `boolean` | `false` | `true` 完全隐藏未安装平台；`false` 时仍显示且可点击 |
+
+`hideUninstalled=false` 时，点击未安装的平台不会调用 native share；`openSheet`
+返回的 Promise 会 reject `UmengError`，code 为
+`E_PLATFORM_NOT_INSTALLED`。只有 `hideUninstalled=true` 才会完全隐藏未安装平台。
 
 > `<ShareSheetHost />` 必须先在 App 根挂一次,否则 `openSheet` 立即 reject。挂载方式见[快速上手](../getting-started/quick-start#mount-host)。
 
