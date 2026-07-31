@@ -31,14 +31,12 @@
 		00E356EE1AD99517003FC87E /* ReactNativeUmengExampleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReactNativeUmengExampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00E356F51AD99517003FC87E /* UmengBootstrapTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = UmengBootstrapTests.mm; sourceTree = "<group>"; };
 		00E356FA1AD99517003FC87E /* TurboModuleRegistrationTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TurboModuleRegistrationTests.mm; sourceTree = "<group>"; };
-		0A5C6B64D7DDD550E28A161C /* Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.release.xcconfig"; path = "Target Support Files/Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests/Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.release.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* ReactNativeUmengExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ReactNativeUmengExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ReactNativeUmengExample/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = ReactNativeUmengExample/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = ReactNativeUmengExample/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-ReactNativeUmengExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ReactNativeUmengExample.debug.xcconfig"; path = "Target Support Files/Pods-ReactNativeUmengExample/Pods-ReactNativeUmengExample.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-ReactNativeUmengExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ReactNativeUmengExample.release.xcconfig"; path = "Target Support Files/Pods-ReactNativeUmengExample/Pods-ReactNativeUmengExample.release.xcconfig"; sourceTree = "<group>"; };
-		5B9A3C015E2896AA9F0A9ACF /* Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.debug.xcconfig"; path = "Target Support Files/Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests/Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.debug.xcconfig"; sourceTree = "<group>"; };
 		5C10CD9D1FADE18E7FC37A2B /* libPods-ReactNativeUmengExampleTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ReactNativeUmengExampleTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-ReactNativeUmengExample.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ReactNativeUmengExample.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ReactNativeUmengExample/AppDelegate.swift; sourceTree = "<group>"; };
@@ -135,8 +133,6 @@
 			children = (
 				3B4392A12AC88292D35C810B /* Pods-ReactNativeUmengExample.debug.xcconfig */,
 				5709B34CF0A7D63546082F79 /* Pods-ReactNativeUmengExample.release.xcconfig */,
-				5B9A3C015E2896AA9F0A9ACF /* Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.debug.xcconfig */,
-				0A5C6B64D7DDD550E28A161C /* Pods-ReactNativeUmengExample-ReactNativeUmengExampleTests.release.xcconfig */,
 				81CC58412D2A97F2FC803F08 /* Pods-ReactNativeUmengExampleTests.debug.xcconfig */,
 				D61C7C1B2C55628B97008230 /* Pods-ReactNativeUmengExampleTests.release.xcconfig */,
 			);

@@ -70,7 +70,7 @@ static NSDictionary<NSString *, NSString *> *_Nullable UmengNormalizeConfig(NSDi
   for (NSString *field in
        @[ @"channel", @"wechatAppId", @"wechatAppSecret", @"wechatUniversalLink", @"dingtalkAppId" ]) {
     id rawValue = config[field];
-    if (rawValue == nil || rawValue == [NSNull null]) {
+    if (rawValue == nil) {
       continue;
     }
     NSString *value = UmengNormalizedString(rawValue);

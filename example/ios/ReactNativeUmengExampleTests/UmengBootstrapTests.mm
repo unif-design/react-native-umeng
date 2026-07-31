@@ -131,7 +131,12 @@
     @{},
     @{@"appkey" : @" "},
     @{@"appkey" : @"app-key", @"channel" : @""},
+    @{@"appkey" : @"app-key", @"channel" : [NSNull null]},
     @{@"appkey" : @"app-key", @"dingtalkAppId" : @42},
+    @{@"appkey" : @"app-key", @"dingtalkAppId" : [NSNull null]},
+    @{@"appkey" : @"app-key", @"wechatAppId" : [NSNull null]},
+    @{@"appkey" : @"app-key", @"wechatAppSecret" : [NSNull null]},
+    @{@"appkey" : @"app-key", @"wechatUniversalLink" : [NSNull null]},
     @{@"appkey" : @"app-key", @"wechatAppId" : @"wechat-id"},
     @{
       @"appkey" : @"app-key",
