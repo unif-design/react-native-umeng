@@ -1,78 +1,252 @@
-import { ShareSheetController } from '../ShareSheet/ShareSheetController';
-import { Platform } from '../types';
-import type { ShareSheetPayload, ShareSheetOptions } from '../types';
+import {
+  ShareSheetController,
+  type ControllerEvent,
+} from '../ShareSheet/ShareSheetController';
+import {
+  Platform,
+  UmengError,
+  type ShareResult,
+  type ShareSheetPayload,
+} from '../types';
+import { deferred } from './fixtures/deferred';
+
+const NO_HOST_MESSAGE =
+  'No <ShareSheetHost /> mounted. Mount it once at app root.';
+const BUSY_MESSAGE =
+  'Another ShareSheet is already open. Dismiss the previous one first.';
+const OWNER_UNMOUNTED_MESSAGE =
+  'The active <ShareSheetHost /> unmounted before the share completed.';
+
+const PAYLOAD: ShareSheetPayload = { type: 'text', text: 'hi' };
+const WECHAT_SUCCESS: ShareResult = {
+  code: 'success',
+  platform: Platform.WECHAT_SESSION,
+};
+const DINGTALK_SUCCESS: ShareResult = {
+  code: 'success',
+  platform: Platform.DINGTALK,
+};
+
+function showEvent(
+  listener: jest.Mock
+): Extract<ControllerEvent, { kind: 'show' }> {
+  return listener.mock.calls[0]?.[0] as Extract<
+    ControllerEvent,
+    { kind: 'show' }
+  >;
+}
 
 describe('ShareSheetController', () => {
   let controller: ShareSheetController;
+
   beforeEach(() => {
     controller = new ShareSheetController();
   });
 
-  it('show() returns a pending Promise that rejects on dismiss', () => {
-    const listener = jest.fn();
-    controller.subscribe(listener);
-    const payload: ShareSheetPayload = { type: 'text', text: 'hi' };
-    const p = controller.show(payload);
-    expect(p).toBeInstanceOf(Promise);
-    controller.dismiss('cancel');
-    return expect(p).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
+  it('rejects show with the stable no-host error', async () => {
+    await expect(controller.show(PAYLOAD)).rejects.toMatchObject({
+      code: 'E_UNKNOWN',
+      message: NO_HOST_MESSAGE,
+    });
   });
 
-  it('subscribers receive show event with payload + options', () => {
+  it('rejects a concurrent show with the stable busy error', async () => {
     const listener = jest.fn();
-    controller.subscribe(listener);
-    const payload: ShareSheetPayload = { type: 'link', title: 'T', url: 'u' };
-    const opts: ShareSheetOptions = { title: '分享至 X' };
-    controller.show(payload, opts).catch(() => {});
-    expect(listener).toHaveBeenCalledWith({
+    controller.registerHost(listener);
+    const first = controller.show(PAYLOAD);
+    const sessionId = showEvent(listener).sessionId;
+
+    await expect(controller.show(PAYLOAD)).rejects.toMatchObject({
+      code: 'E_UNKNOWN',
+      message: BUSY_MESSAGE,
+    });
+
+    controller.dismiss(sessionId);
+    await expect(first).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
+  });
+
+  it('chooses the earliest registered host and keeps standby hosts idle', async () => {
+    const owner = jest.fn();
+    const standby = jest.fn();
+    controller.registerHost(owner);
+    controller.registerHost(standby);
+
+    const promise = controller.show(PAYLOAD, { title: '分享至 X' });
+    const event = showEvent(owner);
+
+    expect(event).toEqual({
       kind: 'show',
-      payload,
-      options: opts,
+      sessionId: expect.any(Number),
+      payload: PAYLOAD,
+      options: { title: '分享至 X' },
+    });
+    expect(standby).not.toHaveBeenCalled();
+
+    controller.settle(event.sessionId, WECHAT_SUCCESS);
+    await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
+  });
+
+  it('promotes the next registered host only after the owner unregisters', async () => {
+    const first = jest.fn();
+    const second = jest.fn();
+    const firstRegistration = controller.registerHost(first);
+    controller.registerHost(second);
+
+    firstRegistration.unregister();
+    const promise = controller.show(PAYLOAD);
+    const event = showEvent(second);
+
+    expect(first).not.toHaveBeenCalled();
+    expect(event.kind).toBe('show');
+
+    controller.settle(event.sessionId, WECHAT_SUCCESS);
+    await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
+  });
+
+  it('rejects immediately when the active owner unregisters', async () => {
+    const owner = jest.fn();
+    const registration = controller.registerHost(owner);
+    const promise = controller.show(PAYLOAD);
+
+    registration.unregister();
+
+    await expect(promise).rejects.toMatchObject({
+      code: 'E_UNKNOWN',
+      message: OWNER_UNMOUNTED_MESSAGE,
+    });
+    expect(owner).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the active session pending when a standby host unregisters', async () => {
+    const owner = jest.fn();
+    const standby = jest.fn();
+    controller.registerHost(owner);
+    const standbyRegistration = controller.registerHost(standby);
+    const promise = controller.show(PAYLOAD);
+    const sessionId = showEvent(owner).sessionId;
+    const settlement = deferred<ShareResult>();
+    promise.then(settlement.resolve, settlement.reject);
+
+    standbyRegistration.unregister();
+    controller.settle(sessionId, WECHAT_SUCCESS);
+
+    await expect(settlement.promise).resolves.toEqual(WECHAT_SUCCESS);
+    expect(standby).not.toHaveBeenCalled();
+  });
+
+  it('ignores every late mutator from session A after session B opens', async () => {
+    const owner = jest.fn();
+    controller.registerHost(owner);
+    const sessionA = controller.show(PAYLOAD);
+    const sessionAId = showEvent(owner).sessionId;
+    controller.settle(sessionAId, WECHAT_SUCCESS);
+    await expect(sessionA).resolves.toEqual(WECHAT_SUCCESS);
+
+    owner.mockClear();
+    const sessionB = controller.show({
+      type: 'link',
+      title: 'B',
+      url: 'https://example.com',
+    });
+    const sessionBId = showEvent(owner).sessionId;
+    owner.mockClear();
+
+    expect(controller.markReady(sessionAId)).toBe(false);
+    expect(controller.beginSharing(sessionAId)).toBe(false);
+    controller.settle(sessionAId, DINGTALK_SUCCESS);
+    controller.settleError(
+      sessionAId,
+      new UmengError('E_SHARE_FAILED', 'late failure')
+    );
+    controller.dismiss(sessionAId);
+
+    expect(owner).not.toHaveBeenCalled();
+    controller.settle(sessionBId, WECHAT_SUCCESS);
+    await expect(sessionB).resolves.toEqual(WECHAT_SUCCESS);
+    expect(owner).toHaveBeenCalledTimes(1);
+    expect(owner).toHaveBeenCalledWith({
+      kind: 'dismiss',
+      sessionId: sessionBId,
     });
   });
 
-  it('settle(result) resolves the in-flight Promise', async () => {
-    const listener = jest.fn();
-    controller.subscribe(listener);
-    const p = controller.show({ type: 'text', text: 'hi' });
-    controller.settle({ code: 'success', platform: Platform.WECHAT_SESSION });
-    await expect(p).resolves.toEqual({
-      code: 'success',
-      platform: Platform.WECHAT_SESSION,
+  it('settles one session only once and ignores listener re-entry', async () => {
+    let sessionId = 0;
+    const listener = jest.fn((event: ControllerEvent) => {
+      if (event.kind === 'dismiss') {
+        controller.settleError(
+          sessionId,
+          new UmengError('E_SHARE_FAILED', 're-entered failure')
+        );
+      }
     });
-  });
-
-  it('rejects when controller has no host subscriber', () => {
-    const fresh = new ShareSheetController();
-    return expect(
-      fresh.show({ type: 'text', text: 'hi' })
-    ).rejects.toMatchObject({ code: 'E_UNKNOWN' });
-  });
-
-  it('subscriber removal stops receiving events', () => {
-    const listener = jest.fn();
-    const unsub = controller.subscribe(listener);
-    unsub();
-    controller.show({ type: 'text', text: 'hi' }).catch(() => {});
-    expect(listener).not.toHaveBeenCalled();
-  });
-
-  it('only one show at a time — second show rejects immediately', async () => {
-    const listener = jest.fn();
-    controller.subscribe(listener);
-    const p1 = controller.show({ type: 'text', text: '1' });
-    const p2 = controller.show({ type: 'text', text: '2' });
-    await expect(p2).rejects.toMatchObject({ code: 'E_UNKNOWN' });
-    controller.dismiss('cancel');
-    await expect(p1).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
-  });
-
-  it('emits dismiss event on settle', () => {
-    const listener = jest.fn();
-    controller.subscribe(listener);
-    controller.show({ type: 'text', text: 'hi' }).catch(() => {});
+    controller.registerHost(listener);
+    const promise = controller.show(PAYLOAD);
+    sessionId = showEvent(listener).sessionId;
     listener.mockClear();
-    controller.settle({ code: 'success', platform: Platform.WECHAT_SESSION });
-    expect(listener).toHaveBeenCalledWith({ kind: 'dismiss' });
+
+    controller.settle(sessionId, WECHAT_SUCCESS);
+    controller.settle(sessionId, DINGTALK_SUCCESS);
+
+    await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith({ kind: 'dismiss', sessionId });
   });
+
+  it('uses beginSharing as a synchronous ready-to-sharing CAS', async () => {
+    const listener = jest.fn();
+    controller.registerHost(listener);
+    const promise = controller.show(PAYLOAD);
+    const sessionId = showEvent(listener).sessionId;
+
+    expect(controller.beginSharing(sessionId)).toBe(false);
+    expect(controller.markReady(sessionId)).toBe(true);
+    expect(controller.markReady(sessionId)).toBe(false);
+    expect(controller.beginSharing(sessionId)).toBe(true);
+    expect(controller.beginSharing(sessionId)).toBe(false);
+
+    controller.settle(sessionId, WECHAT_SUCCESS);
+    await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
+  });
+
+  it('ignores dismiss after sharing begins', async () => {
+    const listener = jest.fn();
+    controller.registerHost(listener);
+    const promise = controller.show(PAYLOAD);
+    const sessionId = showEvent(listener).sessionId;
+    controller.markReady(sessionId);
+    controller.beginSharing(sessionId);
+    listener.mockClear();
+
+    controller.dismiss(sessionId);
+
+    expect(listener).not.toHaveBeenCalled();
+    controller.settle(sessionId, WECHAT_SUCCESS);
+    await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
+  });
+
+  it.each([
+    ['loadingPlatforms', false],
+    ['ready', true],
+  ] as const)(
+    'allows dismiss while the session is %s',
+    async (_, markReady) => {
+      const listener = jest.fn();
+      controller.registerHost(listener);
+      const promise = controller.show(PAYLOAD);
+      const sessionId = showEvent(listener).sessionId;
+      if (markReady) {
+        controller.markReady(sessionId);
+      }
+
+      controller.dismiss(sessionId);
+
+      await expect(promise).rejects.toMatchObject({
+        code: 'E_USER_CANCEL',
+        message: 'User cancelled',
+        nativeError: { reason: 'cancel' },
+      });
+      expect(listener).toHaveBeenCalledWith({ kind: 'dismiss', sessionId });
+    }
+  );
 });

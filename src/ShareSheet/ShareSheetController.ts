@@ -5,25 +5,60 @@ import {
   type ShareSheetPayload,
 } from '../types';
 
+export type SessionPhase = 'loadingPlatforms' | 'ready' | 'sharing';
+
 export type ControllerEvent =
-  | { kind: 'show'; payload: ShareSheetPayload; options: ShareSheetOptions }
-  | { kind: 'dismiss' };
+  | {
+      kind: 'show';
+      sessionId: number;
+      payload: ShareSheetPayload;
+      options: ShareSheetOptions;
+    }
+  | { kind: 'dismiss'; sessionId: number };
 
-type Listener = (e: ControllerEvent) => void;
+export type ControllerListener = (event: ControllerEvent) => void;
 
-interface PendingShow {
-  resolve: (r: ShareResult) => void;
-  reject: (e: UmengError) => void;
+interface ActiveSession {
+  sessionId: number;
+  ownerHostId: number;
+  phase: SessionPhase;
+  resolve: (result: ShareResult) => void;
+  reject: (error: UmengError) => void;
 }
 
-export class ShareSheetController {
-  private listeners: Set<Listener> = new Set();
-  private pending: PendingShow | null = null;
+const NO_HOST_MESSAGE =
+  'No <ShareSheetHost /> mounted. Mount it once at app root.';
+const BUSY_MESSAGE =
+  'Another ShareSheet is already open. Dismiss the previous one first.';
+const OWNER_UNMOUNTED_MESSAGE =
+  'The active <ShareSheetHost /> unmounted before the share completed.';
 
-  subscribe(listener: Listener): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
+export class ShareSheetController {
+  private hosts = new Map<number, ControllerListener>();
+  private active: ActiveSession | null = null;
+  private nextHostId = 1;
+  private nextSessionId = 1;
+
+  registerHost(listener: ControllerListener): {
+    hostId: number;
+    unregister(): void;
+  } {
+    const hostId = this.nextHostId++;
+    this.hosts.set(hostId, listener);
+
+    return {
+      hostId,
+      unregister: () => {
+        if (!this.hosts.delete(hostId)) return;
+
+        const active = this.active;
+        if (active?.ownerHostId !== hostId) return;
+
+        this.settleError(
+          active.sessionId,
+          new UmengError('E_UNKNOWN', OWNER_UNMOUNTED_MESSAGE)
+        );
+      },
     };
   }
 
@@ -31,58 +66,78 @@ export class ShareSheetController {
     payload: ShareSheetPayload,
     options: ShareSheetOptions = {}
   ): Promise<ShareResult> {
+    const owner = this.hosts.entries().next();
+    if (owner.done) {
+      return Promise.reject(new UmengError('E_UNKNOWN', NO_HOST_MESSAGE));
+    }
+    if (this.active !== null) {
+      return Promise.reject(new UmengError('E_UNKNOWN', BUSY_MESSAGE));
+    }
+
+    const [ownerHostId, listener] = owner.value;
+    const sessionId = this.nextSessionId++;
+
     return new Promise<ShareResult>((resolve, reject) => {
-      if (this.listeners.size === 0) {
-        reject(
-          new UmengError(
-            'E_UNKNOWN',
-            'No <ShareSheetHost /> mounted. Mount it once at app root.'
-          )
-        );
-        return;
-      }
-      if (this.pending !== null) {
-        reject(
-          new UmengError(
-            'E_UNKNOWN',
-            'Another ShareSheet is already open. Dismiss the previous one first.'
-          )
-        );
-        return;
-      }
-      this.pending = { resolve, reject };
-      this.emit({ kind: 'show', payload, options });
+      this.active = {
+        sessionId,
+        ownerHostId,
+        phase: 'loadingPlatforms',
+        resolve,
+        reject,
+      };
+      listener({ kind: 'show', sessionId, payload, options });
     });
   }
 
-  /** Host 在分享 success 时调；resolve openSheet Promise */
-  settle(result: ShareResult): void {
-    const p = this.pending;
-    if (!p) return;
-    this.pending = null;
-    p.resolve(result);
-    this.emit({ kind: 'dismiss' });
+  markReady(sessionId: number): boolean {
+    const active = this.active;
+    if (
+      active?.sessionId !== sessionId ||
+      active.phase !== 'loadingPlatforms'
+    ) {
+      return false;
+    }
+
+    active.phase = 'ready';
+    return true;
   }
 
-  /** Host 在 cancel / failed 时调；reject openSheet Promise */
-  settleError(err: UmengError): void {
-    const p = this.pending;
-    if (!p) return;
-    this.pending = null;
-    p.reject(err);
-    this.emit({ kind: 'dismiss' });
+  beginSharing(sessionId: number): boolean {
+    const active = this.active;
+    if (active?.sessionId !== sessionId || active.phase !== 'ready') {
+      return false;
+    }
+
+    active.phase = 'sharing';
+    return true;
   }
 
-  /** 用户主动取消 / 取消按钮 / scrim 点击 */
-  dismiss(reason: 'cancel' = 'cancel'): void {
-    if (!this.pending) return;
+  settle(sessionId: number, result: ShareResult): void {
+    const active = this.active;
+    if (active?.sessionId !== sessionId) return;
+
+    this.active = null;
+    active.resolve(result);
+    this.hosts.get(active.ownerHostId)?.({ kind: 'dismiss', sessionId });
+  }
+
+  settleError(sessionId: number, error: UmengError): void {
+    const active = this.active;
+    if (active?.sessionId !== sessionId) return;
+
+    this.active = null;
+    active.reject(error);
+    this.hosts.get(active.ownerHostId)?.({ kind: 'dismiss', sessionId });
+  }
+
+  dismiss(sessionId: number, reason: 'cancel' = 'cancel'): void {
+    const active = this.active;
+    if (active?.sessionId !== sessionId || active.phase === 'sharing') return;
+
     this.settleError(
+      sessionId,
       new UmengError('E_USER_CANCEL', 'User cancelled', { reason })
     );
-  }
-
-  private emit(e: ControllerEvent): void {
-    for (const l of this.listeners) l(e);
   }
 }
 
