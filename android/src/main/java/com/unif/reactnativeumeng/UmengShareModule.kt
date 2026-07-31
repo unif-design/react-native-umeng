@@ -24,8 +24,7 @@ internal interface ShareUiDispatcher {
 internal class AndroidShareUiDispatcher : ShareUiDispatcher {
   override fun isOnUiThread(): Boolean = Looper.myLooper() == Looper.getMainLooper()
 
-  override fun post(block: () -> Unit): Boolean =
-    Handler(Looper.getMainLooper()).post(block)
+  override fun post(block: () -> Unit): Boolean = Handler(Looper.getMainLooper()).post(block)
 }
 
 internal class UmengShareController<Host>(
@@ -72,6 +71,7 @@ internal class UmengShareController<Host>(
     promise: ShareRequestPromise,
   ) {
     val request = requests.register(promise)
+    if (request.isSettled) return
     if (!requireInitialized(request)) return
     val mappedPlatform = mapPlatform(platform, request) ?: return
     val host = currentHost()
@@ -81,7 +81,7 @@ internal class UmengShareController<Host>(
     }
 
     try {
-      if (!request.isSettled) {
+      requests.withActiveInvocation(request) {
         request.resolve(adapterFactory(host).isInstalled(mappedPlatform))
       }
     } catch (error: Throwable) {
@@ -99,9 +99,11 @@ internal class UmengShareController<Host>(
     resultCode: Int,
     data: Intent?,
   ) {
-    // 宿主回调也必须先 gate，不能为了“转发一下”提前取得 UMShareAPI。
-    if (!isInitialized()) return
-    adapterFactory(host).onActivityResult(requestCode, resultCode, data)
+    requests.withActiveInvocation {
+      // 宿主回调也必须先 gate，不能为了“转发一下”提前取得 UMShareAPI。
+      if (!isInitialized()) return@withActiveInvocation
+      adapterFactory(host).onActivityResult(requestCode, resultCode, data)
+    }
   }
 
   fun onHostDestroy(host: Host?) {
@@ -118,6 +120,7 @@ internal class UmengShareController<Host>(
     promise: ShareRequestPromise,
   ) {
     val request = requests.register(promise)
+    if (request.isSettled) return
     if (!requireInitialized(request)) return
     val mappedPlatform = mapPlatform(platform, request) ?: return
     val host =
@@ -131,14 +134,13 @@ internal class UmengShareController<Host>(
       }
 
     runOnUi(request) {
-      // queued work 可能在 destroy/invalidate 后才执行，settled guard 必须
-      // 早于 production adapter 和 ShareAction 的取得。
-      if (request.isSettled) return@runOnUi
-      adapterFactory(host).share(
-        mappedPlatform,
-        payload,
-        callbackFor(platform, request),
-      )
+      requests.withActiveInvocation(request) {
+        adapterFactory(host).share(
+          mappedPlatform,
+          payload,
+          callbackFor(platform, request),
+        )
+      }
     }
   }
 
@@ -217,8 +219,14 @@ internal class UmengShareController<Host>(
     request: ShareRequest,
   ): UmengSharePlatform? =
     when (platform) {
-      "wechat_session" -> UmengSharePlatform.WECHAT_SESSION
-      "dingtalk" -> UmengSharePlatform.DINGTALK
+      "wechat_session" -> {
+        UmengSharePlatform.WECHAT_SESSION
+      }
+
+      "dingtalk" -> {
+        UmengSharePlatform.DINGTALK
+      }
+
       else -> {
         request.reject(
           "E_PLATFORM_NOT_SUPPORTED",
@@ -233,10 +241,10 @@ internal class UmengShareController<Host>(
     host: Host?,
     message: String,
   ) {
-    // Promise 回调可能同步触发 JS 清理；必须全部 reject 后才碰 vendor。
-    requests.rejectAll("E_SHARE_FAILED", message)
-    if (!isInitialized() || host == null) return
-    adapterFactory(host).release()
+    requests.terminate("E_SHARE_FAILED", message) {
+      if (!isInitialized() || host == null) return@terminate
+      adapterFactory(host).release()
+    }
   }
 }
 
@@ -261,10 +269,19 @@ class UmengShareModule(
   }
 
   override fun invalidate() {
-    controller.invalidate(currentActivity)
-    reactApplicationContext.removeActivityEventListener(this)
-    reactApplicationContext.removeLifecycleEventListener(this)
-    super.invalidate()
+    try {
+      controller.invalidate(currentActivity)
+    } finally {
+      try {
+        reactApplicationContext.removeActivityEventListener(this)
+      } finally {
+        try {
+          reactApplicationContext.removeLifecycleEventListener(this)
+        } finally {
+          super.invalidate()
+        }
+      }
+    }
   }
 
   override fun onActivityResult(
