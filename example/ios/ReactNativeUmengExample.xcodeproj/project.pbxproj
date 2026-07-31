@@ -10,6 +10,9 @@
 		00E356F91AD99517003FC87E /* UmengBootstrapTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 00E356F51AD99517003FC87E /* UmengBootstrapTests.mm */; };
 		00E356FB1AD99517003FC87E /* TurboModuleRegistrationTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 00E356FA1AD99517003FC87E /* TurboModuleRegistrationTests.mm */; };
 		0C80B921A6F3F58F76C31292 /* libPods-ReactNativeUmengExample.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5DCACB8F33CDC322A6C60F78 /* libPods-ReactNativeUmengExample.a */; };
+		10A100000000000000000002 /* UmengAnalyticsTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 10A100000000000000000001 /* UmengAnalyticsTests.mm */; };
+		10A100000000000000000004 /* UmengShareTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 10A100000000000000000003 /* UmengShareTests.mm */; };
+		10A100000000000000000006 /* SceneDelegateFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10A100000000000000000005 /* SceneDelegateFixture.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
@@ -31,6 +34,10 @@
 		00E356EE1AD99517003FC87E /* ReactNativeUmengExampleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReactNativeUmengExampleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00E356F51AD99517003FC87E /* UmengBootstrapTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = UmengBootstrapTests.mm; sourceTree = "<group>"; };
 		00E356FA1AD99517003FC87E /* TurboModuleRegistrationTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = TurboModuleRegistrationTests.mm; sourceTree = "<group>"; };
+		10A100000000000000000001 /* UmengAnalyticsTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = UmengAnalyticsTests.mm; sourceTree = "<group>"; };
+		10A100000000000000000003 /* UmengShareTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = UmengShareTests.mm; sourceTree = "<group>"; };
+		10A100000000000000000005 /* SceneDelegateFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SceneDelegateFixture.swift; path = ReactNativeUmengExample/SceneDelegateFixture.swift; sourceTree = "<group>"; };
+		10A100000000000000000007 /* ReactNativeUmengExample.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = ReactNativeUmengExample.entitlements; path = ReactNativeUmengExample/ReactNativeUmengExample.entitlements; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* ReactNativeUmengExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ReactNativeUmengExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = ReactNativeUmengExample/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = ReactNativeUmengExample/Info.plist; sourceTree = "<group>"; };
@@ -71,6 +78,8 @@
 			children = (
 				00E356F51AD99517003FC87E /* UmengBootstrapTests.mm */,
 				00E356FA1AD99517003FC87E /* TurboModuleRegistrationTests.mm */,
+				10A100000000000000000001 /* UmengAnalyticsTests.mm */,
+				10A100000000000000000003 /* UmengShareTests.mm */,
 			);
 			path = ReactNativeUmengExampleTests;
 			sourceTree = "<group>";
@@ -80,7 +89,9 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				10A100000000000000000005 /* SceneDelegateFixture.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
+				10A100000000000000000007 /* ReactNativeUmengExample.entitlements */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 			);
@@ -342,6 +353,8 @@
 			files = (
 				00E356F91AD99517003FC87E /* UmengBootstrapTests.mm in Sources */,
 				00E356FB1AD99517003FC87E /* TurboModuleRegistrationTests.mm in Sources */,
+				10A100000000000000000002 /* UmengAnalyticsTests.mm in Sources */,
+				10A100000000000000000004 /* UmengShareTests.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -350,6 +363,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				10A100000000000000000006 /* SceneDelegateFixture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -431,6 +445,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ReactNativeUmengExample/ReactNativeUmengExample.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = ReactNativeUmengExample/Info.plist;
@@ -461,6 +476,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = ReactNativeUmengExample/ReactNativeUmengExample.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = ReactNativeUmengExample/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;

@@ -35,12 +35,39 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
+@protocol UmengAnalyticsSDKAdapter <NSObject>
+
+- (void)trackEvent:(NSString *)eventId attributes:(nullable NSDictionary<NSString *, NSString *> *)attributes;
+- (void)signInWithUserId:(NSString *)userId provider:(nullable NSString *)provider;
+- (void)signOut;
+
+@end
+
+typedef void (^UmengShareSDKCompletion)(NSError *_Nullable error);
+
+@protocol UmengShareSDKAdapter <NSObject>
+
+- (void)shareText:(NSString *)text platform:(NSString *)platform completion:(UmengShareSDKCompletion)completion;
+- (void)shareImage:(NSString *)image
+             thumb:(NSString *)thumb
+          platform:(NSString *)platform
+        completion:(UmengShareSDKCompletion)completion;
+- (void)shareLinkWithTitle:(NSString *)title
+                       url:(NSString *)url
+               description:(NSString *)description
+                     thumb:(NSString *)thumb
+                  platform:(NSString *)platform
+                completion:(UmengShareSDKCompletion)completion;
+- (BOOL)isInstalledForPlatform:(NSString *)platform;
+
+@end
+
 /**
  * 直接调用友盟 SDK 的生产实现。
  *
  * 构造本身不触碰任何 vendor API —— 授权前 `UmengBootstrap` 可以安全持有它。
  */
-@interface UmengProductionSDKAdapter : NSObject <UmengSDKAdapter>
+@interface UmengProductionSDKAdapter : NSObject <UmengSDKAdapter, UmengAnalyticsSDKAdapter, UmengShareSDKAdapter>
 @end
 
 NS_ASSUME_NONNULL_END
