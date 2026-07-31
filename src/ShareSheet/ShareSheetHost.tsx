@@ -4,8 +4,6 @@ import { Cell, Button, useThemedStyles } from '@unif/react-native-design';
 import type { ColorTokens } from '@unif/react-native-design';
 import {
   PLATFORM_DEFAULT_SUBTITLES,
-  PLATFORM_DISPLAY_NAMES,
-  SUPPORTED_PLATFORMS,
   UmengError,
   type ShareSheetOptions,
   type ShareSheetPayload,
@@ -13,18 +11,21 @@ import {
   type PlatformInfo,
 } from '../types';
 import * as Share from '../share';
+import { normalizeError } from '../internal/errors';
 import { shareSheetController } from './ShareSheetController';
 import { PlatformLeading } from './PlatformLeading';
 
 interface SheetState {
-  open: boolean;
+  sessionId: number | null;
+  phase: 'closed' | 'loadingPlatforms' | 'ready' | 'sharing';
   payload: ShareSheetPayload | null;
   options: ShareSheetOptions;
   platforms: PlatformInfo[];
 }
 
 const INITIAL_STATE: SheetState = {
-  open: false,
+  sessionId: null,
+  phase: 'closed',
   payload: null,
   options: {},
   platforms: [],
@@ -36,39 +37,69 @@ const INITIAL_STATE: SheetState = {
  * @gorhom BottomSheet,去第三方依赖。backdrop 点击取消、内层 sheet 拦截冒泡。
  */
 export const ShareSheetHost: React.FC = () => {
+  // 延迟到 Host 真正渲染时加载，避免仅导入库 barrel 的 Jest 消费者解析 RNGH ESM。
+  const { GestureHandlerRootView } =
+    require('react-native-gesture-handler') as typeof import('react-native-gesture-handler');
   const styles = useThemedStyles(makeStyles);
   const [state, setState] = useState<SheetState>(INITIAL_STATE);
 
   useEffect(() => {
-    const unsub = shareSheetController.subscribe((e) => {
+    const registration = shareSheetController.registerHost((e) => {
       if (e.kind === 'show') {
+        const { sessionId } = e;
+        setState({
+          sessionId,
+          phase: 'loadingPlatforms',
+          payload: e.payload,
+          options: e.options,
+          platforms: [],
+        });
+
         const openWithPlatforms = async () => {
-          const platforms = await Share.listPlatforms().catch(() =>
-            SUPPORTED_PLATFORMS.map((p) => ({
-              platform: p,
-              installed: false,
-              displayName: PLATFORM_DISPLAY_NAMES[p],
-            }))
-          );
-          setState({
-            open: true,
-            payload: e.payload,
-            options: e.options,
-            platforms,
-          });
+          try {
+            const platforms = await Share.listPlatforms();
+            if (!shareSheetController.markReady(sessionId)) return;
+
+            setState((current) =>
+              current.sessionId === sessionId &&
+              current.phase === 'loadingPlatforms'
+                ? { ...current, phase: 'ready', platforms }
+                : current
+            );
+          } catch (error) {
+            shareSheetController.settleError(
+              sessionId,
+              normalizeError(
+                error,
+                'E_UNKNOWN',
+                'Failed to query installed share platforms'
+              )
+            );
+          }
         };
         openWithPlatforms();
       } else if (e.kind === 'dismiss') {
-        setState((prev) => ({ ...prev, open: false }));
+        setState((current) =>
+          current.sessionId === e.sessionId ? INITIAL_STATE : current
+        );
       }
     });
-    return unsub;
+    return registration.unregister;
   }, []);
 
   const handlePlatformPress = useCallback(
-    (info: PlatformInfo) => {
+    (sessionId: number, payload: ShareSheetPayload, info: PlatformInfo) => {
+      if (!shareSheetController.beginSharing(sessionId)) return;
+
+      setState((current) =>
+        current.sessionId === sessionId
+          ? { ...current, phase: 'sharing' }
+          : current
+      );
+
       if (!info.installed) {
         shareSheetController.settleError(
+          sessionId,
           new UmengError(
             'E_PLATFORM_NOT_INSTALLED',
             `${info.displayName} 未安装`
@@ -76,8 +107,7 @@ export const ShareSheetHost: React.FC = () => {
         );
         return;
       }
-      const { payload } = state;
-      if (!payload) return;
+
       const runShare = async () => {
         try {
           let result: ShareResult;
@@ -101,23 +131,24 @@ export const ShareSheetHost: React.FC = () => {
               thumb: payload.thumb,
             });
           }
-          shareSheetController.settle(result);
-        } catch (err) {
-          const ue =
-            err instanceof UmengError
-              ? err
-              : new UmengError('E_UNKNOWN', String(err), err);
-          shareSheetController.settleError(ue);
+          shareSheetController.settle(sessionId, result);
+        } catch (error) {
+          shareSheetController.settleError(
+            sessionId,
+            normalizeError(error, 'E_UNKNOWN', 'Failed to share')
+          );
         }
       };
       runShare();
     },
-    [state]
+    []
   );
 
   const handleCancel = useCallback(() => {
-    shareSheetController.dismiss('cancel');
-  }, []);
+    if (state.sessionId !== null) {
+      shareSheetController.dismiss(state.sessionId);
+    }
+  }, [state.sessionId]);
 
   const title = state.options.title ?? '分享至';
   const cancelText = state.options.cancelText ?? '取消';
@@ -130,57 +161,63 @@ export const ShareSheetHost: React.FC = () => {
 
   return (
     <Modal
-      visible={state.open}
+      visible={state.phase === 'ready'}
       transparent
       animationType="slide"
       statusBarTranslucent
       onRequestClose={handleCancel}
     >
-      {/* backdrop 点击取消;内层 sheet onPress 空占位拦截冒泡 */}
-      <Pressable
-        style={styles.backdrop}
-        onPress={handleCancel}
-        accessibilityRole="button"
-        accessibilityLabel="关闭"
-      >
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <View style={styles.head}>
-            <Text style={styles.title}>{title}</Text>
-          </View>
-          <View>
-            {visiblePlatforms.map((info) => (
-              <Cell
-                key={info.platform}
-                testID={`umeng-share-cell-${info.platform}`}
-                title={info.displayName}
-                desc={
-                  subtitles[info.platform] ??
-                  PLATFORM_DEFAULT_SUBTITLES[info.platform]
-                }
-                leading={<PlatformLeading platform={info.platform} />}
-                arrow
-                disabled={!info.installed}
-                onPress={() => handlePlatformPress(info)}
-              />
-            ))}
-          </View>
-          <Button
-            testID="umeng-share-cancel"
-            variant="secondary"
-            size="lg"
-            block
-            label={cancelText}
-            style={styles.cancel}
-            onPress={handleCancel}
-          />
+      <GestureHandlerRootView style={styles.root}>
+        {/* backdrop 点击取消；内层 sheet 的空 onPress 用来拦截冒泡。 */}
+        <Pressable
+          style={styles.backdrop}
+          onPress={handleCancel}
+          accessibilityRole="button"
+          accessibilityLabel="关闭"
+        >
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <View style={styles.head}>
+              <Text style={styles.title}>{title}</Text>
+            </View>
+            <View>
+              {visiblePlatforms.map((info) => (
+                <Cell
+                  key={info.platform}
+                  testID={`umeng-share-cell-${info.platform}`}
+                  title={info.displayName}
+                  desc={
+                    subtitles[info.platform] ??
+                    PLATFORM_DEFAULT_SUBTITLES[info.platform]
+                  }
+                  leading={<PlatformLeading platform={info.platform} />}
+                  arrow
+                  onPress={() => {
+                    if (state.sessionId !== null && state.payload !== null) {
+                      handlePlatformPress(state.sessionId, state.payload, info);
+                    }
+                  }}
+                />
+              ))}
+            </View>
+            <Button
+              testID="umeng-share-cancel"
+              variant="secondary"
+              size="lg"
+              block
+              label={cancelText}
+              style={styles.cancel}
+              onPress={handleCancel}
+            />
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </GestureHandlerRootView>
     </Modal>
   );
 };
 
 const makeStyles = (c: ColorTokens) =>
   StyleSheet.create({
+    root: { flex: 1 },
     backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: c.scrim },
     sheet: {
       borderTopLeftRadius: 20,
