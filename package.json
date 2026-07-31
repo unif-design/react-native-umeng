@@ -148,6 +148,13 @@
     "jsSrcsDir": "src",
     "android": {
       "javaPackageName": "com.unif.reactnativeumeng"
+    },
+    "ios": {
+      "modulesProvider": {
+        "UmengCommon": "UmengCommon",
+        "UmengAnalytics": "UmengAnalytics",
+        "UmengShare": "UmengShare"
+      }
     }
   },
   "jest": {
