@@ -1,107 +1,116 @@
 package com.unif.reactnativeumeng
 
 import android.content.Context
-import com.facebook.react.bridge.ReadableMap
-import com.umeng.commonsdk.UMConfigure
-import com.umeng.socialize.PlatformConfig
 
-/**
- * Umeng 初始化共享单例。两步初始化(对齐友盟官方推荐):
- *   1. ensurePreInit(context, config) — App 启动后立刻调,可在 user 同意
- *      《隐私协议》之前。调 `UMConfigure.preInit` + `PlatformConfig.setWeixin
- *      / setDing` 注册微信/钉钉平台,**不上报数据**。
- *   2. ensureInit(context) — user 同意后调,调 `UMConfigure.init` 真正开始
- *      统计 + 上报。`ensurePreInit` 必须先调过。
- *
- * config 字段:
- *   - appkey (String,必填)
- *   - channel (String,可选,默认 "default")
- *   - wechatAppId (String,可选) + wechatAppSecret (String,可选)
- *   - dingtalkAppId (String,可选)
- */
-object UmengBootstrap {
-  @Volatile private var preInited = false
+internal enum class UmengBootstrapStage {
+  NOT_STARTED,
+  PRE_INITIALIZED,
+  PLATFORMS_CONFIGURED,
+  INITIALIZED,
+  INDETERMINATE_FAILURE,
+}
 
-  @Volatile private var inited = false
-  private val lock = Any()
-
-  // 缓存 preInit 时传的 appkey + channel,init 时用
-  @Volatile private var appkey: String? = null
-
-  @Volatile private var channel: String = "default"
-
-  /**
-   * 预初始化:友盟 SDK preInit + 微信/钉钉平台 setPlatform。**不上报**。
-   * idempotent — 重复调只执行一次。
-   *
-   * @throws IllegalArgumentException 当 appkey 缺失或为空
-   */
-  fun ensurePreInit(
-    context: Context,
-    config: ReadableMap,
+internal class UmengIndeterminateInitializationException(
+  cause: Throwable,
+) : RuntimeException(
+    "Umeng initialization is indeterminate; restart is required",
+    cause,
   ) {
-    if (preInited) return
+  val restartRequired: Boolean = true
+}
+
+internal class UmengBootstrapStateMachine(
+  private val adapter: UmengBootstrapAdapter,
+  private val callbackComponentsFactory: (Context) -> UmengCallbackController,
+) {
+  private val lock = Any()
+  private var acceptedConfig: UmengNativeConfig? = null
+  private var terminalError: UmengIndeterminateInitializationException? = null
+
+  @Volatile
+  var stage: UmengBootstrapStage = UmengBootstrapStage.NOT_STARTED
+    private set
+
+  fun initialize(
+    context: Context,
+    config: UmengNativeConfig,
+  ) {
+    // 完整校验必须发生在保存 config 或触达任何第三方 API 之前。
+    config.validate()
+
     synchronized(lock) {
-      if (preInited) return
+      val existingConfig = acceptedConfig
+      if (existingConfig != null && existingConfig != config) {
+        throw IllegalStateException(
+          "Umeng initialization config cannot change after initialization starts",
+        )
+      }
+      terminalError?.let { throw it }
+      if (stage == UmengBootstrapStage.INITIALIZED) return
 
-      val ak = config.getStringOrNull("appkey")
-      require(!ak.isNullOrEmpty()) {
-        "`appkey` is required for Common.preInit"
+      acceptedConfig = config
+      runVendorCall {
+        adapter.preInit(context, config)
+      }
+      stage = UmengBootstrapStage.PRE_INITIALIZED
+
+      if (config.hasWechat) {
+        runVendorCall {
+          adapter.setWeixin(
+            requireNotNull(config.wechatAppId),
+            requireNotNull(config.wechatAppSecret),
+          )
+        }
+      }
+      if (config.hasDingTalk) {
+        runVendorCall {
+          adapter.setDing(requireNotNull(config.dingtalkAppId))
+        }
+      }
+      runVendorCall {
+        adapter.setFileProvider("${context.packageName}.fileprovider")
+      }
+      stage = UmengBootstrapStage.PLATFORMS_CONFIGURED
+
+      runVendorCall {
+        adapter.init(context, config)
       }
 
-      val ch = config.getStringOrNull("channel") ?: "default"
-      val wxId = config.getStringOrNull("wechatAppId")
-      val wxSecret = config.getStringOrNull("wechatAppSecret")
-      val ddId = config.getStringOrNull("dingtalkAppId")
-
-      val app = context.applicationContext
-      appkey = ak
-      channel = ch
-
-      UMConfigure.preInit(app, ak, ch)
-
-      if (!wxId.isNullOrEmpty() && !wxSecret.isNullOrEmpty()) {
-        PlatformConfig.setWeixin(wxId, wxSecret)
+      // callback 仅在全部 vendor 调用返回后启用；组件状态异常同样需要重启恢复。
+      runVendorCall {
+        callbackComponentsFactory(context).enableConfigured(config)
       }
-      if (!ddId.isNullOrEmpty()) {
-        PlatformConfig.setDing(ddId)
-      }
-      // 友盟图片分享(本地图)需要 FileProvider authority,固定按宿主包名 + .fileprovider
-      PlatformConfig.setFileProvider("${app.packageName}.fileprovider")
-
-      preInited = true
+      stage = UmengBootstrapStage.INITIALIZED
     }
   }
 
-  /**
-   * 正式初始化:友盟 SDK init 开始上报。idempotent — 重复调只执行一次。
-   *
-   * @throws IllegalStateException 当 ensurePreInit 没调过
-   */
-  fun ensureInit(context: Context) {
-    if (inited) return
-    synchronized(lock) {
-      if (inited) return
-      check(preInited) {
-        "`Common.preInit(config)` must be called before `Common.init()`"
-      }
+  fun isInited(): Boolean = stage == UmengBootstrapStage.INITIALIZED
 
-      val ak = appkey
-      requireNotNull(ak) { "appkey lost between preInit and init" }
-
-      UMConfigure.init(
-        context.applicationContext,
-        ak,
-        channel,
-        UMConfigure.DEVICE_TYPE_PHONE,
-        "",
-      )
-
-      inited = true
+  private inline fun runVendorCall(call: () -> Unit) {
+    try {
+      call()
+    } catch (throwable: Throwable) {
+      val error = UmengIndeterminateInitializationException(throwable)
+      terminalError = error
+      stage = UmengBootstrapStage.INDETERMINATE_FAILURE
+      throw error
     }
   }
+}
 
-  fun isInited(): Boolean = inited
+object UmengBootstrap {
+  private val stateMachine =
+    UmengBootstrapStateMachine(
+      adapter = ProductionUmengBootstrapAdapter(),
+      callbackComponentsFactory = ::UmengCallbackComponents,
+    )
 
-  private fun ReadableMap.getStringOrNull(key: String): String? = if (hasKey(key) && !isNull(key)) getString(key) else null
+  fun initialize(
+    context: Context,
+    config: UmengNativeConfig,
+  ) {
+    stateMachine.initialize(context, config)
+  }
+
+  fun isInited(): Boolean = stateMachine.isInited()
 }

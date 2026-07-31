@@ -12,4 +12,26 @@
     <package android:name="com.alibaba.android.rimet"/>
   </queries>
 
+  <application>
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="${applicationId}.fileprovider"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/react_native_umeng_file_paths"/>
+    </provider>
+
+    <activity
+      android:name="${applicationId}.wxapi.WXEntryActivity"
+      android:enabled="false"
+      android:exported="true"/>
+
+    <activity
+      android:name="${applicationId}.ddshare.DDShareActivity"
+      android:enabled="false"
+      android:exported="true"/>
+  </application>
+
 </manifest>

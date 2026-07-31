@@ -10,6 +10,7 @@
 # ── 友盟系列 ──────────────────────────────────────────────
 -dontwarn com.umeng.**
 -keepattributes *Annotation*
+-keepattributes Signature
 
 -keep class com.umeng.** { *; }
 # 友盟历史依赖的内部包名 (合并 / 改名遗留)
@@ -24,7 +25,7 @@
 -keep class com.tencent.mm.sdk.** { *; }
 
 # ── 钉钉 SDK ─────────────────────────────────────────────
--keep class com.alibaba.android.** { *; }
+-keep class com.android.dingtalk.share.ddsharemodule.** { *; }
 
 # ── 反射兜底 ─────────────────────────────────────────────
 # Android R 资源 ID (友盟少数版本反射读)
