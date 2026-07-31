@@ -1,5 +1,8 @@
 #import <XCTest/XCTest.h>
 
+#import <React/RCTLog.h>
+
+#import "UmengSDKAdapters.h"
 #import "UmengShare.h"
 
 typedef void (^TestShareCompletion)(NSError *_Nullable error);
@@ -13,26 +16,28 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
 
 @end
 
-@interface RecordingShareAdapter : NSObject
+@interface RecordingShareAdapter : NSObject <UmengShareSDKAdapter>
 
 @property(nonatomic, readonly) NSArray<NSDictionary *> *calls;
+@property(nonatomic, readonly) NSArray<TestShareCompletion> *pendingCompletions;
 @property(nonatomic) BOOL installed;
 @property(nonatomic) BOOL throwOnIsInstalled;
 @property(nonatomic) BOOL throwOnShare;
 @property(nonatomic) BOOL completeSynchronously;
 @property(nonatomic, strong, nullable) NSError *completionError;
-@property(nonatomic, copy, nullable) TestShareCompletion pendingCompletion;
 
 @end
 
 @implementation RecordingShareAdapter {
   NSMutableArray<NSDictionary *> *_mutableCalls;
+  NSMutableArray<TestShareCompletion> *_mutablePendingCompletions;
 }
 
 - (instancetype)init {
   self = [super init];
   if (self) {
     _mutableCalls = [NSMutableArray array];
+    _mutablePendingCompletions = [NSMutableArray array];
     _installed = YES;
   }
   return self;
@@ -40,6 +45,10 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
 
 - (NSArray<NSDictionary *> *)calls {
   return [_mutableCalls copy];
+}
+
+- (NSArray<TestShareCompletion> *)pendingCompletions {
+  return [_mutablePendingCompletions copy];
 }
 
 - (void)shareText:(NSString *)text platform:(NSString *)platform completion:(TestShareCompletion)completion {
@@ -52,22 +61,22 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
 }
 
 - (void)shareImage:(NSString *)image
-             thumb:(NSString *)thumb
+             thumb:(nullable NSString *)thumb
           platform:(NSString *)platform
         completion:(TestShareCompletion)completion {
   [self recordShare:@{
     @"method" : @"image",
     @"platform" : platform,
     @"image" : image,
-    @"thumb" : thumb,
+    @"thumb" : thumb ?: [NSNull null],
   }
          completion:completion];
 }
 
 - (void)shareLinkWithTitle:(NSString *)title
                        url:(NSString *)url
-               description:(NSString *)description
-                     thumb:(NSString *)thumb
+               description:(nullable NSString *)description
+                     thumb:(nullable NSString *)thumb
                   platform:(NSString *)platform
                 completion:(TestShareCompletion)completion {
   [self recordShare:@{
@@ -75,8 +84,8 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
     @"platform" : platform,
     @"title" : title,
     @"url" : url,
-    @"description" : description,
-    @"thumb" : thumb,
+    @"description" : description ?: [NSNull null],
+    @"thumb" : thumb ?: [NSNull null],
   }
          completion:completion];
 }
@@ -97,10 +106,39 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
   if (self.throwOnShare) {
     @throw [NSException exceptionWithName:@"FakeVendorException" reason:@"share" userInfo:nil];
   }
-  self.pendingCompletion = completion;
+  [_mutablePendingCompletions addObject:[completion copy]];
   if (self.completeSynchronously) {
     completion(self.completionError);
   }
+}
+
+@end
+
+@interface CapturingProductionShareAdapter : UmengProductionSDKAdapter
+
+@property(nonatomic, readonly) NSArray *messages;
+
+@end
+
+@implementation CapturingProductionShareAdapter {
+  NSMutableArray *_mutableMessages;
+}
+
+- (instancetype)init {
+  self = [super init];
+  if (self) {
+    _mutableMessages = [NSMutableArray array];
+  }
+  return self;
+}
+
+- (NSArray *)messages {
+  return [_mutableMessages copy];
+}
+
+- (void)shareMessage:(id)message platform:(NSString *)platform completion:(UmengShareSDKCompletion)completion {
+  [_mutableMessages addObject:message];
+  completion(nil);
 }
 
 @end
@@ -264,6 +302,79 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
                         ]));
 }
 
+- (void)testOptionalShareFieldsMayBeOmitted {
+  RecordingShareAdapter *adapter = [RecordingShareAdapter new];
+  UmengShare *module = [self moduleWithInitialized:YES adapter:adapter];
+  __block NSInteger resolveCount = 0;
+  RCTPromiseResolveBlock captureResolve = ^(id result) {
+    resolveCount += 1;
+  };
+  RCTPromiseRejectBlock unexpectedReject = ^(NSString *code, NSString *message, NSError *error) {
+    XCTFail(@"unexpected reject: %@", code);
+  };
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnonnull"
+  [module shareImage:@"wechat_session" image:@"image-data" thumb:nil resolve:captureResolve reject:unexpectedReject];
+  [module shareLink:@"dingtalk"
+              title:@"title"
+                url:@"https://example.com"
+        description:nil
+              thumb:nil
+            resolve:captureResolve
+             reject:unexpectedReject];
+#pragma clang diagnostic pop
+
+  XCTAssertEqualObjects(adapter.calls, (@[
+                          @{
+                            @"method" : @"image",
+                            @"platform" : @"wechat_session",
+                            @"image" : @"image-data",
+                            @"thumb" : [NSNull null],
+                          },
+                          @{
+                            @"method" : @"link",
+                            @"platform" : @"dingtalk",
+                            @"title" : @"title",
+                            @"url" : @"https://example.com",
+                            @"description" : [NSNull null],
+                            @"thumb" : [NSNull null],
+                          },
+                        ]));
+
+  for (TestShareCompletion completion in adapter.pendingCompletions) {
+    completion(nil);
+  }
+  XCTAssertEqual(resolveCount, 2);
+}
+
+- (void)testProductionAdapterDefaultsOmittedDescriptionAndKeepsThumbNil {
+  CapturingProductionShareAdapter *adapter = [CapturingProductionShareAdapter new];
+  __block NSInteger completionCount = 0;
+  UmengShareSDKCompletion completion = ^(NSError *error) {
+    XCTAssertNil(error);
+    completionCount += 1;
+  };
+
+#pragma clang diagnostic push
+#pragma clang diagnostic error "-Wnonnull"
+  [adapter shareImage:@"image-data" thumb:nil platform:@"wechat_session" completion:completion];
+  [adapter shareLinkWithTitle:@"title"
+                          url:@"https://example.com"
+                  description:nil
+                        thumb:nil
+                     platform:@"dingtalk"
+                   completion:completion];
+#pragma clang diagnostic pop
+
+  id imageObject = [adapter.messages[0] valueForKey:@"shareObject"];
+  id webpageObject = [adapter.messages[1] valueForKey:@"shareObject"];
+  XCTAssertNil([imageObject valueForKey:@"thumbImage"]);
+  XCTAssertEqualObjects([webpageObject valueForKey:@"descr"], @"");
+  XCTAssertNil([webpageObject valueForKey:@"thumbImage"]);
+  XCTAssertEqual(completionCount, 2);
+}
+
 - (void)testShareErrorsRejectWithStableCodes {
   NSArray<NSDictionary *> *cases = @[
     @{@"vendorCode" : @2009, @"expectedCode" : @"E_USER_CANCEL"},
@@ -326,35 +437,78 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
       reject:^(NSString *code, NSString *message, NSError *error) {
         rejectCount += 1;
       }];
-  adapter.pendingCompletion(nil);
+  NSMutableArray<NSDictionary *> *logs = [NSMutableArray array];
+  RCTPerformBlockWithLogFunction(
+      ^{
+        adapter.pendingCompletions.firstObject(nil);
+      },
+      ^(RCTLogLevel level, RCTLogSource source, NSString *fileName, NSNumber *lineNumber, NSString *message) {
+        [logs addObject:@{@"level" : @(level), @"message" : message}];
+      });
 
   XCTAssertEqual(resolveCount, 1);
   XCTAssertEqual(rejectCount, 0);
+  XCTAssertEqualObjects(logs, (@[
+                          @{
+                            @"level" : @(RCTLogLevelInfo),
+                            @"message" : @"Ignored duplicate or late Umeng share callback.",
+                          },
+                        ]));
 }
 
-- (void)testInvalidateRejectsPendingAndIgnoresLateCallback {
+- (void)testInvalidateRejectsAllPendingAndIgnoresOutOfOrderLateCallbacks {
   RecordingShareAdapter *adapter = [RecordingShareAdapter new];
   UmengShare *module = [self moduleWithInitialized:YES adapter:adapter];
-  __block NSInteger resolveCount = 0;
-  __block NSInteger rejectCount = 0;
-  __block NSString *rejectedCode = nil;
+  __block NSInteger firstResolveCount = 0;
+  __block NSInteger firstRejectCount = 0;
+  __block NSInteger secondResolveCount = 0;
+  __block NSInteger secondRejectCount = 0;
+  __block NSString *firstRejectedCode = nil;
+  __block NSString *secondRejectedCode = nil;
 
   [module shareText:@"wechat_session"
       text:@"hello"
       resolve:^(id result) {
-        resolveCount += 1;
+        firstResolveCount += 1;
       }
       reject:^(NSString *code, NSString *message, NSError *error) {
-        rejectCount += 1;
-        rejectedCode = code;
+        firstRejectCount += 1;
+        firstRejectedCode = code;
       }];
-  TestShareCompletion callback = adapter.pendingCompletion;
+  [module shareImage:@"dingtalk"
+      image:@"image-data"
+      thumb:@""
+      resolve:^(id result) {
+        secondResolveCount += 1;
+      }
+      reject:^(NSString *code, NSString *message, NSError *error) {
+        secondRejectCount += 1;
+        secondRejectedCode = code;
+      }];
+  NSArray<TestShareCompletion> *callbacks = adapter.pendingCompletions;
   [module invalidate];
-  callback(nil);
 
-  XCTAssertEqual(resolveCount, 0);
-  XCTAssertEqual(rejectCount, 1);
-  XCTAssertEqualObjects(rejectedCode, @"E_SHARE_FAILED");
+  NSMutableArray<NSString *> *lateLogs = [NSMutableArray array];
+  RCTPerformBlockWithLogFunction(
+      ^{
+        callbacks[1](nil);
+        callbacks[0]([NSError errorWithDomain:@"vendor" code:2009 userInfo:nil]);
+      },
+      ^(RCTLogLevel level, RCTLogSource source, NSString *fileName, NSNumber *lineNumber, NSString *message) {
+        XCTAssertEqual(level, RCTLogLevelInfo);
+        [lateLogs addObject:message];
+      });
+
+  XCTAssertEqual(firstResolveCount, 0);
+  XCTAssertEqual(firstRejectCount, 1);
+  XCTAssertEqual(secondResolveCount, 0);
+  XCTAssertEqual(secondRejectCount, 1);
+  XCTAssertEqualObjects(firstRejectedCode, @"E_SHARE_FAILED");
+  XCTAssertEqualObjects(secondRejectedCode, @"E_SHARE_FAILED");
+  XCTAssertEqualObjects(lateLogs, (@[
+                          @"Ignored duplicate or late Umeng share callback.",
+                          @"Ignored duplicate or late Umeng share callback.",
+                        ]));
 }
 
 - (void)testInvalidateBeforeQueuedInvocationPreventsVendorCall {
@@ -372,6 +526,33 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
 
   [module shareText:@"wechat_session"
       text:@"hello"
+      resolve:^(id result) {
+        XCTFail(@"unexpected resolve: %@", result);
+      }
+      reject:^(NSString *code, NSString *message, NSError *error) {
+        rejectedCode = code;
+      }];
+  [module invalidate];
+  queuedBlock();
+
+  XCTAssertEqualObjects(rejectedCode, @"E_SHARE_FAILED");
+  XCTAssertEqualObjects(adapter.calls, (@[]));
+}
+
+- (void)testInvalidateBeforeQueuedIsInstalledPreventsAdapterCall {
+  RecordingShareAdapter *adapter = [RecordingShareAdapter new];
+  __block dispatch_block_t queuedBlock = nil;
+  UmengShare *module = [[UmengShare alloc]
+      initWithIsInitialized:^BOOL {
+        return YES;
+      }
+      adapter:adapter
+      mainDispatcher:^(dispatch_block_t block) {
+        queuedBlock = [block copy];
+      }];
+  __block NSString *rejectedCode = nil;
+
+  [module isInstalled:@"wechat_session"
       resolve:^(id result) {
         XCTFail(@"unexpected resolve: %@", result);
       }
@@ -441,7 +622,7 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
           settleCount += 1;
         }
       }];
-  TestShareCompletion callback = adapter.pendingCompletion;
+  TestShareCompletion callback = adapter.pendingCompletions.firstObject;
   dispatch_group_t group = dispatch_group_create();
   dispatch_queue_t queue = dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0);
   dispatch_group_async(group, queue, ^{

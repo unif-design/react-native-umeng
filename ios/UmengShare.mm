@@ -1,11 +1,19 @@
 #import "UmengShare.h"
 
+#import <React/RCTLog.h>
+
 #import "UmengBootstrap.h"
 #import "UmengSDKAdapters.h"
 #import "UmengShareRequestRegistry.h"
 
 static NSString *const UmengShareNotInitializedCode = @"E_NOT_INITIALIZED";
 static NSString *const UmengShareNotInitializedMessage = @"Umeng must be initialized before sharing";
+
+static void UmengLogIfShareCallbackWasIgnored(BOOL didSettle) {
+  if (!didSettle) {
+    RCTLogInfo(@"Ignored duplicate or late Umeng share callback.");
+  }
+}
 
 @interface UmengShare ()
 
@@ -186,25 +194,29 @@ RCT_EXPORT_MODULE(UmengShare)
         return;
       }
       if (error == nil) {
-        [strongRegistry resolveRequest:requestId result:@{@"code" : @"success", @"platform" : platform}];
+        BOOL didSettle = [strongRegistry resolveRequest:requestId
+                                                 result:@{@"code" : @"success", @"platform" : platform}];
+        UmengLogIfShareCallbackWasIgnored(didSettle);
         return;
       }
+      BOOL didSettle;
       if (error.code == 2009) {
-        [strongRegistry rejectRequest:requestId
-                                 code:@"E_USER_CANCEL"
-                              message:error.localizedDescription ?: @"Share cancelled"
-                                error:error];
+        didSettle = [strongRegistry rejectRequest:requestId
+                                             code:@"E_USER_CANCEL"
+                                          message:error.localizedDescription ?: @"Share cancelled"
+                                            error:error];
       } else if (error.code == 2008) {
-        [strongRegistry rejectRequest:requestId
-                                 code:@"E_PLATFORM_NOT_INSTALLED"
-                              message:error.localizedDescription ?: @"Platform is not installed"
-                                error:error];
+        didSettle = [strongRegistry rejectRequest:requestId
+                                             code:@"E_PLATFORM_NOT_INSTALLED"
+                                          message:error.localizedDescription ?: @"Platform is not installed"
+                                            error:error];
       } else {
-        [strongRegistry rejectRequest:requestId
-                                 code:@"E_SHARE_FAILED"
-                              message:error.localizedDescription ?: @"Share failed"
-                                error:error];
+        didSettle = [strongRegistry rejectRequest:requestId
+                                             code:@"E_SHARE_FAILED"
+                                          message:error.localizedDescription ?: @"Share failed"
+                                            error:error];
       }
+      UmengLogIfShareCallbackWasIgnored(didSettle);
     };
 
     @try {

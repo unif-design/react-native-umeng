@@ -49,13 +49,13 @@ typedef void (^UmengShareSDKCompletion)(NSError *_Nullable error);
 
 - (void)shareText:(NSString *)text platform:(NSString *)platform completion:(UmengShareSDKCompletion)completion;
 - (void)shareImage:(NSString *)image
-             thumb:(NSString *)thumb
+             thumb:(NSString *_Nullable)thumb
           platform:(NSString *)platform
         completion:(UmengShareSDKCompletion)completion;
 - (void)shareLinkWithTitle:(NSString *)title
                        url:(NSString *)url
-               description:(NSString *)description
-                     thumb:(NSString *)thumb
+               description:(NSString *_Nullable)description
+                     thumb:(NSString *_Nullable)thumb
                   platform:(NSString *)platform
                 completion:(UmengShareSDKCompletion)completion;
 - (BOOL)isInstalledForPlatform:(NSString *)platform;

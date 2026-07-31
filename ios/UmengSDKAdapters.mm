@@ -82,7 +82,7 @@ static UMSocialPlatformType UmengVendorPlatform(NSString *platform) {
 }
 
 - (void)shareImage:(NSString *)image
-             thumb:(NSString *)thumb
+             thumb:(NSString *_Nullable)thumb
           platform:(NSString *)platform
         completion:(UmengShareSDKCompletion)completion {
   UMShareImageObject *imageObject = [UMShareImageObject new];
@@ -97,11 +97,13 @@ static UMSocialPlatformType UmengVendorPlatform(NSString *platform) {
 
 - (void)shareLinkWithTitle:(NSString *)title
                        url:(NSString *)url
-               description:(NSString *)description
-                     thumb:(NSString *)thumb
+               description:(NSString *_Nullable)description
+                     thumb:(NSString *_Nullable)thumb
                   platform:(NSString *)platform
                 completion:(UmengShareSDKCompletion)completion {
-  UMShareWebpageObject *webpage = [UMShareWebpageObject shareObjectWithTitle:title descr:description thumImage:thumb];
+  UMShareWebpageObject *webpage = [UMShareWebpageObject shareObjectWithTitle:title
+                                                                       descr:description ?: @""
+                                                                   thumImage:thumb];
   webpage.webpageUrl = url;
   UMSocialMessageObject *message = [UMSocialMessageObject new];
   message.shareObject = webpage;

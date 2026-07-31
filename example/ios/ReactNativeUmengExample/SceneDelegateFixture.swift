@@ -66,6 +66,9 @@ final class SceneDelegateFixture: UIResponder, UIWindowSceneDelegate {
     if let annotation = context.options.annotation {
       options[.annotation] = annotation
     }
+    if let eventAttribution = context.options.eventAttribution {
+      options[.eventAttribution] = eventAttribution
+    }
     return options
   }
 }
