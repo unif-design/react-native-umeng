@@ -1,6 +1,7 @@
 package com.unif.reactnativeumeng
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.test.mock.MockContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -126,9 +127,14 @@ class UmengBootstrapTest {
       expectThrows<UmengIndeterminateInitializationException> {
         bootstrap.initialize(context, completeConfig)
       }
+    val differentConfig =
+      expectThrows<UmengIndeterminateInitializationException> {
+        bootstrap.initialize(context, completeConfig.copy(channel = "other"))
+      }
 
     assertTrue(first.restartRequired)
     assertSame(first, second)
+    assertSame(first, differentConfig)
     assertEquals(
       listOf("preInit", "setWeixin", "setDing"),
       calls,
@@ -184,10 +190,31 @@ class UmengBootstrapTest {
   @Test
   fun `callback activation failure is terminal and not initialized`() {
     val calls = mutableListOf<String>()
+    val states =
+      mutableMapOf(
+        WECHAT_ACTIVITY to PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+        DINGTALK_ACTIVITY to PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+      )
+    val callbackFailure = IllegalStateException("DingTalk enable failed")
+    val stateWriter =
+      ComponentStateWriter { write ->
+        if (
+          write.className == DINGTALK_ACTIVITY &&
+          write.newState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        ) {
+          throw callbackFailure
+        }
+        states[write.className] = write.newState
+      }
     val bootstrap =
       UmengBootstrapStateMachine(
         adapter = RecordingAdapter(calls),
-        callbackComponentsFactory = { ThrowingCallbacks(calls) },
+        callbackComponentsFactory = {
+          UmengCallbackComponents(
+            packageName = "com.example.app",
+            stateWriter = stateWriter,
+          )
+        },
       )
 
     val error =
@@ -196,9 +223,17 @@ class UmengBootstrapTest {
       }
 
     assertTrue(error.restartRequired)
+    assertSame(callbackFailure, error.cause)
     assertEquals(UmengBootstrapStage.INDETERMINATE_FAILURE, bootstrap.stage)
     assertFalse(bootstrap.isInited())
-    assertEquals("enableCallbacks", calls.last())
+    assertEquals(
+      PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+      states[WECHAT_ACTIVITY],
+    )
+    assertEquals(
+      PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+      states[DINGTALK_ACTIVITY],
+    )
   }
 
   private class RecordingAdapter(
@@ -243,17 +278,6 @@ class UmengBootstrapTest {
     override fun disableAll() = Unit
   }
 
-  private class ThrowingCallbacks(
-    private val calls: MutableList<String>,
-  ) : UmengCallbackController {
-    override fun enableConfigured(config: UmengNativeConfig) {
-      calls += "enableCallbacks"
-      error("component state is uncertain")
-    }
-
-    override fun disableAll() = Unit
-  }
-
   private inline fun <reified T : Throwable> expectThrows(block: () -> Unit): T {
     try {
       block()
@@ -266,6 +290,9 @@ class UmengBootstrapTest {
   }
 
   private companion object {
+    const val WECHAT_ACTIVITY = "com.example.app.wxapi.WXEntryActivity"
+    const val DINGTALK_ACTIVITY = "com.example.app.ddshare.DDShareActivity"
+
     val completeConfig =
       UmengNativeConfig(
         appkey = "app-key",

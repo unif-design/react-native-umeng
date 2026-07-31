@@ -39,13 +39,13 @@ internal class UmengBootstrapStateMachine(
     config.validate()
 
     synchronized(lock) {
+      terminalError?.let { throw it }
       val existingConfig = acceptedConfig
       if (existingConfig != null && existingConfig != config) {
         throw IllegalStateException(
           "Umeng initialization config cannot change after initialization starts",
         )
       }
-      terminalError?.let { throw it }
       if (stage == UmengBootstrapStage.INITIALIZED) return
 
       acceptedConfig = config
