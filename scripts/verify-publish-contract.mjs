@@ -1,9 +1,19 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  appendFile,
+  mkdtemp,
+  readFile,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import semver from 'semver';
+
+import {
+  finalizeTempVerification,
+  isDirectExecution,
+} from './verification-utils.mjs';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const yarnBinary = resolve(repositoryRoot, '.yarn/releases/yarn-4.11.0.cjs');
@@ -17,6 +27,7 @@ const manifestContractFields = [
 ];
 const publicContractFiles = [
   'src/index.ts',
+  'src/mock.ts',
   'src/types.ts',
   'src/common.ts',
   'src/share.ts',
@@ -31,10 +42,17 @@ const initializationContractFiles = [
   'src/internal/initConfig.ts',
   'src/NativeUmengCommon.ts',
   'android/src/main/java/com/unif/reactnativeumeng/UmengBootstrap.kt',
+  'android/src/main/java/com/unif/reactnativeumeng/UmengBootstrapAdapter.kt',
+  'android/src/main/java/com/unif/reactnativeumeng/UmengCallbackComponents.kt',
   'android/src/main/java/com/unif/reactnativeumeng/UmengCommonModule.kt',
+  'android/src/main/java/com/unif/reactnativeumeng/UmengNativeConfig.kt',
+  'android/src/main/java/com/unif/reactnativeumeng/UmengAnalyticsAdapter.kt',
+  'android/src/main/java/com/unif/reactnativeumeng/UmengShareAdapter.kt',
   'ios/UmengBootstrap.h',
   'ios/UmengBootstrap.mm',
   'ios/UmengCommon.mm',
+  'ios/UmengSDKAdapters.h',
+  'ios/UmengSDKAdapters.mm',
 ];
 const nativeMetadataFiles = [
   'ReactNativeUmeng.podspec',
@@ -42,6 +60,15 @@ const nativeMetadataFiles = [
   'android/src/main/AndroidManifest.xml',
   'android/consumer-rules.pro',
 ];
+const unorderedManifestMapFields = new Set([
+  'dependencies',
+  'peerDependencies',
+]);
+const minorContractFiles = new Set([
+  ...publicContractFiles,
+  ...initializationContractFiles,
+]);
+const releaseIncrements = new Set(['auto', 'patch', 'minor', 'major']);
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -74,24 +101,108 @@ function run(command, args, options = {}) {
   return result.stdout.trim();
 }
 
-function stableValue(value) {
-  if (Array.isArray(value)) {
-    return value.map(stableValue);
-  }
-  if (value && typeof value === 'object') {
+function sortUnorderedMap(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
     return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, stableValue(value[key])])
+      Object.entries(value).sort(([left], [right]) =>
+        left.localeCompare(right)
+      )
     );
   }
   return value;
 }
 
-function equalContractValue(left, right) {
+export function equalManifestContractField(field, left, right) {
+  const normalize = unorderedManifestMapFields.has(field)
+    ? sortUnorderedMap
+    : (value) => value;
+
   return (
-    JSON.stringify(stableValue(left)) === JSON.stringify(stableValue(right))
+    JSON.stringify(normalize(left)) === JSON.stringify(normalize(right))
   );
+}
+
+export function minimumReleaseLevel({
+  changedManifestFields,
+  changedNativeMetadata,
+  publishedSourceChanges,
+}) {
+  const hasContractChange =
+    changedManifestFields.length > 0 ||
+    changedNativeMetadata.length > 0 ||
+    publishedSourceChanges.length > 0;
+
+  if (!hasContractChange) {
+    return 'none';
+  }
+
+  if (
+    changedManifestFields.includes('peerDependencies') ||
+    publishedSourceChanges.some((relativePath) =>
+      minorContractFiles.has(relativePath)
+    )
+  ) {
+    return 'minor';
+  }
+
+  return 'patch';
+}
+
+export function selectReleaseVersion({
+  automaticVersion,
+  increment,
+  tagVersion,
+}) {
+  if (!releaseIncrements.has(increment)) {
+    throw new Error(
+      `release increment must be one of auto, patch, minor, major; received ${increment}`
+    );
+  }
+
+  const selectedVersion =
+    increment === 'auto'
+      ? automaticVersion
+      : semver.inc(tagVersion, increment);
+
+  if (!selectedVersion || !semver.valid(selectedVersion)) {
+    throw new Error(
+      `release increment ${increment} did not produce a semantic version`
+    );
+  }
+
+  return selectedVersion;
+}
+
+export function parsePublishContractArgs(args) {
+  let githubOutput;
+  let increment = 'auto';
+
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    const value = args[index + 1];
+
+    if (argument === '--increment') {
+      if (!value) {
+        throw new Error('--increment requires a value');
+      }
+      increment = value;
+      index += 1;
+      continue;
+    }
+
+    if (argument === '--github-output') {
+      if (!value) {
+        throw new Error('--github-output requires a path');
+      }
+      githubOutput = value;
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`unknown argument: ${argument}`);
+  }
+
+  return { githubOutput, increment };
 }
 
 function readAtTag(tag, relativePath) {
@@ -195,13 +306,15 @@ function parseVersionOutput(output) {
 async function conventionalVersion(manifest) {
   const tempDir = await mkdtemp(join(tmpdir(), 'umeng-release-version-'));
   const configPath = join(tempDir, 'release-it.json');
-  const statusBefore = run('git', [
-    'status',
-    '--porcelain=v1',
-    '--untracked-files=all',
-  ]);
+  let primaryError;
+  let version;
 
   try {
+    const statusBefore = run('git', [
+      'status',
+      '--porcelain=v1',
+      '--untracked-files=all',
+    ]);
     const config = {
       git: false,
       npm: {
@@ -235,13 +348,24 @@ async function conventionalVersion(manifest) {
       );
     }
 
-    return parseVersionOutput(output);
-  } finally {
-    await rm(tempDir, { recursive: true, force: true });
+    version = parseVersionOutput(output);
+  } catch (error) {
+    primaryError = error;
   }
+
+  await finalizeTempVerification({
+    primaryError,
+    stage: 'compute release version',
+    tempPath: tempDir,
+  });
+
+  return version;
 }
 
 async function main() {
+  const { githubOutput, increment } = parsePublishContractArgs(
+    process.argv.slice(2)
+  );
   const latestTag = run('git', ['describe', '--tags', '--abbrev=0']);
   const tagVersion = semver.valid(latestTag.replace(/^v/, ''));
   if (!tagVersion) {
@@ -270,7 +394,12 @@ async function main() {
   }
 
   const changedManifestFields = manifestContractFields.filter(
-    (field) => !equalContractValue(taggedManifest[field], manifest[field])
+    (field) =>
+      !equalManifestContractField(
+        field,
+        taggedManifest[field],
+        manifest[field]
+      )
   );
   const changedNativeMetadata = await changedFilesSinceTag(
     latestTag,
@@ -315,24 +444,23 @@ async function main() {
     );
   }
 
-  const computedVersion = await conventionalVersion(manifest);
+  const automaticVersion =
+    increment === 'auto' ? await conventionalVersion(manifest) : undefined;
+  const computedVersion = selectReleaseVersion({
+    automaticVersion,
+    increment,
+    tagVersion,
+  });
   const hasContractChange = changeCategories.length > 0;
-  let minimumRelease = tagVersion;
-  let minimumLevel = 'none';
-
-  if (hasContractChange) {
-    minimumLevel = 'patch';
-    minimumRelease = semver.inc(tagVersion, 'patch');
-  }
-
-  if (
-    changedManifestFields.includes('peerDependencies') ||
-    changedPublicContract.length > 0 ||
-    changedInitialization.length > 0
-  ) {
-    minimumLevel = 'minor';
-    minimumRelease = semver.inc(tagVersion, 'minor');
-  }
+  const minimumLevel = minimumReleaseLevel({
+    changedManifestFields,
+    changedNativeMetadata,
+    publishedSourceChanges,
+  });
+  const minimumRelease =
+    minimumLevel === 'none'
+      ? tagVersion
+      : semver.inc(tagVersion, minimumLevel);
 
   if (
     hasContractChange &&
@@ -351,19 +479,33 @@ async function main() {
     );
   }
 
+  const successMessage = [
+    'Publish contract verification passed.',
+    `tag=${latestTag}`,
+    `package=${manifest.version}`,
+    `increment=${increment}`,
+    `computed=${computedVersion}`,
+    `minimum=${minimumLevel} (${minimumRelease})`,
+    `changes=${changeCategories.join(' | ') || 'none'}`,
+  ].join(' ');
+
+  if (githubOutput) {
+    await appendFile(githubOutput, `version=${computedVersion}\n`);
+  }
+
   console.log(
     [
-      'Publish contract verification passed.',
-      `tag=${latestTag}`,
-      `package=${manifest.version}`,
-      `computed=${computedVersion}`,
-      `minimum=${minimumLevel} (${minimumRelease})`,
-      `changes=${changeCategories.join(' | ') || 'none'}`,
-    ].join(' ')
+      successMessage,
+      githubOutput ? `github-output=${githubOutput}` : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
   );
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (isDirectExecution(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

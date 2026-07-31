@@ -1,8 +1,18 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  stat,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import {
+  finalizeTempVerification,
+  isDirectExecution,
+} from './verification-utils.mjs';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const requiredFiles = [
@@ -16,11 +26,16 @@ const requiredFiles = [
   'lib/typescript/src/index.d.ts',
   'lib/typescript/src/mock.d.ts',
   'android/build.gradle',
-  'android/src/main/AndroidManifest.xml',
-  'ios/UmengBootstrap.h',
-  'ios/UmengCommon.mm',
   'ReactNativeUmeng.podspec',
 ];
+const podspecIOSSourceGlob = 'ios/**/*.{h,m,mm,swift,cpp}';
+const podspecIOSSourceExtensions = new Set([
+  '.h',
+  '.m',
+  '.mm',
+  '.swift',
+  '.cpp',
+]);
 
 function formatProcessFailure(result) {
   return [
@@ -73,6 +88,74 @@ function forbiddenReason(packagePath) {
   return undefined;
 }
 
+async function listFilesRecursively(directory, root) {
+  const files = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const absolutePath = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await listFilesRecursively(absolutePath, root)));
+    } else if (entry.isFile()) {
+      files.push(relative(root, absolutePath).split(sep).join('/'));
+    }
+  }
+
+  return files;
+}
+
+export async function collectProductionNativeFiles(root = repositoryRoot) {
+  const podspec = await readFile(
+    resolve(root, 'ReactNativeUmeng.podspec'),
+    'utf8'
+  );
+  const escapedGlob = podspecIOSSourceGlob.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    '\\$&'
+  );
+  if (
+    !new RegExp(
+      `s\\.source_files\\s*=\\s*["']${escapedGlob}["']`
+    ).test(podspec)
+  ) {
+    throw new Error(
+      `ReactNativeUmeng.podspec must declare source_files as ${podspecIOSSourceGlob}`
+    );
+  }
+
+  const androidFiles = await listFilesRecursively(
+    resolve(root, 'android/src/main'),
+    root
+  );
+  const consumerRules = 'android/consumer-rules.pro';
+  await stat(resolve(root, consumerRules));
+
+  const iosFiles = (
+    await listFilesRecursively(resolve(root, 'ios'), root)
+  ).filter((relativePath) =>
+    podspecIOSSourceExtensions.has(extname(relativePath))
+  );
+
+  return [...androidFiles, consumerRules, ...iosFiles].sort();
+}
+
+export function assertProductionNativeFiles(packageFiles, expectedFiles) {
+  const missing = expectedFiles.filter(
+    (relativePath) => !packageFiles.has(relativePath)
+  );
+
+  if (missing.length > 0) {
+    throw new Error(
+      missing
+        .map(
+          (relativePath) =>
+            `tarball is missing production native file: ${relativePath}`
+        )
+        .join('\n')
+    );
+  }
+}
+
 async function verifyLiteralFileEntries(manifest, failures) {
   for (const entry of manifest.files ?? []) {
     if (typeof entry !== 'string' || entry.startsWith('!') || hasGlob(entry)) {
@@ -92,6 +175,9 @@ async function main() {
     await readFile(resolve(repositoryRoot, 'package.json'), 'utf8')
   );
   const npmCache = await mkdtemp(join(tmpdir(), 'umeng-pack-cache-'));
+  let currentStage = 'run npm pack';
+  let primaryError;
+  let successMessage;
 
   try {
     const result = spawnSync(
@@ -128,8 +214,19 @@ async function main() {
     );
     const failures = [];
 
+    currentStage = 'verify package.json files entries';
     await verifyLiteralFileEntries(manifest, failures);
 
+    currentStage = 'enumerate production native files';
+    const productionNativeFiles =
+      await collectProductionNativeFiles(repositoryRoot);
+    try {
+      assertProductionNativeFiles(packageFiles, productionNativeFiles);
+    } catch (error) {
+      failures.push(error instanceof Error ? error.message : String(error));
+    }
+
+    currentStage = 'verify required and forbidden tarball files';
     for (const requiredFile of requiredFiles) {
       if (!packageFiles.has(requiredFile)) {
         failures.push(`tarball is missing required file: ${requiredFile}`);
@@ -151,15 +248,22 @@ async function main() {
       );
     }
 
-    console.log(
-      `Package verification passed (${packageFiles.size} files, npm cache: isolated temp).`
-    );
-  } finally {
-    await rm(npmCache, { recursive: true, force: true });
+    successMessage = `Package verification passed (${packageFiles.size} files, ${productionNativeFiles.length} production native files, npm cache: isolated temp).`;
+  } catch (error) {
+    primaryError = error;
   }
+
+  await finalizeTempVerification({
+    primaryError,
+    stage: currentStage,
+    successMessage,
+    tempPath: npmCache,
+  });
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (isDirectExecution(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

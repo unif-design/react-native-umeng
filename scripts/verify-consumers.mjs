@@ -4,12 +4,16 @@ import {
   mkdtemp,
   readFile,
   realpath,
-  rm,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import {
+  finalizeTempVerification,
+  isDirectExecution,
+} from './verification-utils.mjs';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const yarnBinary = resolve(repositoryRoot, '.yarn/releases/yarn-4.11.0.cjs');
@@ -21,15 +25,98 @@ const smokeToolNames = [
   'jest',
   'semver',
 ];
+export const consumerSmokeCases = [
+  {
+    conditionNames: undefined,
+    entry: 'entry-root-default.js',
+    expectedPackagePath: 'lib/module/index.js',
+    name: 'package-root-default',
+    specifier: '@unif/react-native-umeng',
+  },
+  {
+    conditionNames: ['source', 'react-native'],
+    entry: 'entry-root-source.js',
+    expectedPackagePath: 'src/index.ts',
+    name: 'package-root-source',
+    specifier: '@unif/react-native-umeng',
+  },
+  {
+    conditionNames: undefined,
+    entry: 'entry-mock-default.js',
+    expectedPackagePath: 'lib/module/mock.js',
+    name: 'package-mock-default',
+    specifier: '@unif/react-native-umeng/mock',
+  },
+  {
+    conditionNames: ['source', 'react-native'],
+    entry: 'entry-mock-source.js',
+    expectedPackagePath: 'src/mock.ts',
+    name: 'package-mock-source',
+    specifier: '@unif/react-native-umeng/mock',
+  },
+];
+export const mockJestSmokeCases = [
+  {
+    config: 'jest.default.config.cjs',
+    expectedPackagePath: 'lib/module/mock.js',
+    name: 'default',
+  },
+  {
+    config: 'jest.source.config.cjs',
+    expectedPackagePath: 'src/mock.ts',
+    name: 'source',
+  },
+];
 
 let currentStage = 'create fixture';
 
-function runCommand(command, args, cwd) {
+function isInside(root, candidate) {
+  const relativePath = relative(root, candidate);
+  return (
+    relativePath === '' ||
+    (relativePath !== '..' &&
+      !relativePath.startsWith(`..${sep}`) &&
+      !isAbsolute(relativePath))
+  );
+}
+
+export function assertResolvedTarget({
+  expectedPackagePath,
+  fixtureRoot,
+  packageRoot,
+  resolvedPath,
+  smokeName,
+}) {
+  const absoluteFixtureRoot = resolve(fixtureRoot);
+  const absolutePackageRoot = resolve(packageRoot);
+  const absoluteResolvedPath = resolve(resolvedPath);
+
+  if (!isInside(absoluteFixtureRoot, absolutePackageRoot)) {
+    throw new Error(
+      `${smokeName} package root is outside isolated fixture: ${absolutePackageRoot}`
+    );
+  }
+  if (!isInside(absoluteFixtureRoot, absoluteResolvedPath)) {
+    throw new Error(
+      `${smokeName} resolved outside isolated fixture: ${absoluteResolvedPath}`
+    );
+  }
+
+  const expectedPath = resolve(absolutePackageRoot, expectedPackagePath);
+  if (absoluteResolvedPath !== expectedPath) {
+    throw new Error(
+      `${smokeName} expected ${expectedPath}, resolved ${absoluteResolvedPath}`
+    );
+  }
+}
+
+function runCommand(command, args, cwd, extraEnv = {}) {
   const result = spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
     env: {
       ...process.env,
+      ...extraEnv,
       CI: '1',
       FORCE_COLOR: '0',
       NO_COLOR: '1',
@@ -53,6 +140,41 @@ function runCommand(command, args, cwd) {
   }
 
   return result;
+}
+
+function createJestConfig(customExportConditions) {
+  const environmentOptions = customExportConditions
+    ? `  testEnvironmentOptions: {
+    customExportConditions: ${JSON.stringify(customExportConditions)},
+  },
+`
+    : '';
+
+  return `const reactNativePreset = require('@react-native/jest-preset');
+const [baseTransformIgnorePattern, ...remainingTransformIgnorePatterns] =
+  reactNativePreset.transformIgnorePatterns;
+const insertionPoint = baseTransformIgnorePattern.lastIndexOf(')/)');
+
+if (insertionPoint < 0) {
+  throw new Error(
+    \`Cannot extend React Native transform allowlist: \${baseTransformIgnorePattern}\`
+  );
+}
+
+const umengTransformIgnorePattern =
+  baseTransformIgnorePattern.slice(0, insertionPoint) +
+  '|@unif/react-native-umeng' +
+  baseTransformIgnorePattern.slice(insertionPoint);
+
+module.exports = {
+  preset: '@react-native/jest-preset',
+  testEnvironment: 'node',
+${environmentOptions}  transformIgnorePatterns: [
+    umengTransformIgnorePattern,
+    ...remainingTransformIgnorePatterns,
+  ],
+};
+`;
 }
 
 async function writeFixtureFiles(fixtureDir, rootManifest, tarballFilename) {
@@ -100,17 +222,8 @@ async function writeFixtureFiles(fixtureDir, rootManifest, tarballFilename) {
       join(fixtureDir, 'babel.config.cjs'),
       "module.exports = { presets: ['module:@react-native/babel-preset'] };\n"
     ),
-    writeFile(
-      join(fixtureDir, 'entry-root.js'),
-      "import '@unif/react-native-umeng';\n"
-    ),
-    writeFile(
-      join(fixtureDir, 'entry-source.js'),
-      "import '@unif/react-native-umeng';\n"
-    ),
-    writeFile(
-      join(fixtureDir, 'entry-lib.js'),
-      "import './node_modules/@unif/react-native-umeng/lib/module/index.js';\n"
+    ...consumerSmokeCases.map(({ entry, specifier }) =>
+      writeFile(join(fixtureDir, entry), `import '${specifier}';\n`)
     ),
     writeFile(
       join(fixtureDir, 'verify-install.cjs'),
@@ -167,39 +280,98 @@ const metro = require(
 );
 const projectRoot = fs.realpathSync(__dirname);
 const artifactsDir = path.join(projectRoot, 'artifacts');
+const fixtureNodeModules = fs.realpathSync(path.join(projectRoot, 'node_modules'));
+const packageRoot = fs.realpathSync(
+  path.join(fixtureNodeModules, '@unif', 'react-native-umeng')
+);
+const smokeCases = ${JSON.stringify(consumerSmokeCases)};
 
-async function bundle(name, entry, conditionNames) {
+function isInside(root, candidate) {
+  const relativePath = path.relative(root, candidate);
+  return (
+    relativePath === '' ||
+    (
+      relativePath !== '..' &&
+      !relativePath.startsWith(\`..\${path.sep}\`) &&
+      !path.isAbsolute(relativePath)
+    )
+  );
+}
+
+async function bundle(smoke) {
+  let resolvedTarget;
   const config = mergeConfig(getDefaultConfig(projectRoot), {
     projectRoot,
     // Metro CLI 的 loadConfig 也会把 projectRoot 加入 watchFolders；直接调用
     // runBuild 时显式补同一规则，且只允许观察系统 temp 内的 consumer fixture。
     watchFolders: [projectRoot],
     resolver: {
+      disableHierarchicalLookup: true,
+      extraNodeModules: {},
+      nodeModulesPaths: [fixtureNodeModules],
       useWatchman: false,
       unstable_enablePackageExports: true,
-      ...(conditionNames ? { unstable_conditionNames: conditionNames } : {}),
+      ...(smoke.conditionNames
+        ? { unstable_conditionNames: smoke.conditionNames }
+        : {}),
+      resolveRequest(context, moduleName, platform) {
+        const resolution = context.resolveRequest(
+          context,
+          moduleName,
+          platform
+        );
+
+        if (resolution.type === 'sourceFile') {
+          const resolvedPath = fs.realpathSync(resolution.filePath);
+          if (!isInside(projectRoot, resolvedPath)) {
+            throw new Error(
+              \`\${smoke.name} resolved \${moduleName} outside isolated fixture: \${resolvedPath}\`
+            );
+          }
+          if (moduleName === smoke.specifier) {
+            resolvedTarget = resolvedPath;
+          }
+        }
+
+        return resolution;
+      },
     },
   });
 
   await metro.runBuild(config, {
     dev: false,
-    entry: path.join(projectRoot, entry),
+    entry: path.join(projectRoot, smoke.entry),
     minify: false,
-    out: path.join(artifactsDir, \`\${name}.jsbundle\`),
+    out: path.join(artifactsDir, \`\${smoke.name}.jsbundle\`),
     platform: 'ios',
     sourceMap: false,
   });
+
+  if (!resolvedTarget) {
+    throw new Error(
+      \`\${smoke.name} did not resolve \${smoke.specifier}\`
+    );
+  }
+
+  const expectedTarget = fs.realpathSync(
+    path.join(packageRoot, smoke.expectedPackagePath)
+  );
+  if (resolvedTarget !== expectedTarget) {
+    throw new Error(
+      \`\${smoke.name} expected \${expectedTarget}, resolved \${resolvedTarget}\`
+    );
+  }
+
+  console.log(
+    \`\${smoke.name}: \${path.relative(projectRoot, resolvedTarget)}\`
+  );
 }
 
 (async () => {
-  await bundle('package-root', 'entry-root.js');
-  await bundle('source-condition', 'entry-source.js', [
-    'source',
-    'react-native',
-    'require',
-  ]);
-  await bundle('lib-module', 'entry-lib.js');
-  console.log('Metro consumer smoke passed: root, source condition, lib/module.');
+  for (const smoke of smokeCases) {
+    await bundle(smoke);
+  }
+  console.log('Metro consumer smoke passed: default/source package root and mock.');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
@@ -207,43 +379,46 @@ async function bundle(name, entry, conditionNames) {
 `
     ),
     writeFile(
-      join(fixtureDir, 'jest.config.cjs'),
-      `const reactNativePreset = require('@react-native/jest-preset');
-const [baseTransformIgnorePattern, ...remainingTransformIgnorePatterns] =
-  reactNativePreset.transformIgnorePatterns;
-const insertionPoint = baseTransformIgnorePattern.lastIndexOf(')/)');
-
-if (insertionPoint < 0) {
-  throw new Error(
-    \`Cannot extend React Native transform allowlist: \${baseTransformIgnorePattern}\`
-  );
-}
-
-const umengTransformIgnorePattern =
-  baseTransformIgnorePattern.slice(0, insertionPoint) +
-  '|@unif/react-native-umeng' +
-  baseTransformIgnorePattern.slice(insertionPoint);
-
-module.exports = {
-  preset: '@react-native/jest-preset',
-  testEnvironment: 'node',
-  testEnvironmentOptions: {
-    customExportConditions: ['source'],
-  },
-  transformIgnorePatterns: [
-    umengTransformIgnorePattern,
-    ...remainingTransformIgnorePatterns,
-  ],
-};\n`
+      join(fixtureDir, 'jest.default.config.cjs'),
+      createJestConfig()
+    ),
+    writeFile(
+      join(fixtureDir, 'jest.source.config.cjs'),
+      createJestConfig(['source'])
     ),
     writeFile(
       join(fixtureDir, 'mock.test.js'),
-      `const {
+      `const fs = require('node:fs');
+const path = require('node:path');
+
+const expectedPackagePath = process.env.EXPECTED_MOCK_PACKAGE_PATH;
+if (!expectedPackagePath) {
+  throw new Error('EXPECTED_MOCK_PACKAGE_PATH is required');
+}
+
+const resolvedMockPath = fs.realpathSync(
+  require.resolve('@unif/react-native-umeng/mock')
+);
+const expectedMockPath = fs.realpathSync(
+  path.join(
+    __dirname,
+    'node_modules',
+    '@unif',
+    'react-native-umeng',
+    expectedPackagePath
+  )
+);
+
+const {
   Platform,
   Share,
   shareCancel,
   shareFailed,
 } = require('@unif/react-native-umeng/mock');
+
+test('official mock resolves to the selected tarball export', () => {
+  expect(resolvedMockPath).toBe(expectedMockPath);
+});
 
 test('official mock resolves successful shares', async () => {
   await expect(
@@ -292,7 +467,8 @@ test('official mock rejects failure with E_SHARE_FAILED', async () => {
 
 async function main() {
   const fixtureDir = await mkdtemp(join(tmpdir(), 'umeng-consumer-'));
-  let completed = false;
+  let primaryError;
+  let successMessage;
 
   try {
     const rootManifest = JSON.parse(
@@ -370,40 +546,46 @@ async function main() {
       );
     }
 
-    currentStage = 'bundle root, source, and lib/module entries';
+    currentStage = 'bundle and assert default/source root and mock entries';
     runCommand(process.execPath, ['metro-smoke.cjs'], fixtureDir);
 
-    currentStage = 'run isolated mock Jest tests';
-    runCommand(
-      process.execPath,
-      [
-        yarnBinary,
-        'jest',
-        '--config',
-        'jest.config.cjs',
-        '--runInBand',
-        'mock.test.js',
-      ],
-      fixtureDir
-    );
-
-    completed = true;
-    console.log(
-      'Consumer verification passed (isolated install, three Metro entries, official mock Jest).'
-    );
-  } catch (error) {
-    console.error(
-      `Consumer verification failed during "${currentStage}". Fixture preserved at:\n${fixtureDir}`
-    );
-    throw error;
-  } finally {
-    if (completed) {
-      await rm(fixtureDir, { recursive: true, force: true });
+    for (const smoke of mockJestSmokeCases) {
+      currentStage = `run isolated ${smoke.name} mock Jest test`;
+      runCommand(
+        process.execPath,
+        [
+          yarnBinary,
+          'jest',
+          '--config',
+          smoke.config,
+          '--runInBand',
+          'mock.test.js',
+        ],
+        fixtureDir,
+        {
+          EXPECTED_MOCK_PACKAGE_PATH: smoke.expectedPackagePath,
+        }
+      );
     }
+
+    successMessage =
+      'Consumer verification passed (isolated install, exact default/source root and mock Metro targets, independent default/source official mock Jest).';
+  } catch (error) {
+    primaryError = error;
   }
+
+  await finalizeTempVerification({
+    preserveOnFailure: Boolean(primaryError),
+    primaryError,
+    stage: currentStage,
+    successMessage,
+    tempPath: fixtureDir,
+  });
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (isDirectExecution(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
