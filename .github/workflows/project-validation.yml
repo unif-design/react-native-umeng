@@ -180,6 +180,9 @@ jobs:
       - name: Prepare package
         run: yarn prepare
 
+      - name: Test release validation tooling
+        run: yarn verify:release-validation
+
       - name: Verify dependencies
         run: yarn verify:dependencies
 

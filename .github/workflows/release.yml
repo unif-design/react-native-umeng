@@ -107,6 +107,7 @@ jobs:
           yarn lint
           yarn typecheck
           yarn test --maxWorkers=2
+          yarn verify:release-validation
           yarn prepare
           yarn verify:dependencies
           yarn verify:package

@@ -67,6 +67,18 @@ test('mock-only and native adapter-only changes require a minor release', () => 
       relativePath
     );
   }
+
+  for (const manifestField of ['exports', 'codegenConfig']) {
+    assert.equal(
+      minimumReleaseLevel({
+        changedManifestFields: [manifestField],
+        changedNativeMetadata: [],
+        publishedSourceChanges: [],
+      }),
+      'minor',
+      manifestField
+    );
+  }
 });
 
 test('explicit release increment selects an exact version for validation and release', () => {

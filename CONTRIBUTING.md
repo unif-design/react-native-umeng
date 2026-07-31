@@ -30,6 +30,7 @@ verifier 在隔离 temp cache 中审计 tarball，release workflow 负责 OIDC �
 yarn lint
 yarn typecheck
 yarn test --maxWorkers=2
+yarn verify:release-validation
 yarn prepare
 yarn verify:dependencies
 yarn verify:package
@@ -37,15 +38,18 @@ yarn verify:consumers
 yarn verify:publish-contract
 ```
 
-三项发布门禁分别验证：
+发布与 consumer 门禁分别验证：
 
+- `verify:release-validation`：运行 verifier 的 mutation/unit tests，锁定 conditional exports
+  顺序、最低版本级别、native 文件枚举、精确 resolver 路径与临时目录清理语义。
 - `verify:package`：审计真实 `npm pack --dry-run --json` 清单，确保 source、lib、native、
   Podspec 和官方 mock 都会发布，同时排除 tests、Pods、build 与 Gradle cache。
 - `verify:consumers`：在系统 temp 创建 workspace 外 Yarn consumer，安装真实 tarball 与全部
-  peers，分别 bundle package root、`source` condition、`lib/module`，并运行官方 mock Jest
-  smoke。
+  peers，精确断言 package root 与 `./mock` 的 default/source 四个 Metro target，并分别运行
+  default/source 官方 mock Jest smoke。
 - `verify:publish-contract`：比较最新 tag 与当前发布契约，使用无副作用
-  `release-it --release-version` 检查 conventional commits 给出的版本级别。
+  `release-it --release-version` 检查 conventional commits 给出的版本级别；release workflow
+  的自动或手动 increment 都必须使用 verifier 输出的同一精确版本。
 
 consumer smoke 成功后自动清理 fixture；失败时会保留 temp 路径和完整子进程输出，便于复现。
 不要为通过安装使用 `--force`、`--legacy-peer-deps` 或全局 override。

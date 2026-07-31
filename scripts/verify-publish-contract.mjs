@@ -64,6 +64,11 @@ const unorderedManifestMapFields = new Set([
   'dependencies',
   'peerDependencies',
 ]);
+const minorManifestContractFields = new Set([
+  'peerDependencies',
+  'exports',
+  'codegenConfig',
+]);
 const minorContractFiles = new Set([
   ...publicContractFiles,
   ...initializationContractFiles,
@@ -137,7 +142,9 @@ export function minimumReleaseLevel({
   }
 
   if (
-    changedManifestFields.includes('peerDependencies') ||
+    changedManifestFields.some((field) =>
+      minorManifestContractFields.has(field)
+    ) ||
     publishedSourceChanges.some((relativePath) =>
       minorContractFiles.has(relativePath)
     )
