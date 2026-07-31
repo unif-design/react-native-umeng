@@ -419,6 +419,61 @@ class UmengShareModuleTest {
   }
 
   @Test
+  fun `queued cleanup from one resume reopens after null host teardown`() {
+    var currentHost: String? = null
+    val rejectionEntered = CountDownLatch(1)
+    val allowRejectionToReturn = CountDownLatch(1)
+    val requests = ShareRequestRegistry()
+    requests.register(
+      BlockingRejectionPromise(
+        rejectionEntered = rejectionEntered,
+        allowRejectionToReturn = allowRejectionToReturn,
+      ),
+    )
+    val adapter = RecordingShareAdapter()
+    val controller =
+      controller(
+        initialized = true,
+        adapter = adapter,
+        requests = requests,
+        currentHost = { currentHost },
+      )
+    val executor = Executors.newSingleThreadExecutor()
+
+    try {
+      val hostDestroy = executor.submit { controller.onHostDestroy(null) }
+      await(rejectionEntered, "host destroy did not reject active requests")
+
+      currentHost = "new-activity"
+      controller.onHostResume()
+      allowRejectionToReturn.countDown()
+      hostDestroy.get(5, TimeUnit.SECONDS)
+
+      val resumedShare = RecordingPromise()
+      controller.shareText("dingtalk", "resumed", resumedShare)
+      adapter.callbacks.single().onSuccess()
+
+      assertEquals(
+        listOf(Settlement.Resolved(UmengShareSuccess("dingtalk"))),
+        resumedShare.settlements,
+      )
+      assertEquals(
+        listOf(
+          ShareAdapterCall.Release,
+          ShareAdapterCall.Share(
+            UmengSharePlatform.DINGTALK,
+            UmengSharePayload.Text("resumed"),
+          ),
+        ),
+        adapter.calls,
+      )
+    } finally {
+      allowRejectionToReturn.countDown()
+      executor.shutdownNow()
+    }
+  }
+
+  @Test
   fun `resume waits for a usable host to finish pending cleanup before reopening`() {
     var currentHost: String? = null
     val adapter = RecordingShareAdapter()
@@ -551,7 +606,7 @@ class UmengShareModuleTest {
         onAdapterAcquired = { adapterAcquisitions.incrementAndGet() },
         requests = requests,
       )
-    val executor = Executors.newFixedThreadPool(3)
+    val executor = Executors.newFixedThreadPool(2)
     val invocation =
       executor.submit {
         controller.shareText("wechat_session", "active", RecordingPromise())
@@ -562,13 +617,12 @@ class UmengShareModuleTest {
       val hostDestroy = executor.submit { controller.onHostDestroy("old-activity") }
       await(rejectionEntered, "host destroy did not reject active requests")
       controller.onHostResume()
-      val invalidation = executor.submit { controller.invalidate("new-activity") }
+      controller.invalidate("new-activity")
 
       allowRejectionToReturn.countDown()
       allowInvocationToReturn.countDown()
       invocation.get(5, TimeUnit.SECONDS)
       hostDestroy.get(5, TimeUnit.SECONDS)
-      invalidation.get(5, TimeUnit.SECONDS)
 
       controller.onHostResume()
       val lateShare = RecordingPromise()

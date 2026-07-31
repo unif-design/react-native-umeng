@@ -233,8 +233,8 @@ internal class ShareRequestRegistry {
                 }
 
                 else -> {
-                  resumeRequested = false
                   resumeCleanup.also { resumeCleanup = null } ?: run {
+                    resumeRequested = false
                     state = ShareLifecycleState.HOST_DESTROYED
                     return
                   }
