@@ -17,6 +17,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   changes:
@@ -46,6 +47,7 @@ jobs:
               - '.yarnrc.yml'
               - '.nvmrc'
               - 'babel.config.js'
+              - 'eslint.config.mjs'
               - 'tsconfig*.json'
               - 'turbo.json'
               - '.github/actions/**'
@@ -63,6 +65,7 @@ jobs:
               - 'ReactNativeUmeng.podspec'
               - 'android/**'
               - 'ios/**'
+              - 'example/app.json'
               - 'example/package.json'
               - 'example/babel.config.js'
               - 'example/metro.config.js'
@@ -83,6 +86,7 @@ jobs:
               - 'tsconfig*.json'
               - 'turbo.json'
               - 'android/**'
+              - 'example/app.json'
               - 'example/package.json'
               - 'example/babel.config.js'
               - 'example/metro.config.js'
@@ -104,6 +108,9 @@ jobs:
               - 'turbo.json'
               - 'ReactNativeUmeng.podspec'
               - 'ios/**'
+              - 'example/app.json'
+              - 'example/Gemfile'
+              - 'example/Gemfile.lock'
               - 'example/package.json'
               - 'example/babel.config.js'
               - 'example/metro.config.js'
@@ -344,12 +351,34 @@ jobs:
         run: |
           node -e '
             const jobs = JSON.parse(process.env.JOB_RESULTS);
-            const invalid = Object.entries(jobs).filter(
-              ([, job]) => !["success", "skipped"].includes(job.result)
-            );
+            const invalid = [];
+            const changes = jobs.changes;
+            if (changes?.result !== "success") {
+              invalid.push(["changes", changes?.result ?? "missing", "success"]);
+            }
+            for (const name of [
+              "javascript",
+              "consumer",
+              "android",
+              "ios",
+              "website",
+              "instructions",
+            ]) {
+              const expected =
+                changes?.outputs?.[name] === "true" ? "success" : "skipped";
+              const actual = jobs[name]?.result ?? "missing";
+              if (actual !== expected) {
+                invalid.push([name, actual, expected]);
+              }
+            }
             if (invalid.length > 0) {
               console.error(
-                invalid.map(([name, job]) => name + ": " + job.result).join("\n")
+                invalid
+                  .map(
+                    ([name, actual, expected]) =>
+                      name + ": " + actual + " (expected " + expected + ")"
+                  )
+                  .join("\n")
               );
               process.exit(1);
             }

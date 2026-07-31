@@ -111,7 +111,15 @@ jobs:
           yarn verify:dependencies
           yarn verify:package
           yarn verify:consumers
-          yarn verify:publish-contract
+
+      - name: Verify publish contract and select release version
+        id: publish-contract
+        env:
+          INCREMENT: ${{ inputs.increment || 'auto' }}
+        run: |
+          yarn verify:publish-contract \
+            --increment "$INCREMENT" \
+            --github-output "$GITHUB_OUTPUT"
 
       # commit author 用 App bot 身份(release commit 显示 verified + 归属 unif-release-bot[bot])。
       # bot 的 numeric user id 用 app-slug 反查,拼成 GitHub no-reply 邮箱。
@@ -137,18 +145,13 @@ jobs:
       # npm CLI 在 GitHub Actions OIDC 环境下(id-token: write + 包配过 Trusted Publisher)
       # 自动用临时 token publish,不需要写 ~/.npmrc。
       # GITHUB_TOKEN 这里换成 App token —— release-it 的 git push(commit + tag)和建 GitHub Release 都走它。
-      # INCREMENT 空 → release-it 根据 conventional-changelog 插件推断 bump;
-      # 非空 → 走 workflow_dispatch 强制指定的 patch / minor / major。
+      # verifier 已按 auto / 手动 increment 校验发布契约并输出精确版本；
+      # release-it 必须消费同一个版本，不能在校验后重新推断或降级。
       - name: Release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          INCREMENT: ${{ inputs.increment || 'auto' }}
-        run: |
-          if [ "$INCREMENT" != "auto" ]; then
-            yarn release-it "$INCREMENT" --ci
-          else
-            yarn release-it --ci
-          fi
+          RELEASE_VERSION: ${{ steps.publish-contract.outputs.version }}
+        run: yarn release-it "$RELEASE_VERSION" --ci
 
       # 发版成功后显式触发文档部署 —— dispatch 跑 main。
       # 不靠 deploy-docs 监听 release event:release 事件的 ref 是 tag(v*),而 GitHub Pages

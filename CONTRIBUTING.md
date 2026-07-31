@@ -18,8 +18,9 @@ Node.js 版本由 [`.nvmrc`](./.nvmrc) 固定，包管理器固定为 Yarn 4.11.
 yarn install --immutable
 ```
 
-开发、升级依赖和运行 workspace 命令都只使用 Yarn。`npm` 仅由 package verifier
-在隔离 temp cache 中调用，用来审计 npm tarball；不要用 npm 改依赖或生成 lockfile。
+开发、升级依赖和运行 workspace 命令都只使用 Yarn。`npm` 仅由验证与发布自动化内部调用：
+verifier 在隔离 temp cache 中审计 tarball，release workflow 负责 OIDC 发布。不要用 npm
+改依赖或生成 lockfile。
 
 ## 日常验证
 
