@@ -39,6 +39,43 @@ describe('Analytics', () => {
     });
   });
 
+  it.each(['', '   ', null, 42])(
+    'onEvent rejects invalid eventId synchronously: %#',
+    (eventId) => {
+      expect(() => Analytics.onEvent(eventId as never)).toThrow(
+        expect.objectContaining({ code: 'E_INVALID_OPTIONS' })
+      );
+      expect(NativeUmengAnalytics.onEvent).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([null, [], 'params'])(
+    'onEvent rejects non-object params synchronously: %#',
+    (params) => {
+      expect(() => Analytics.onEvent('purchase', params as never)).toThrow(
+        expect.objectContaining({ code: 'E_INVALID_OPTIONS' })
+      );
+      expect(NativeUmengAnalytics.onEvent).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['boolean', true],
+    ['null', null],
+    ['object', {}],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['negative Infinity', Number.NEGATIVE_INFINITY],
+  ])(
+    'onEvent rejects invalid %s param values synchronously',
+    (_label, amount) => {
+      expect(() => Analytics.onEvent('purchase', { amount } as never)).toThrow(
+        expect.objectContaining({ code: 'E_INVALID_OPTIONS' })
+      );
+      expect(NativeUmengAnalytics.onEvent).not.toHaveBeenCalled();
+    }
+  );
+
   it('signIn with userId only', () => {
     Analytics.signIn('user-42');
     expect(NativeUmengAnalytics.signIn).toHaveBeenCalledWith(
@@ -52,8 +89,28 @@ describe('Analytics', () => {
     expect(NativeUmengAnalytics.signIn).toHaveBeenCalledWith('user-42', 'WX');
   });
 
+  it.each(['', '   ', null, 42])(
+    'signIn rejects invalid userId synchronously: %#',
+    (userId) => {
+      expect(() => Analytics.signIn(userId as never)).toThrow(
+        expect.objectContaining({ code: 'E_INVALID_OPTIONS' })
+      );
+      expect(NativeUmengAnalytics.signIn).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['', '   ', null, 42])(
+    'signIn rejects invalid provider synchronously: %#',
+    (provider) => {
+      expect(() => Analytics.signIn('user-42', provider as never)).toThrow(
+        expect.objectContaining({ code: 'E_INVALID_OPTIONS' })
+      );
+      expect(NativeUmengAnalytics.signIn).not.toHaveBeenCalled();
+    }
+  );
+
   it('signOut delegates', () => {
-    Analytics.signOut();
+    expect(Analytics.signOut()).toBeUndefined();
     expect(NativeUmengAnalytics.signOut).toHaveBeenCalledTimes(1);
   });
 });

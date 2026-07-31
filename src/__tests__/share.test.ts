@@ -14,20 +14,31 @@ jest.mock('../ShareSheet/ShareSheetController', () => ({
 }));
 
 import NativeUmengShare from '../NativeUmengShare';
+import { shareSheetController } from '../ShareSheet/ShareSheetController';
 import * as Share from '../share';
 import { Platform } from '../types';
 
 describe('Share', () => {
+  const mockedShareText = NativeUmengShare.shareText as jest.Mock;
+  const mockedShareImage = NativeUmengShare.shareImage as jest.Mock;
+  const mockedShareLink = NativeUmengShare.shareLink as jest.Mock;
+  const mockedIsInstalled = NativeUmengShare.isInstalled as jest.Mock;
+
   beforeEach(() => {
-    (NativeUmengShare.shareText as jest.Mock).mockReset();
-    (NativeUmengShare.shareImage as jest.Mock).mockReset();
-    (NativeUmengShare.shareLink as jest.Mock).mockReset();
-    (NativeUmengShare.isInstalled as jest.Mock).mockReset();
+    mockedShareText.mockReset();
+    mockedShareImage.mockReset();
+    mockedShareLink.mockReset();
+    mockedIsInstalled.mockReset();
+    (shareSheetController.show as jest.Mock).mockReset();
+    (shareSheetController.show as jest.Mock).mockResolvedValue({
+      code: 'success',
+      platform: Platform.WECHAT_SESSION,
+    });
   });
 
   describe('shareText', () => {
     it('forwards platform + text to native and returns ShareResult', async () => {
-      (NativeUmengShare.shareText as jest.Mock).mockResolvedValue({
+      mockedShareText.mockResolvedValue({
         code: 'success',
         message: 'ok',
         platform: 'wechat_session',
@@ -53,6 +64,29 @@ describe('Share', () => {
       ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
     });
 
+    it.each([null, undefined, [], 'options'])(
+      'rejects non-object options without reaching native: %#',
+      async (options) => {
+        await expect(Share.shareText(options as never)).rejects.toMatchObject({
+          code: 'E_INVALID_OPTIONS',
+        });
+        expect(mockedShareText).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each(['', '   ', null, 42])(
+      'rejects invalid text without reaching native: %#',
+      async (text) => {
+        await expect(
+          Share.shareText({
+            platform: Platform.WECHAT_SESSION,
+            text,
+          } as never)
+        ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
+        expect(mockedShareText).not.toHaveBeenCalled();
+      }
+    );
+
     it('rejects E_PLATFORM_NOT_SUPPORTED for unknown platform', async () => {
       await expect(
         Share.shareText({ platform: 'unknown' as Platform, text: 'hi' })
@@ -60,7 +94,7 @@ describe('Share', () => {
     });
 
     it('maps native cancel to UmengError E_USER_CANCEL', async () => {
-      (NativeUmengShare.shareText as jest.Mock).mockResolvedValue({
+      mockedShareText.mockResolvedValue({
         code: 'cancel',
         message: 'user cancelled',
         platform: 'wechat_session',
@@ -71,7 +105,7 @@ describe('Share', () => {
     });
 
     it('maps native failed to UmengError E_SHARE_FAILED', async () => {
-      (NativeUmengShare.shareText as jest.Mock).mockResolvedValue({
+      mockedShareText.mockResolvedValue({
         code: 'failed',
         message: 'something broke',
         platform: 'wechat_session',
@@ -83,11 +117,66 @@ describe('Share', () => {
         message: 'something broke',
       });
     });
+
+    it.each([
+      [null, 'E_UNKNOWN'],
+      [{}, 'E_UNKNOWN'],
+      [{ code: 'mystery', platform: 'wechat_session' }, 'E_UNKNOWN'],
+      [{ code: 'success', platform: 'dingtalk' }, 'E_UNKNOWN'],
+      [{ code: 'success' }, 'E_UNKNOWN'],
+      [
+        { code: 'success', platform: 'wechat_session', message: 42 },
+        'E_UNKNOWN',
+      ],
+    ])('rejects malformed native result %#', async (nativeResult, code) => {
+      mockedShareText.mockResolvedValueOnce(nativeResult);
+
+      await expect(
+        Share.shareText({
+          platform: Platform.WECHAT_SESSION,
+          text: 'hi',
+        })
+      ).rejects.toMatchObject({ code });
+    });
+
+    it('preserves a whitelisted code from an RN-style native Error', async () => {
+      mockedShareText.mockRejectedValueOnce(
+        Object.assign(new Error('not initialized'), {
+          code: 'E_NOT_INITIALIZED',
+        })
+      );
+
+      await expect(
+        Share.shareText({
+          platform: Platform.WECHAT_SESSION,
+          text: 'hi',
+        })
+      ).rejects.toMatchObject({
+        code: 'E_NOT_INITIALIZED',
+        message: 'not initialized',
+      });
+    });
+
+    it('uses E_SHARE_FAILED for an unknown RN-style native error code', async () => {
+      mockedShareText.mockRejectedValueOnce(
+        Object.assign(new Error('vendor failure'), { code: 'VENDOR_ERROR' })
+      );
+
+      await expect(
+        Share.shareText({
+          platform: Platform.WECHAT_SESSION,
+          text: 'hi',
+        })
+      ).rejects.toMatchObject({
+        code: 'E_SHARE_FAILED',
+        message: 'vendor failure',
+      });
+    });
   });
 
   describe('shareImage', () => {
     it('forwards optional thumb', async () => {
-      (NativeUmengShare.shareImage as jest.Mock).mockResolvedValue({
+      mockedShareImage.mockResolvedValue({
         code: 'success',
         platform: 'dingtalk',
       });
@@ -108,11 +197,28 @@ describe('Share', () => {
         Share.shareImage({ platform: Platform.WECHAT_SESSION, image: '' })
       ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
     });
+
+    it.each([
+      ['image', '/relative.png'],
+      ['image', 'file:///tmp/a.png'],
+      ['image', 'https://'],
+      ['thumb', '/relative-thumb.png'],
+      ['thumb', 'ftp://example.com/thumb.png'],
+    ])('rejects a non-http(s) absolute %s URL', async (field, value) => {
+      await expect(
+        Share.shareImage({
+          platform: Platform.WECHAT_SESSION,
+          image: field === 'image' ? value : 'https://example.com/image.png',
+          thumb: field === 'thumb' ? value : undefined,
+        })
+      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
+      expect(mockedShareImage).not.toHaveBeenCalled();
+    });
   });
 
   describe('shareLink', () => {
     it('forwards all fields', async () => {
-      (NativeUmengShare.shareLink as jest.Mock).mockResolvedValue({
+      mockedShareLink.mockResolvedValue({
         code: 'success',
         platform: 'wechat_session',
       });
@@ -149,21 +255,68 @@ describe('Share', () => {
         })
       ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
     });
+
+    it.each([
+      '/relative',
+      'mailto:user@example.com',
+      'https://',
+      'ftp://example.com/file',
+    ])('rejects a non-http(s) absolute link URL: %s', async (url) => {
+      await expect(
+        Share.shareLink({
+          platform: Platform.WECHAT_SESSION,
+          title: 'T',
+          url,
+        })
+      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
+      expect(mockedShareLink).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { title: '   ', url: 'https://example.com' },
+      { title: 'T', url: '   ' },
+    ])(
+      'rejects required strings that are blank after trim: %#',
+      async (input) => {
+        await expect(
+          Share.shareLink({
+            platform: Platform.WECHAT_SESSION,
+            ...input,
+          })
+        ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
+        expect(mockedShareLink).not.toHaveBeenCalled();
+      }
+    );
   });
 
   describe('isInstalled', () => {
     it('returns boolean from native', async () => {
-      (NativeUmengShare.isInstalled as jest.Mock).mockResolvedValue(true);
+      mockedIsInstalled.mockResolvedValue(true);
       await expect(Share.isInstalled(Platform.WECHAT_SESSION)).resolves.toBe(
         true
       );
+    });
+
+    it('rejects an unknown platform without reaching native', async () => {
+      await expect(
+        Share.isInstalled('unknown' as Platform)
+      ).rejects.toMatchObject({ code: 'E_PLATFORM_NOT_SUPPORTED' });
+      expect(mockedIsInstalled).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed native boolean result', async () => {
+      mockedIsInstalled.mockResolvedValueOnce('true');
+
+      await expect(
+        Share.isInstalled(Platform.WECHAT_SESSION)
+      ).rejects.toMatchObject({ code: 'E_UNKNOWN' });
     });
   });
 
   describe('listPlatforms', () => {
     it('returns SUPPORTED_PLATFORMS with installed/displayName', async () => {
-      (NativeUmengShare.isInstalled as jest.Mock).mockImplementation(
-        (p: string) => Promise.resolve(p === 'wechat_session')
+      mockedIsInstalled.mockImplementation((p: string) =>
+        Promise.resolve(p === 'wechat_session')
       );
       const list = await Share.listPlatforms();
       expect(list).toEqual([
@@ -175,13 +328,23 @@ describe('Share', () => {
         { platform: Platform.DINGTALK, installed: false, displayName: '钉钉' },
       ]);
     });
+
+    it('propagates a whitelisted native error code', async () => {
+      mockedIsInstalled.mockRejectedValueOnce(
+        Object.assign(new Error('initialize first'), {
+          code: 'E_NOT_INITIALIZED',
+        })
+      );
+
+      await expect(Share.listPlatforms()).rejects.toMatchObject({
+        code: 'E_NOT_INITIALIZED',
+        message: 'initialize first',
+      });
+    });
   });
 
   describe('openSheet', () => {
     it('delegates to shareSheetController.show', async () => {
-      const {
-        shareSheetController,
-      } = require('../ShareSheet/ShareSheetController');
       (shareSheetController.show as jest.Mock).mockResolvedValue({
         code: 'success',
         platform: Platform.WECHAT_SESSION,
@@ -194,10 +357,39 @@ describe('Share', () => {
       expect(r.code).toBe('success');
     });
 
+    it.each([null, undefined, [], 'payload'])(
+      'rejects non-object payload without opening the controller: %#',
+      async (payload) => {
+        await expect(Share.openSheet(payload as never)).rejects.toMatchObject({
+          code: 'E_INVALID_OPTIONS',
+        });
+        expect(shareSheetController.show).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([null, [], 'options'])(
+      'rejects non-object sheet options without opening the controller: %#',
+      async (options) => {
+        await expect(
+          Share.openSheet({ type: 'text', text: 'hi' }, options as never)
+        ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
+        expect(shareSheetController.show).not.toHaveBeenCalled();
+      }
+    );
+
+    it.each([
+      { type: 'text', text: '   ' },
+      { type: 'image', image: '/relative.png' },
+      { type: 'link', title: 'T', url: 'file:///tmp/file' },
+      { type: 'unknown', text: 'hi' },
+    ])('rejects malformed sheet payload %#', async (payload) => {
+      await expect(Share.openSheet(payload as never)).rejects.toMatchObject({
+        code: 'E_INVALID_OPTIONS',
+      });
+      expect(shareSheetController.show).not.toHaveBeenCalled();
+    });
+
     it('forwards options', async () => {
-      const {
-        shareSheetController,
-      } = require('../ShareSheet/ShareSheetController');
       (shareSheetController.show as jest.Mock).mockResolvedValue({
         code: 'success',
         platform: Platform.DINGTALK,

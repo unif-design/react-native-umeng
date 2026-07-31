@@ -32,10 +32,10 @@ export const PLATFORM_BRAND_COLORS: Readonly<Record<Platform, string>> = {
   [Platform.DINGTALK]: '#2595E8',
 };
 
-export type ShareCode = 'success' | 'cancel' | 'failed';
+export type ShareCode = 'success';
 
 export interface ShareResult {
-  code: ShareCode;
+  code: 'success';
   message?: string;
   platform: Platform;
 }

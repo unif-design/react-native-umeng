@@ -1,8 +1,10 @@
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
+type NativeShareCode = 'success' | 'cancel' | 'failed';
+
 export interface NativeShareResult {
-  code: string; // 'success' | 'cancel' | 'failed'
+  code: NativeShareCode;
   message?: string;
   platform: string;
 }
