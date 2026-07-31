@@ -205,13 +205,11 @@ export async function shareText(
 
   try {
     const input = requireObject(options, 'options');
-    assertSupportedPlatform(input.platform);
+    const platform = input.platform;
+    assertSupportedPlatform(platform);
     const text = requireString(input.text, 'text');
-    const result: unknown = await NativeUmengShare.shareText(
-      input.platform,
-      text
-    );
-    return settleNativeResult(result, input.platform);
+    const result: unknown = await NativeUmengShare.shareText(platform, text);
+    return settleNativeResult(result, platform);
   } catch (error) {
     throw normalizeError(error, 'E_SHARE_FAILED', fallbackMessage);
   }
@@ -224,15 +222,16 @@ export async function shareImage(
 
   try {
     const input = requireObject(options, 'options');
-    assertSupportedPlatform(input.platform);
+    const platform = input.platform;
+    assertSupportedPlatform(platform);
     const image = requireHttpUrl(input.image, 'image');
     const thumb = optionalHttpUrl(input.thumb, 'thumb');
     const result: unknown = await NativeUmengShare.shareImage(
-      input.platform,
+      platform,
       image,
       thumb
     );
-    return settleNativeResult(result, input.platform);
+    return settleNativeResult(result, platform);
   } catch (error) {
     throw normalizeError(error, 'E_SHARE_FAILED', fallbackMessage);
   }
@@ -245,19 +244,20 @@ export async function shareLink(
 
   try {
     const input = requireObject(options, 'options');
-    assertSupportedPlatform(input.platform);
+    const platform = input.platform;
+    assertSupportedPlatform(platform);
     const title = requireString(input.title, 'title');
     const url = requireHttpUrl(input.url, 'url');
     const description = optionalString(input.description, 'description');
     const thumb = optionalHttpUrl(input.thumb, 'thumb');
     const result: unknown = await NativeUmengShare.shareLink(
-      input.platform,
+      platform,
       title,
       url,
       description,
       thumb
     );
-    return settleNativeResult(result, input.platform);
+    return settleNativeResult(result, platform);
   } catch (error) {
     throw normalizeError(error, 'E_SHARE_FAILED', fallbackMessage);
   }

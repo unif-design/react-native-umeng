@@ -18,6 +18,17 @@ import { shareSheetController } from '../ShareSheet/ShareSheetController';
 import * as Share from '../share';
 import { Platform } from '../types';
 
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('Share', () => {
   const mockedShareText = NativeUmengShare.shareText as jest.Mock;
   const mockedShareImage = NativeUmengShare.shareImage as jest.Mock;
@@ -285,6 +296,89 @@ describe('Share', () => {
           })
         ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
         expect(mockedShareLink).not.toHaveBeenCalled();
+      }
+    );
+  });
+
+  describe('direct share platform snapshot', () => {
+    type MutablePlatformOptions = { platform: Platform };
+    type StartedShare = {
+      options: MutablePlatformOptions;
+      result: Promise<unknown>;
+    };
+    type StartShare = (nativePromise: Promise<unknown>) => StartedShare;
+
+    const directShareCases: ReadonlyArray<
+      readonly [name: string, startShare: StartShare]
+    > = [
+      [
+        'shareText',
+        (nativePromise) => {
+          mockedShareText.mockReturnValueOnce(nativePromise);
+          const options = {
+            platform: Platform.WECHAT_SESSION,
+            text: 'hi',
+          };
+          return { options, result: Share.shareText(options) };
+        },
+      ],
+      [
+        'shareImage',
+        (nativePromise) => {
+          mockedShareImage.mockReturnValueOnce(nativePromise);
+          const options = {
+            platform: Platform.WECHAT_SESSION,
+            image: 'https://example.com/image.png',
+          };
+          return { options, result: Share.shareImage(options) };
+        },
+      ],
+      [
+        'shareLink',
+        (nativePromise) => {
+          mockedShareLink.mockReturnValueOnce(nativePromise);
+          const options = {
+            platform: Platform.WECHAT_SESSION,
+            title: 'Title',
+            url: 'https://example.com',
+          };
+          return { options, result: Share.shareLink(options) };
+        },
+      ],
+    ];
+
+    it.each(directShareCases)(
+      '%s resolves a correct response against the originally requested platform',
+      async (_name, startShare) => {
+        const native = createDeferred<unknown>();
+        const { options, result } = startShare(native.promise);
+
+        options.platform = Platform.DINGTALK;
+        native.resolve({
+          code: 'success',
+          platform: Platform.WECHAT_SESSION,
+        });
+
+        await expect(result).resolves.toEqual({
+          code: 'success',
+          platform: Platform.WECHAT_SESSION,
+        });
+      }
+    );
+
+    it.each(directShareCases)(
+      '%s rejects a response matching only a mutated options platform',
+      async (_name, startShare) => {
+        const native = createDeferred<unknown>();
+        const { options, result } = startShare(native.promise);
+
+        options.platform = Platform.DINGTALK;
+        native.resolve({
+          code: 'success',
+          platform: Platform.DINGTALK,
+        });
+
+        await expect(result).rejects.toMatchObject({ code: 'E_UNKNOWN' });
       }
     );
   });
