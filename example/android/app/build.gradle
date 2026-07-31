@@ -55,11 +55,6 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
- */
-def enableProguardInReleaseBuilds = false
-
-/**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
  * For example, to use the international variant, you can use:
@@ -101,7 +96,8 @@ android {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
-            minifyEnabled enableProguardInReleaseBuilds
+            // CI 用 :app:assembleRelease 入口真实执行 R8 与 consumer rules。
+            minifyEnabled true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
@@ -110,6 +106,12 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+
+    // 宿主回调 Activity 直接引用这些类型，需显式提供 compile classpath。
+    implementation("com.umeng.umsdk:share-wx:7.3.7")
+    implementation("com.tencent.mm.opensdk:wechat-sdk-android:6.8.34")
+    implementation("com.umeng.umsdk:share-dingding:7.3.7")
+    implementation("com.alibaba.android:ddsharesdk:1.2.2")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
