@@ -1,0 +1,357 @@
+name: Project Validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      javascript: ${{ steps.filter.outputs.javascript }}
+      consumer: ${{ steps.filter.outputs.consumer }}
+      android: ${{ steps.filter.outputs.android }}
+      ios: ${{ steps.filter.outputs.ios }}
+      website: ${{ steps.filter.outputs.website }}
+      instructions: ${{ steps.filter.outputs.instructions }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        with:
+          # 不在 workflow 顶层加 paths：changes 与最终汇总始终产生 required check。
+          filters: |
+            javascript:
+              - 'src/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.nvmrc'
+              - 'babel.config.js'
+              - 'tsconfig*.json'
+              - 'turbo.json'
+              - '.github/actions/**'
+              - '.github/workflows/project-validation.yml'
+            consumer:
+              - 'src/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.nvmrc'
+              - 'babel.config.js'
+              - 'tsconfig*.json'
+              - 'turbo.json'
+              - 'ReactNativeUmeng.podspec'
+              - 'android/**'
+              - 'ios/**'
+              - 'example/package.json'
+              - 'example/babel.config.js'
+              - 'example/metro.config.js'
+              - 'example/react-native.config.js'
+              - 'example/index.js'
+              - 'example/src/**'
+              - '.github/actions/**'
+              - '.github/workflows/release.yml'
+              - '.github/workflows/project-validation.yml'
+            android:
+              - 'src/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.nvmrc'
+              - 'babel.config.js'
+              - 'tsconfig*.json'
+              - 'turbo.json'
+              - 'android/**'
+              - 'example/package.json'
+              - 'example/babel.config.js'
+              - 'example/metro.config.js'
+              - 'example/react-native.config.js'
+              - 'example/index.js'
+              - 'example/src/**'
+              - 'example/android/**'
+              - '.github/actions/**'
+              - '.github/workflows/project-validation.yml'
+            ios:
+              - 'src/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.nvmrc'
+              - 'babel.config.js'
+              - 'tsconfig*.json'
+              - 'turbo.json'
+              - 'ReactNativeUmeng.podspec'
+              - 'ios/**'
+              - 'example/package.json'
+              - 'example/babel.config.js'
+              - 'example/metro.config.js'
+              - 'example/react-native.config.js'
+              - 'example/index.js'
+              - 'example/src/**'
+              - 'example/ios/**'
+              - '.github/actions/**'
+              - '.github/workflows/project-validation.yml'
+            website:
+              - 'src/**'
+              - 'scripts/**'
+              - 'package.json'
+              - 'yarn.lock'
+              - '.yarnrc.yml'
+              - '.nvmrc'
+              - 'babel.config.js'
+              - 'tsconfig*.json'
+              - 'README.md'
+              - 'CONTRIBUTING.md'
+              - 'CHANGELOG.md'
+              - 'example/README.md'
+              - 'website/**'
+              - '.github/actions/**'
+              - '.github/workflows/project-validation.yml'
+            instructions:
+              - 'AGENTS.md'
+              - 'CLAUDE.md'
+              - 'package.json'
+              - 'scripts/verify-agent-instructions.mjs'
+              - '.github/actions/**'
+              - '.github/workflows/project-validation.yml'
+
+  javascript:
+    needs: changes
+    if: needs.changes.outputs.javascript == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Lint
+        run: yarn lint
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Test
+        run: yarn test --maxWorkers=2
+
+  consumer:
+    needs: changes
+    if: needs.changes.outputs.consumer == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Prepare package
+        run: yarn prepare
+
+      - name: Verify dependencies
+        run: yarn verify:dependencies
+
+      - name: Verify package contents
+        run: yarn verify:package
+
+      - name: Verify isolated consumer
+        run: yarn verify:consumers
+
+      - name: Verify publish contract
+        run: yarn verify:publish-contract
+
+  android:
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Install JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Accept Android SDK licenses
+        run: /bin/bash -c "yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null"
+
+      - name: Verify Android native contract
+        run: node scripts/verify-native-contract.mjs --platform android
+
+      - name: Run Android unit tests
+        run: ./example/android/gradlew -p example/android testDebugUnitTest
+
+      - name: Build minified release and merged manifest
+        env:
+          JAVA_OPTS: -XX:MaxHeapSize=6g
+        run: ./example/android/gradlew -p example/android :app:processReleaseMainManifest :app:assembleRelease
+
+      - name: Verify merged Android manifest
+        shell: bash
+        run: |
+          MERGED_MANIFEST="$(find example/android/app/build/intermediates/merged_manifests \
+            -path '*release*' -name AndroidManifest.xml -print -quit)"
+          if [ -z "$MERGED_MANIFEST" ]; then
+            echo "Release merged AndroidManifest.xml not found" >&2
+            exit 1
+          fi
+          grep -F 'unif.reactnativeumeng.example.fileprovider' "$MERGED_MANIFEST"
+          grep -F 'unif.reactnativeumeng.example.wxapi.WXEntryActivity' "$MERGED_MANIFEST"
+          grep -F 'unif.reactnativeumeng.example.ddshare.DDShareActivity' "$MERGED_MANIFEST"
+          grep -F '@xml/react_native_umeng_file_paths' "$MERGED_MANIFEST"
+          grep -Pzo '<activity\b(?=[^>]*android:name="unif\.reactnativeumeng\.example\.wxapi\.WXEntryActivity")(?=[^>]*android:enabled="false")[^>]*>' "$MERGED_MANIFEST" > /dev/null
+          grep -Pzo '<activity\b(?=[^>]*android:name="unif\.reactnativeumeng\.example\.ddshare\.DDShareActivity")(?=[^>]*android:enabled="false")[^>]*>' "$MERGED_MANIFEST" > /dev/null
+
+  ios:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-26
+    env:
+      XCODE_VERSION: '26.5'
+      RCT_USE_RN_DEP: 1
+      RCT_USE_PREBUILT_RNCORE: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Use appropriate Xcode version
+        uses: maxim-lobanov/setup-xcode@60606e260d2fc5762a71e64e74b2174e8ea3c8bd # v1.6.0
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Install Pods and run Codegen
+        working-directory: example
+        run: |
+          bundle install
+          bundle exec pod repo update --verbose
+          bundle exec pod install --project-directory=ios
+
+      - name: Verify iOS native contract
+        run: node scripts/verify-native-contract.mjs --platform ios
+
+      - name: Run iOS XCTest
+        run: >-
+          xcodebuild test
+          -workspace example/ios/ReactNativeUmengExample.xcworkspace
+          -scheme ReactNativeUmengExample
+          -destination 'platform=iOS Simulator,name=iPhone 17'
+
+      - name: Build iOS example
+        run: yarn turbo run build:ios --force
+
+      - name: Verify generated module providers
+        shell: bash
+        run: |
+          PROVIDER="$(find example/ios/build/generated/ios \
+            -name RCTModuleProviders.mm -print -quit)"
+          if [ -z "$PROVIDER" ]; then
+            echo "Generated RCTModuleProviders.mm not found" >&2
+            exit 1
+          fi
+          grep -F 'UmengCommon' "$PROVIDER"
+          grep -F 'UmengAnalytics' "$PROVIDER"
+          grep -F 'UmengShare' "$PROVIDER"
+
+  website:
+    needs: changes
+    if: needs.changes.outputs.website == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Test llms generator
+        run: node website/scripts/build-llms.test.js
+
+      - name: Generate and verify llms output
+        run: |
+          yarn workspace @unif/react-native-umeng-website build:llms
+          test -s website/static/llms.txt
+          test -s website/static/llms-full.txt
+
+      - name: Typecheck website
+        run: yarn workspace @unif/react-native-umeng-website typecheck
+
+      - name: Build website
+        run: yarn workspace @unif/react-native-umeng-website build
+
+  instructions:
+    needs: changes
+    if: needs.changes.outputs.instructions == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      # Task 13 提供稳定脚本；本 workflow 与其同一交付分支合并后启用。
+      - name: Verify Agent instructions
+        run: yarn verify:agent-instructions
+
+  validation:
+    if: always()
+    needs:
+      - changes
+      - javascript
+      - consumer
+      - android
+      - ios
+      - website
+      - instructions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all selected jobs
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const jobs = JSON.parse(process.env.JOB_RESULTS);
+            const invalid = Object.entries(jobs).filter(
+              ([, job]) => !["success", "skipped"].includes(job.result)
+            );
+            if (invalid.length > 0) {
+              console.error(
+                invalid.map(([name, job]) => name + ": " + job.result).join("\n")
+              );
+              process.exit(1);
+            }
+            console.log("All selected project validation jobs passed.");
+          '

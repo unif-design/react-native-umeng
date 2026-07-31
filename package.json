@@ -29,6 +29,7 @@
     "!android/gradlew",
     "!android/gradlew.bat",
     "!android/local.properties",
+    "!android/src/test",
     "!**/__tests__",
     "!**/__fixtures__",
     "!**/__mocks__",
@@ -42,6 +43,9 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
     "verify:dependencies": "node scripts/verify-dependencies.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:consumers": "node scripts/verify-consumers.mjs",
+    "verify:publish-contract": "node scripts/verify-publish-contract.mjs",
     "release": "release-it --only-version"
   },
   "keywords": [
