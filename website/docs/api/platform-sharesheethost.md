@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Platform & ShareSheetHost
-description: "Platform & ShareSheetHost 参考：Platform 是分享目标枚举（wechat_session / dingtalk），不是 react-native 的 Platform、没有 .OS；附 PLATFORM_DISPLAY_NAMES / PLATFORM_DEFAULT_SUBTITLES / PLATFORM_BRAND_COLORS / SUPPORTED_PLATFORMS 常量。<ShareSheetHost /> 是分享面板宿主组件、无 props、须挂在 App 根（GestureHandlerRootView + ThemeProvider 内），openSheet 依赖它。"
+description: "Platform & ShareSheetHost 参考：Platform 是分享目标枚举（wechat_session / dingtalk），不是 react-native 的 Platform、没有 .OS；ShareSheetHost 须挂在 ThemeProvider 内，并在 Modal 内自带 GestureHandlerRootView。"
 ---
 
 # Platform & ShareSheetHost
@@ -61,7 +61,7 @@ import { Platform as ShareTarget } from '@unif/react-native-umeng'; // 分享目
 
 ## `<ShareSheetHost />` {#share-sheet-host}
 
-分享面板的宿主组件，**无任何 props**。订阅模块级 `shareSheetController`，在 `Share.openSheet()` 触发时渲染 design 的 `BottomSheet` + `Cell` 面板。
+分享面板的宿主组件，**无任何 props**。订阅模块级 `shareSheetController`，在 `Share.openSheet()` 触发时渲染 RN `Modal` + design `Cell` / `Button` 面板。
 
 ```ts
 const ShareSheetHost: React.FC; // 无 props
@@ -69,7 +69,7 @@ const ShareSheetHost: React.FC; // 无 props
 
 ### 挂载 {#mount}
 
-**必须在 App 根挂载一次**，且位于 `GestureHandlerRootView` 和 design 的 `ThemeProvider` 内部（面板用 `useTheme` / `BottomSheet`）：
+**必须在 App 根挂载一次**，且位于 design 的 `ThemeProvider` 内。App 若有其它 RNGH UI,仍可保留外层 `GestureHandlerRootView`：
 
 ```tsx
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -89,7 +89,11 @@ export default function App() {
 ```
 
 :::warning openSheet 依赖此宿主
-未挂载时 `Share.openSheet()` 立即 reject（`E_UNKNOWN`，message `No <ShareSheetHost /> mounted`）；**一次只能开一个面板**，重入会 reject。挂载细节见[快速上手](../getting-started/quick-start#mount-host)。
+未挂载时 `Share.openSheet()` 立即 reject（`E_UNKNOWN`，message `No <ShareSheetHost /> mounted`）；**一次只能有一个 active session**，重入会 reject。平台查询失败会在 loading 阶段直接 reject,不会显示假数据;本次 owner Host 卸载也会 reject `E_UNKNOWN`。挂载细节见[快速上手](../getting-started/quick-start#mount-host)。
+:::
+
+:::info Modal 内部的 Gesture Handler 边界
+RN `Modal` 在 Android 创建独立 native root。`ShareSheetHost` 已在 Modal 内容内包 `GestureHandlerRootView`;App 外层 root 不能跨过 Modal 边界,也不能替代内部这一层。消费者只负责正常挂 Host,不要复制或移除库内边界。
 :::
 
 > 测试时官方 mock 的 `ShareSheetHost` 渲染 `null`（不引 design），见[测试](../testing)。
@@ -101,7 +105,7 @@ export default function App() {
 | | iOS | Android |
 | --- | --- | --- |
 | `Platform` 枚举 / 常量 | ✅ | ✅ |
-| `<ShareSheetHost />` | ✅ | ✅ |
+| `<ShareSheetHost />` | ⏳ UI 可渲染,端到端分享待 iOS remediation | ✅ |
 
 ## 相关 {#related}
 

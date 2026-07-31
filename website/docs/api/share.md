@@ -31,7 +31,7 @@ import { Share } from '@unif/react-native-umeng';
 
 ## `Share.openSheet(payload, options?)` {#opensheet}
 
-命令式拉起分享面板（**推荐用法**）。需在 App 根挂载 `<ShareSheetHost />`，否则 Promise 立即 reject（`E_UNKNOWN`，message `No <ShareSheetHost /> mounted`）。一次只能开一个面板，重入直接 reject。
+命令式拉起分享面板（**推荐用法**）。需在 App 根挂载 `<ShareSheetHost />`，否则 Promise 立即 reject（`E_UNKNOWN`，message `No <ShareSheetHost /> mounted`）。一次只能有一个 active session，重入直接 reject且不会覆盖旧 Promise。
 
 ```ts
 function openSheet(
@@ -73,6 +73,8 @@ type ShareSheetPayload =
 `hideUninstalled=false` 时，点击未安装的平台不会调用 native share；`openSheet`
 返回的 Promise 会 reject `UmengError`，code 为
 `E_PLATFORM_NOT_INSTALLED`。只有 `hideUninstalled=true` 才会完全隐藏未安装平台。
+
+`openSheet` 先进入 `loadingPlatforms` 并调用 `listPlatforms()`。查询失败时 Modal 不会伪装成“全部未安装”,而是用原错误结束当前 Promise。多个 Host 同时挂载时,最早注册者成为本次 owner;owner 在 loading / ready / sharing 任一阶段卸载都会 reject `E_UNKNOWN`,message 为 `The active <ShareSheetHost /> unmounted before the share completed.`。非 owner 卸载不影响当前 session。
 
 ```tsx
 import { Share, UmengError } from '@unif/react-native-umeng';
@@ -181,16 +183,13 @@ function listPlatforms(): Promise<PlatformInfo[]>;
 
 ```ts
 interface ShareResult {
-  code: 'success' | 'cancel' | 'failed';
+  code: 'success';
   platform: Platform;
   message?: string;
 }
 ```
 
-| `code` | 何时出现 |
-| --- | --- |
-| `'success'` | 唯一会 **resolve** 的取值 —— resolve 到手的 `ShareResult` 必为它 |
-| `'cancel'` / `'failed'` | **不会 resolve** —— JS 层翻成 `UmengError`（见下）抛出，存在于 `ShareResult` 仅为类型完整 |
+公共 `ShareResult.code` 只有 `'success'`。native 内部可以报告 `cancel` / `failed`,但 JS 会在公共边界把它们转换为 `UmengError`;它们不是 `ShareResult` 的成员。
 
 ---
 
@@ -228,7 +227,8 @@ try {
 | `E_PLATFORM_NOT_INSTALLED` | 目标微信 / 钉钉未安装（面板内点击未安装平台时） |
 | `E_PLATFORM_NOT_SUPPORTED` | 传了不在 `SUPPORTED_PLATFORMS` 的平台 |
 | `E_INVALID_OPTIONS` | 必填字段缺失（`shareText` 缺 `text`、`shareLink` 缺 `title`/`url` 等） |
-| `E_UNKNOWN` | 未挂 Host、面板重入、Android 无前台 Activity、SDK 未知错 |
+| `E_NOT_INITIALIZED` | 尚未完成 `Common.init()` 就调用 `shareXxx` / `isInstalled` / `listPlatforms`;`openSheet` 在 loading 阶段传播此错误 |
+| `E_UNKNOWN` | 未挂 Host、面板重入、owner Host 卸载、平台查询失败或 SDK 未知错 |
 
 完整错误码表见[常见问题 → 错误码速查](../troubleshooting#error-codes)。
 
@@ -238,10 +238,10 @@ try {
 
 | API | iOS | Android |
 | --- | --- | --- |
-| `openSheet` | ✅ | ✅ |
-| `shareText` / `shareImage` / `shareLink` | ✅ | ✅ |
-| `isInstalled` | ✅ | ✅ |
-| `listPlatforms` | ✅ | ✅ |
+| `openSheet` | ⏳ iOS native remediation 后验收 | ✅ |
+| `shareText` / `shareImage` / `shareLink` | ⏳ iOS init gate / lifecycle 待实现 | ✅ |
+| `isInstalled` | ⏳ iOS init gate 待实现 | ✅ |
+| `listPlatforms` | ⏳ 随 iOS `isInstalled` 验收 | ✅ |
 
 ## 相关 {#related}
 

@@ -96,11 +96,11 @@ export interface UmengInitConfig {
   appkey: string;
   /** 渠道标识。默认 iOS = 'App Store',Android = 'default' */
   channel?: string;
-  /** 微信平台 appid;不传则不注册微信分享 */
+  /** 微信平台 appid;启用微信时须与 wechatAppSecret 同时提供 */
   wechatAppId?: string;
-  /** 微信平台 appsecret;有 wechatAppId 才生效 */
+  /** 微信平台 appsecret;启用微信时须与 wechatAppId 同时提供 */
   wechatAppSecret?: string;
-  /** 微信 Universal Link (1.8.6+ 强制);iOS 才用,有 wechatAppId 才生效 */
+  /** 带 host 的绝对 HTTPS Universal Link;iOS 启用微信时必填,Android 可选 */
   wechatUniversalLink?: string;
   /** 钉钉平台 appid;不传则不注册钉钉分享 */
   dingtalkAppId?: string;
