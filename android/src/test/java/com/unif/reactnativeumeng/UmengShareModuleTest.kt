@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 class UmengShareModuleTest {
   @Test
@@ -236,6 +237,7 @@ class UmengShareModuleTest {
 
     controller.onActivityResult("activity", 7, 8, null)
     controller.onHostDestroy("activity")
+    controller.onHostResume()
     controller.invalidate("activity")
 
     assertEquals(0, adapterAcquisitions)
@@ -257,6 +259,332 @@ class UmengShareModuleTest {
       ),
       adapter.calls,
     )
+  }
+
+  @Test
+  fun `host destroy rejects and releases before a resumed host can use every vendor path`() {
+    var currentHost = "old-activity"
+    val adapter = RecordingShareAdapter(installed = true)
+    val controller =
+      controller(
+        initialized = true,
+        adapter = adapter,
+        currentHost = { currentHost },
+      )
+    val oldShare = RecordingPromise()
+    val newShare = RecordingPromise()
+    val installQuery = RecordingPromise()
+
+    controller.shareText("wechat_session", "old", oldShare)
+    val oldCallback = adapter.callbacks.removeFirst()
+    controller.onHostDestroy(currentHost)
+    currentHost = "new-activity"
+    controller.onHostResume()
+
+    oldCallback.onSuccess()
+    controller.shareText("dingtalk", "new", newShare)
+    adapter.callbacks.removeFirst().onSuccess()
+    controller.isInstalled("wechat_session", installQuery)
+    controller.onActivityResult("old-activity", 5, 6, null)
+    controller.onActivityResult(currentHost, 7, 8, null)
+
+    assertEquals(
+      listOf(Settlement.Rejected("E_SHARE_FAILED")),
+      oldShare.settlements,
+    )
+    assertEquals(
+      listOf(Settlement.Resolved(UmengShareSuccess("dingtalk"))),
+      newShare.settlements,
+    )
+    assertEquals(listOf(Settlement.Resolved(true)), installQuery.settlements)
+    assertEquals(
+      listOf(
+        ShareAdapterCall.Share(
+          UmengSharePlatform.WECHAT_SESSION,
+          UmengSharePayload.Text("old"),
+        ),
+        ShareAdapterCall.Release,
+        ShareAdapterCall.Share(
+          UmengSharePlatform.DINGTALK,
+          UmengSharePayload.Text("new"),
+        ),
+        ShareAdapterCall.IsInstalled(UmengSharePlatform.WECHAT_SESSION),
+        ShareAdapterCall.ActivityResult(7, 8, null),
+      ),
+      adapter.calls,
+    )
+  }
+
+  @Test
+  fun `queued work from a destroyed host generation cannot run after resume`() {
+    val adapter = RecordingShareAdapter()
+    val dispatcher = RecordingUiDispatcher(onUiThread = false, postResult = true)
+    val controller =
+      controller(
+        initialized = true,
+        adapter = adapter,
+        dispatcher = dispatcher,
+      )
+    val oldShare = RecordingPromise()
+    val newShare = RecordingPromise()
+
+    controller.shareText("wechat_session", "old", oldShare)
+    controller.onHostDestroy("old-activity")
+    controller.onHostResume()
+    dispatcher.runQueued()
+
+    controller.shareText("dingtalk", "new", newShare)
+    dispatcher.runQueued()
+    adapter.callbacks.removeFirst().onSuccess()
+
+    assertEquals(
+      listOf(Settlement.Rejected("E_SHARE_FAILED")),
+      oldShare.settlements,
+    )
+    assertEquals(
+      listOf(Settlement.Resolved(UmengShareSuccess("dingtalk"))),
+      newShare.settlements,
+    )
+    assertEquals(
+      listOf(
+        ShareAdapterCall.Release,
+        ShareAdapterCall.Share(
+          UmengSharePlatform.DINGTALK,
+          UmengSharePayload.Text("new"),
+        ),
+      ),
+      adapter.calls,
+    )
+  }
+
+  @Test
+  fun `resume requested during host teardown reopens only after teardown release`() {
+    val rejectionEntered = CountDownLatch(1)
+    val allowRejectionToReturn = CountDownLatch(1)
+    val requests = ShareRequestRegistry()
+    requests.register(
+      BlockingRejectionPromise(
+        rejectionEntered = rejectionEntered,
+        allowRejectionToReturn = allowRejectionToReturn,
+      ),
+    )
+    val adapter = RecordingShareAdapter()
+    val controller =
+      controller(
+        initialized = true,
+        adapter = adapter,
+        requests = requests,
+      )
+    val executor = Executors.newSingleThreadExecutor()
+
+    try {
+      val hostDestroy = executor.submit { controller.onHostDestroy("old-activity") }
+      await(rejectionEntered, "host destroy did not reject active requests")
+
+      controller.onHostResume()
+      val prematureShare = RecordingPromise()
+      controller.shareText("wechat_session", "premature", prematureShare)
+
+      assertEquals(
+        listOf(Settlement.Rejected("E_SHARE_FAILED")),
+        prematureShare.settlements,
+      )
+      assertEquals(emptyList<ShareAdapterCall>(), adapter.calls)
+
+      allowRejectionToReturn.countDown()
+      hostDestroy.get(5, TimeUnit.SECONDS)
+
+      val resumedShare = RecordingPromise()
+      controller.shareText("dingtalk", "resumed", resumedShare)
+      adapter.callbacks.single().onSuccess()
+
+      assertEquals(
+        listOf(Settlement.Resolved(UmengShareSuccess("dingtalk"))),
+        resumedShare.settlements,
+      )
+      assertEquals(
+        listOf(
+          ShareAdapterCall.Release,
+          ShareAdapterCall.Share(
+            UmengSharePlatform.DINGTALK,
+            UmengSharePayload.Text("resumed"),
+          ),
+        ),
+        adapter.calls,
+      )
+    } finally {
+      allowRejectionToReturn.countDown()
+      executor.shutdownNow()
+    }
+  }
+
+  @Test
+  fun `resume waits for a usable host to finish pending cleanup before reopening`() {
+    var currentHost: String? = null
+    val adapter = RecordingShareAdapter()
+    val controller =
+      controller(
+        initialized = true,
+        adapter = adapter,
+        currentHost = { currentHost },
+      )
+
+    controller.onHostDestroy(null)
+    controller.onHostResume()
+    val unavailableHostShare = RecordingPromise()
+    controller.shareText("wechat_session", "unavailable", unavailableHostShare)
+
+    currentHost = "new-activity"
+    controller.onHostResume()
+    val resumedShare = RecordingPromise()
+    controller.shareText("dingtalk", "resumed", resumedShare)
+    adapter.callbacks.single().onSuccess()
+
+    assertEquals(
+      listOf(Settlement.Rejected("E_SHARE_FAILED")),
+      unavailableHostShare.settlements,
+    )
+    assertEquals(
+      listOf(Settlement.Resolved(UmengShareSuccess("dingtalk"))),
+      resumedShare.settlements,
+    )
+    assertEquals(
+      listOf(
+        ShareAdapterCall.Release,
+        ShareAdapterCall.Share(
+          UmengSharePlatform.DINGTALK,
+          UmengSharePayload.Text("resumed"),
+        ),
+      ),
+      adapter.calls,
+    )
+  }
+
+  @Test
+  fun `permanent invalidation cannot be reopened by a later host resume`() {
+    val adapter = RecordingShareAdapter()
+    var adapterAcquisitions = 0
+    val controller =
+      controller(
+        initialized = true,
+        adapter = adapter,
+        onAdapterAcquired = { adapterAcquisitions += 1 },
+      )
+    val activeShare = RecordingPromise()
+    val lateShare = RecordingPromise()
+    val lateInstallQuery = RecordingPromise()
+
+    controller.onHostDestroy("old-activity")
+    controller.onHostResume()
+    controller.shareText("wechat_session", "active", activeShare)
+    controller.invalidate("new-activity")
+    controller.onHostResume()
+
+    controller.shareText("dingtalk", "late", lateShare)
+    controller.isInstalled("wechat_session", lateInstallQuery)
+    controller.onActivityResult("later-activity", 7, 8, null)
+
+    assertEquals(
+      listOf(Settlement.Rejected("E_SHARE_FAILED")),
+      activeShare.settlements,
+    )
+    assertEquals(
+      listOf(Settlement.Rejected("E_SHARE_FAILED")),
+      lateShare.settlements,
+    )
+    assertEquals(
+      listOf(Settlement.Rejected("E_SHARE_FAILED")),
+      lateInstallQuery.settlements,
+    )
+    assertEquals(3, adapterAcquisitions)
+    assertEquals(
+      listOf(
+        ShareAdapterCall.Release,
+        ShareAdapterCall.Share(
+          UmengSharePlatform.WECHAT_SESSION,
+          UmengSharePayload.Text("active"),
+        ),
+        ShareAdapterCall.Release,
+      ),
+      adapter.calls,
+    )
+  }
+
+  @Test
+  fun `final invalidation retries cleanup skipped by a host destroy without a host`() {
+    val adapter = RecordingShareAdapter()
+    val controller = controller(initialized = true, adapter = adapter)
+
+    controller.onHostDestroy(null)
+    assertEquals(emptyList<ShareAdapterCall>(), adapter.calls)
+
+    controller.invalidate("replacement-activity")
+
+    assertEquals(listOf(ShareAdapterCall.Release), adapter.calls)
+  }
+
+  @Test
+  fun `permanent invalidation wins over a resume requested during host teardown`() {
+    val invocationEntered = CountDownLatch(1)
+    val allowInvocationToReturn = CountDownLatch(1)
+    val rejectionEntered = CountDownLatch(1)
+    val allowRejectionToReturn = CountDownLatch(1)
+    val releaseEntered = CountDownLatch(1)
+    val adapterAcquisitions = AtomicInteger()
+    val requests = ShareRequestRegistry()
+    requests.register(
+      BlockingRejectionPromise(
+        rejectionEntered = rejectionEntered,
+        allowRejectionToReturn = allowRejectionToReturn,
+      ),
+    )
+    val controller =
+      controller(
+        initialized = true,
+        adapter =
+          BlockingShareAdapter(
+            blockedCall = BlockingVendorCall.SHARE,
+            invocationEntered = invocationEntered,
+            allowInvocationToReturn = allowInvocationToReturn,
+            releaseEntered = releaseEntered,
+          ),
+        onAdapterAcquired = { adapterAcquisitions.incrementAndGet() },
+        requests = requests,
+      )
+    val executor = Executors.newFixedThreadPool(3)
+    val invocation =
+      executor.submit {
+        controller.shareText("wechat_session", "active", RecordingPromise())
+      }
+
+    try {
+      await(invocationEntered, "vendor invocation did not start")
+      val hostDestroy = executor.submit { controller.onHostDestroy("old-activity") }
+      await(rejectionEntered, "host destroy did not reject active requests")
+      controller.onHostResume()
+      val invalidation = executor.submit { controller.invalidate("new-activity") }
+
+      allowRejectionToReturn.countDown()
+      allowInvocationToReturn.countDown()
+      invocation.get(5, TimeUnit.SECONDS)
+      hostDestroy.get(5, TimeUnit.SECONDS)
+      invalidation.get(5, TimeUnit.SECONDS)
+
+      controller.onHostResume()
+      val lateShare = RecordingPromise()
+      controller.shareText("dingtalk", "late", lateShare)
+
+      assertEquals(
+        listOf(Settlement.Rejected("E_SHARE_FAILED")),
+        lateShare.settlements,
+      )
+      assertEquals(2, adapterAcquisitions.get())
+      assertEquals(0L, releaseEntered.count)
+    } finally {
+      allowRejectionToReturn.countDown()
+      allowInvocationToReturn.countDown()
+      executor.shutdownNow()
+    }
   }
 
   @Test
@@ -412,10 +740,11 @@ class UmengShareModuleTest {
       RecordingUiDispatcher(onUiThread = true, postResult = true),
     onAdapterAcquired: () -> Unit = {},
     requests: ShareRequestRegistry = ShareRequestRegistry(),
+    currentHost: () -> String? = { "activity" },
   ): UmengShareController<String> =
     UmengShareController(
       isInitialized = { initialized },
-      currentHost = { "activity" },
+      currentHost = currentHost,
       adapterFactory = {
         onAdapterAcquired()
         adapter

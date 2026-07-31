@@ -102,16 +102,33 @@ internal class UmengShareController<Host>(
     requests.withActiveInvocation {
       // 宿主回调也必须先 gate，不能为了“转发一下”提前取得 UMShareAPI。
       if (!isInitialized()) return@withActiveInvocation
+      if (currentHost() != host) return@withActiveInvocation
       adapterFactory(host).onActivityResult(requestCode, resultCode, data)
     }
   }
 
   fun onHostDestroy(host: Host?) {
-    terminateRequestsAndRelease(host, "Host Activity was destroyed during share")
+    requests.destroyHost(
+      "E_SHARE_FAILED",
+      "Host Activity was destroyed during share",
+    ) {
+      cleanupVendor(host)
+    }
+  }
+
+  fun onHostResume() {
+    requests.resumeHost {
+      cleanupVendor(currentHost())
+    }
   }
 
   fun invalidate(host: Host?) {
-    terminateRequestsAndRelease(host, "Umeng share module was invalidated")
+    requests.invalidate(
+      "E_SHARE_FAILED",
+      "Umeng share module was invalidated",
+    ) {
+      cleanupVendor(host)
+    }
   }
 
   private fun startShare(
@@ -237,14 +254,11 @@ internal class UmengShareController<Host>(
       }
     }
 
-  private fun terminateRequestsAndRelease(
-    host: Host?,
-    message: String,
-  ) {
-    requests.terminate("E_SHARE_FAILED", message) {
-      if (!isInitialized() || host == null) return@terminate
-      adapterFactory(host).release()
-    }
+  private fun cleanupVendor(host: Host?): Boolean {
+    if (!isInitialized()) return true
+    if (host == null) return false
+    adapterFactory(host).release()
+    return true
   }
 }
 
@@ -295,7 +309,9 @@ class UmengShareModule(
 
   override fun onNewIntent(intent: Intent) = Unit
 
-  override fun onHostResume() = Unit
+  override fun onHostResume() {
+    controller.onHostResume()
+  }
 
   override fun onHostPause() = Unit
 
