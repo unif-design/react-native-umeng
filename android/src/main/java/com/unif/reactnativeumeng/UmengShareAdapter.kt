@@ -71,12 +71,16 @@ internal class ProductionUmengShareAdapter(
   ) {
     val action = ShareAction(activity)
     when (payload) {
-      is UmengSharePayload.Text -> action.withText(payload.text)
+      is UmengSharePayload.Text -> {
+        action.withText(payload.text)
+      }
+
       is UmengSharePayload.Image -> {
         val image = UMImage(activity, payload.image)
         payload.thumb?.let { image.setThumb(UMImage(activity, it)) }
         action.withMedia(image)
       }
+
       is UmengSharePayload.Link -> {
         val web = UMWeb(payload.url)
         web.title = payload.title
