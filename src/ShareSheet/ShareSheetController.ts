@@ -85,7 +85,14 @@ export class ShareSheetController {
         resolve,
         reject,
       };
-      listener({ kind: 'show', sessionId, payload, options });
+      try {
+        listener({ kind: 'show', sessionId, payload, options });
+      } catch (error) {
+        if (this.active?.sessionId === sessionId) {
+          this.active = null;
+        }
+        reject(error);
+      }
     });
   }
 

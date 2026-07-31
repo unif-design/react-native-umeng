@@ -50,6 +50,66 @@ describe('ShareSheetController', () => {
     });
   });
 
+  it('recovers after the owner listener throws synchronously', async () => {
+    const listenerError = new Error('listener failed');
+    let shouldThrow = true;
+    let sessionId: number | undefined;
+    controller.registerHost((event) => {
+      if (event.kind !== 'show') return;
+      if (shouldThrow) {
+        shouldThrow = false;
+        throw listenerError;
+      }
+      sessionId = event.sessionId;
+    });
+
+    await expect(controller.show(PAYLOAD)).rejects.toBe(listenerError);
+
+    const second = controller.show(PAYLOAD);
+    const secondOutcome = second.then(
+      (value) => ({ status: 'fulfilled', value }) as const,
+      (reason: unknown) => ({ status: 'rejected', reason }) as const
+    );
+    controller.settle(sessionId ?? -1, WECHAT_SUCCESS);
+
+    await expect(secondOutcome).resolves.toEqual({
+      status: 'fulfilled',
+      value: WECHAT_SUCCESS,
+    });
+  });
+
+  it('preserves a reentrant session when the previous listener later throws', async () => {
+    const listenerError = new Error('listener failed after re-entry');
+    let showCount = 0;
+    let sessionB!: Promise<ShareResult>;
+    let sessionBId: number | undefined;
+    controller.registerHost((event) => {
+      if (event.kind !== 'show') return;
+      showCount += 1;
+      if (showCount === 1) {
+        controller.settle(event.sessionId, WECHAT_SUCCESS);
+        sessionB = controller.show({ type: 'text', text: 'B' });
+        throw listenerError;
+      }
+      if (showCount === 2) {
+        sessionBId = event.sessionId;
+        return;
+      }
+      throw new Error('Unexpected third listener call');
+    });
+
+    await expect(controller.show(PAYLOAD)).resolves.toEqual(WECHAT_SUCCESS);
+    await expect(
+      controller.show({ type: 'text', text: 'C' })
+    ).rejects.toMatchObject({
+      code: 'E_UNKNOWN',
+      message: BUSY_MESSAGE,
+    });
+
+    controller.settle(sessionBId ?? -1, DINGTALK_SUCCESS);
+    await expect(sessionB).resolves.toEqual(DINGTALK_SUCCESS);
+  });
+
   it('rejects a concurrent show with the stable busy error', async () => {
     const listener = jest.fn();
     controller.registerHost(listener);
