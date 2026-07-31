@@ -26,13 +26,14 @@ internal class UmengCallbackComponents internal constructor(
 ) : UmengCallbackController {
   constructor(context: Context) : this(
     packageName = context.packageName,
-    stateWriter = ComponentStateWriter { state ->
-      context.packageManager.setComponentEnabledSetting(
-        ComponentName(context.packageName, state.className),
-        state.newState,
-        state.flags,
-      )
-    },
+    stateWriter =
+      ComponentStateWriter { state ->
+        context.packageManager.setComponentEnabledSetting(
+          ComponentName(context.packageName, state.className),
+          state.newState,
+          state.flags,
+        )
+      },
   )
 
   override fun enableConfigured(config: UmengNativeConfig) {

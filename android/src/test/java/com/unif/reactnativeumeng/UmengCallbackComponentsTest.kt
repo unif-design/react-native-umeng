@@ -148,12 +148,18 @@ class UmengCallbackComponentsTest {
         failureFor = { write ->
           when {
             write.className == DINGTALK_ACTIVITY &&
-              write.newState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED ->
+              write.newState == PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> {
               originalFailure
+            }
+
             write.className == WECHAT_ACTIVITY &&
-              write.newState == PackageManager.COMPONENT_ENABLED_STATE_DISABLED ->
+              write.newState == PackageManager.COMPONENT_ENABLED_STATE_DISABLED -> {
               rollbackFailure
-            else -> null
+            }
+
+            else -> {
+              null
+            }
           }
         },
       )
@@ -193,8 +199,7 @@ class UmengCallbackComponentsTest {
       states[state.className] = state.newState
     }
 
-    fun stateOf(className: String): Int =
-      states[className] ?: PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
+    fun stateOf(className: String): Int = states[className] ?: PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
   }
 
   private inline fun <reified T : Throwable> expectThrows(block: () -> Unit): T {
