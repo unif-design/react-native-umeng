@@ -48,7 +48,7 @@ async function createValidRepository() {
     write(
       fixtureRoot,
       'AGENTS.md',
-      '开始任何任务前，读取并使用 `umeng-share` Skill。\n'
+      '开始任何任务前，必须读取并使用 `umeng-share` Skill。\n'
     ),
     write(
       fixtureRoot,
@@ -154,6 +154,18 @@ test('rejects reverse CLAUDE delegation and negated Skill guidance', async () =>
       verifyAgentInstructions(fixtureRoot),
       /must positively require the umeng-share Skill/
     );
+
+    for (const optionalGuidance of [
+      'Use the `umeng-share` Skill only if you feel like it.\n',
+      'Use cases for the `umeng-share` Skill are documented here.\n',
+      '使用场景：`umeng-share` Skill。\n',
+    ]) {
+      await write(fixtureRoot, 'AGENTS.md', optionalGuidance);
+      await assert.rejects(
+        verifyAgentInstructions(fixtureRoot),
+        /must positively require the umeng-share Skill/
+      );
+    }
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }

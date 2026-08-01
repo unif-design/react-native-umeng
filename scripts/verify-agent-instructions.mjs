@@ -207,14 +207,14 @@ function proseBlocks(markdown, sourcePath) {
 }
 
 function positivelyRequiresSkill(markdown, skillName) {
-  const imperativePattern =
-    /^(?:(?:(?:在)?开始(?:任何|每个)?任务前|before\s+(?:starting\s+)?(?:any|each)\s+task)[，,]\s*)?(?:(?:请|please)\s*)?(?:(?:查找|寻找)(?:并|和)?\s*|find\s+and\s+)?(?:读取|加载|使用|安装|(?:read|load|use|install)\b)/iu;
   const explicitRequirementPattern =
-    /(?:(?:必须|务必|强制)[^。.!?]*(?:读取|加载|使用|安装)|\b(?:must|shall)\b[^.!?]*\b(?:read|load|use|install)\b|\b(?:is|are)\s+required\s+to\s+(?:read|load|use|install)\b)/iu;
+    /(?:(?:必须|务必|强制)[^。.!?]*(?:读取|加载|使用|安装)|\b(?:must|shall)\b[^.!?]*\b(?:read|load|use|install)\b|\b(?:is|are)\s+required(?:\s+to\s+(?:read|load|use|install)\b)?)/iu;
   const negationPattern =
     /(?:不得|不要|禁止|无需|不(?:再|应)?(?:读取|加载|使用|安装)|do\s+not|don't|must\s+not|should\s+not|not\s+(?:required|mandatory)|\bno\b[^.!?]*\brequired\b)/iu;
   const optionalPattern =
     /(?:可以|可选|可(?:读取|加载|使用|安装)|按需|建议|推荐|酌情|视情况|需要时|如需|若需|自行决定|\b(?:may|might|can|could|maybe|perhaps|optional(?:ly)?|recommend(?:ed)?|suggest(?:ed)?)\b|\bif\s+(?:desired|needed|appropriate|you\s+want)\b|\b(?:as\s+needed|when\s+convenient|at\s+your\s+discretion)\b)/iu;
+  const canonicalDirective =
+    '查找并读取 rn-library 与 umeng-share Skill,两者叠加使用。';
 
   return proseBlocks(markdown, 'AGENTS.md').some((block) => {
     const normalizedBlock = block
@@ -225,7 +225,7 @@ function positivelyRequiresSkill(markdown, skillName) {
       /skill/iu.test(normalizedBlock) &&
       !negationPattern.test(normalizedBlock) &&
       !optionalPattern.test(normalizedBlock) &&
-      (imperativePattern.test(normalizedBlock) ||
+      (normalizedBlock === canonicalDirective ||
         explicitRequirementPattern.test(normalizedBlock))
     );
   });
