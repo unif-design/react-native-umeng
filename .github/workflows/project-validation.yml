@@ -139,6 +139,10 @@ jobs:
             instructions:
               - 'AGENTS.md'
               - 'CLAUDE.md'
+              - 'README.md'
+              - 'CONTRIBUTING.md'
+              - 'example/README.md'
+              - 'website/docs/**'
               - 'package.json'
               - 'scripts/verify-agent-instructions.mjs'
               - '.github/actions/**'

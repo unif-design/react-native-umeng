@@ -6241,9 +6241,12 @@ __metadata:
     react-native-worklets: "npm:^0.11.3"
     react-test-renderer: "npm:19.2.3"
     release-it: "npm:^19.2.4"
+    remark-mdx: "npm:^3.1.1"
+    remark-parse: "npm:^11.0.0"
     semver: "npm:^7.7.2"
     turbo: "npm:^2.8.21"
     typescript: "npm:^6.0.2"
+    unified: "npm:^11.0.5"
   peerDependencies:
     "@sbaiahmed1/react-native-blur": ">=4"
     "@unif/react-native-design": ^0.20.0
@@ -17853,7 +17856,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"remark-mdx@npm:^3.0.0":
+"remark-mdx@npm:^3.0.0, remark-mdx@npm:^3.1.1":
   version: 3.1.1
   resolution: "remark-mdx@npm:3.1.1"
   dependencies:
@@ -19741,7 +19744,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"unified@npm:^11.0.0, unified@npm:^11.0.3, unified@npm:^11.0.4":
+"unified@npm:^11.0.0, unified@npm:^11.0.3, unified@npm:^11.0.4, unified@npm:^11.0.5":
   version: 11.0.5
   resolution: "unified@npm:11.0.5"
   dependencies:

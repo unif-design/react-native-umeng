@@ -1,8 +1,24 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { readFile, readdir, realpath, stat } from 'node:fs/promises';
+import {
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from 'node:path';
 import { fileURLToPath } from 'node:url';
+import remarkMdx from 'remark-mdx';
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
 
-const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { isDirectExecution } from './verification-utils.mjs';
+
+const defaultRepositoryRoot = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..'
+);
 const activeMarkdownEntries = [
   'AGENTS.md',
   'README.md',
@@ -15,53 +31,170 @@ const expectedDependencyRanges = {
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
 };
+const requiredInstructionRoutes = [
+  'AGENTS.md',
+  'CLAUDE.md',
+  'README.md',
+  'CONTRIBUTING.md',
+  'example/README.md',
+  'website/docs/**',
+  'package.json',
+  'scripts/verify-agent-instructions.mjs',
+];
+const markdownExtensions = new Set(['.md', '.mdx']);
+const markdownParser = unified().use(remarkParse);
+const mdxParser = unified().use(remarkParse).use(remarkMdx);
 
-async function collectMarkdownFiles(relativePath) {
+function normalizeRelativePath(relativePath) {
+  return relativePath.split(sep).join('/');
+}
+
+function isInside(root, candidate) {
+  const relativePath = relative(root, candidate);
+  return (
+    relativePath === '' ||
+    (relativePath !== '..' &&
+      !relativePath.startsWith(`..${sep}`) &&
+      !relativePath.startsWith('../') &&
+      !isAbsolute(relativePath))
+  );
+}
+
+async function assertCanonicalPathInside(
+  repositoryRoot,
+  canonicalRepositoryRoot,
+  candidate,
+  label
+) {
+  if (!isInside(repositoryRoot, candidate)) {
+    throw new Error(`${label} escapes repository root: ${candidate}`);
+  }
+
+  const canonicalCandidate = await realpath(candidate);
+  if (!isInside(canonicalRepositoryRoot, canonicalCandidate)) {
+    throw new Error(
+      `${label} escapes repository root through a symlink: ${candidate} -> ${canonicalCandidate}`
+    );
+  }
+}
+
+async function collectMarkdownFiles(
+  repositoryRoot,
+  canonicalRepositoryRoot,
+  relativePath
+) {
   const absolutePath = resolve(repositoryRoot, relativePath);
+  await assertCanonicalPathInside(
+    repositoryRoot,
+    canonicalRepositoryRoot,
+    absolutePath,
+    `active Markdown entry ${relativePath}`
+  );
   const entryStat = await stat(absolutePath);
 
   if (entryStat.isFile()) {
-    return relativePath.endsWith('.md') ? [relativePath] : [];
+    return markdownExtensions.has(extname(relativePath).toLowerCase())
+      ? [normalizeRelativePath(relativePath)]
+      : [];
   }
 
   const files = [];
   for (const entry of await readdir(absolutePath, { withFileTypes: true })) {
     const childPath = join(relativePath, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await collectMarkdownFiles(childPath)));
-    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-      files.push(childPath);
+    const childAbsolutePath = resolve(repositoryRoot, childPath);
+    const childStat = entry.isSymbolicLink()
+      ? await stat(childAbsolutePath)
+      : undefined;
+
+    if (entry.isDirectory() || childStat?.isDirectory()) {
+      files.push(
+        ...(await collectMarkdownFiles(
+          repositoryRoot,
+          canonicalRepositoryRoot,
+          childPath
+        ))
+      );
+    } else if (
+      (entry.isFile() || childStat?.isFile()) &&
+      markdownExtensions.has(extname(entry.name).toLowerCase())
+    ) {
+      await assertCanonicalPathInside(
+        repositoryRoot,
+        canonicalRepositoryRoot,
+        childAbsolutePath,
+        `active Markdown file ${childPath}`
+      );
+      files.push(normalizeRelativePath(childPath));
     }
   }
   return files;
 }
 
-function stripFencedCode(markdown) {
-  return markdown.replace(/```[\s\S]*?```/g, '');
+function visit(node, callback) {
+  callback(node);
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      visit(child, callback);
+    }
+  }
 }
 
-function markdownLinkTargets(markdown) {
-  const targets = [];
-  const linkPattern = /!?\[[^\]]*]\(([^)\n]+)\)/g;
+function parseMarkdown(markdown, sourcePath) {
+  const parser =
+    extname(sourcePath).toLowerCase() === '.mdx' ? mdxParser : markdownParser;
+  return parser.parse(markdown);
+}
 
-  for (const match of stripFencedCode(markdown).matchAll(linkPattern)) {
-    const rawTarget = match[1]?.trim();
-    if (!rawTarget) {
-      continue;
+function linkNodes(markdown, sourcePath) {
+  const links = [];
+  visit(parseMarkdown(markdown, sourcePath), (node) => {
+    if (
+      (node.type === 'link' ||
+        node.type === 'image' ||
+        node.type === 'definition') &&
+      typeof node.url === 'string'
+    ) {
+      links.push({ type: node.type, url: node.url });
+    }
+  });
+  return links;
+}
+
+function proseBlocks(markdown, sourcePath) {
+  const blocks = [];
+  visit(parseMarkdown(markdown, sourcePath), (node) => {
+    if (node.type !== 'paragraph' && node.type !== 'heading') {
+      return;
     }
 
-    if (rawTarget.startsWith('<')) {
-      const closingBracket = rawTarget.indexOf('>');
-      if (closingBracket > 1) {
-        targets.push(rawTarget.slice(1, closingBracket));
+    let value = '';
+    visit(node, (child) => {
+      if (
+        child !== node &&
+        (child.type === 'text' || child.type === 'inlineCode') &&
+        typeof child.value === 'string'
+      ) {
+        value += child.value;
       }
-      continue;
-    }
+    });
+    blocks.push(value);
+  });
+  return blocks;
+}
 
-    targets.push(rawTarget.split(/\s+["']/u, 1)[0]);
-  }
+function positivelyRequiresSkill(markdown, skillName) {
+  const actionPattern =
+    /(?:读取|加载|使用|安装|叠加使用|read|load|use|install|require)/iu;
+  const negationPattern =
+    /(?:不得|不要|禁止|无需|不(?:再|应)?(?:读取|加载|使用|安装)|do\s+not|don't|must\s+not|should\s+not|not\s+required)/iu;
 
-  return targets;
+  return proseBlocks(markdown, 'AGENTS.md').some(
+    (block) =>
+      block.includes(skillName) &&
+      /skill/iu.test(block) &&
+      actionPattern.test(block) &&
+      !negationPattern.test(block)
+  );
 }
 
 function isExternalOrRouteTarget(target) {
@@ -73,7 +206,22 @@ function isExternalOrRouteTarget(target) {
   );
 }
 
-async function localTargetExists(sourcePath, target) {
+function linksToUmengShareSkill(links) {
+  return links.some(({ type, url }) => {
+    if (type === 'image') {
+      return false;
+    }
+    const targetWithoutQuery = url.split(/[?#]/u, 1)[0].replace(/\/+$/u, '');
+    return /(?:^|\/)skills\/umeng-share$/u.test(targetWithoutQuery);
+  });
+}
+
+async function localTargetExists({
+  canonicalRepositoryRoot,
+  repositoryRoot,
+  sourcePath,
+  target,
+}) {
   let decodedTarget;
   try {
     decodedTarget = decodeURIComponent(target);
@@ -91,15 +239,29 @@ async function localTargetExists(sourcePath, target) {
     dirname(sourcePath),
     pathWithoutQuery
   );
+  if (!isInside(repositoryRoot, absoluteTarget)) {
+    throw new Error(
+      `${sourcePath} link escapes repository root: ${target}`
+    );
+  }
+
   const candidates = [
     absoluteTarget,
     `${absoluteTarget}.md`,
+    `${absoluteTarget}.mdx`,
     join(absoluteTarget, 'index.md'),
+    join(absoluteTarget, 'index.mdx'),
   ];
 
   for (const candidate of candidates) {
     try {
       await stat(candidate);
+      await assertCanonicalPathInside(
+        repositoryRoot,
+        canonicalRepositoryRoot,
+        candidate,
+        `${sourcePath} link ${target}`
+      );
       return true;
     } catch (error) {
       if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') {
@@ -111,8 +273,56 @@ async function localTargetExists(sourcePath, target) {
   return false;
 }
 
-async function main() {
+function pathFilterRoutes(workflow, filterName) {
+  const lines = workflow.split(/\r?\n/u);
+  const routes = [];
+  let filtersIndent;
+  let currentFilter;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const indent = line.length - line.trimStart().length;
+
+    if (filtersIndent === undefined) {
+      if (trimmed === 'filters: |') {
+        filtersIndent = indent;
+      }
+      continue;
+    }
+
+    if (trimmed && indent <= filtersIndent) {
+      break;
+    }
+    if (!trimmed) {
+      continue;
+    }
+
+    const relativeLine = line.slice(filtersIndent + 2);
+    const filterMatch = relativeLine.match(/^([\w-]+):\s*$/u);
+    if (filterMatch) {
+      currentFilter = filterMatch[1];
+      continue;
+    }
+
+    if (currentFilter === filterName) {
+      const routeMatch = relativeLine.match(
+        /^\s+-\s+(['"]?)(.+?)\1(?:\s+#.*)?$/u
+      );
+      if (routeMatch?.[2]) {
+        routes.push(routeMatch[2]);
+      }
+    }
+  }
+
+  return routes;
+}
+
+export async function verifyAgentInstructions(
+  repositoryRoot = defaultRepositoryRoot
+) {
+  repositoryRoot = resolve(repositoryRoot);
   const failures = [];
+  const canonicalRepositoryRoot = await realpath(repositoryRoot);
   const claudeInstructions = await readFile(
     resolve(repositoryRoot, 'CLAUDE.md'),
     'utf8'
@@ -122,14 +332,16 @@ async function main() {
     'utf8'
   );
 
-  if (!/^@AGENTS\.md\n?$/u.test(claudeInstructions)) {
-    failures.push('CLAUDE.md must contain only @AGENTS.md and an optional final newline');
+  if (!/^@AGENTS\.md(?:\r?\n)?$/u.test(claudeInstructions)) {
+    failures.push(
+      'CLAUDE.md must contain only @AGENTS.md and an optional final newline'
+    );
   }
-  if (agentsInstructions.includes('@CLAUDE.md')) {
-    failures.push('AGENTS.md must not delegate instructions back to CLAUDE.md');
+  if (/CLAUDE\.md/iu.test(agentsInstructions)) {
+    failures.push('AGENTS.md must not reference CLAUDE.md');
   }
-  if (!agentsInstructions.includes('umeng-share')) {
-    failures.push('AGENTS.md must require the umeng-share Skill');
+  if (!positivelyRequiresSkill(agentsInstructions, 'umeng-share')) {
+    failures.push('AGENTS.md must positively require the umeng-share Skill');
   }
 
   const manifest = JSON.parse(
@@ -150,7 +362,13 @@ async function main() {
 
   const activeMarkdownFiles = (
     await Promise.all(
-      activeMarkdownEntries.map((entry) => collectMarkdownFiles(entry))
+      activeMarkdownEntries.map((entry) =>
+        collectMarkdownFiles(
+          repositoryRoot,
+          canonicalRepositoryRoot,
+          entry
+        )
+      )
     )
   )
     .flat()
@@ -164,33 +382,58 @@ async function main() {
     )
   );
 
+  let hasSkillLink = false;
   for (const [relativePath, markdown] of activeMarkdown) {
     if (markdown.includes('unif-umeng')) {
       failures.push(`${relativePath} references obsolete Skill name unif-umeng`);
     }
 
-    for (const target of markdownLinkTargets(markdown)) {
-      if (
-        isExternalOrRouteTarget(target) ||
-        target.includes('{') ||
-        target.includes('}')
-      ) {
+    const links = linkNodes(markdown, relativePath);
+    hasSkillLink ||= linksToUmengShareSkill(links);
+    for (const { url: target } of links) {
+      if (isExternalOrRouteTarget(target)) {
         continue;
       }
-      if (!(await localTargetExists(relativePath, target))) {
-        failures.push(`${relativePath} has missing local Markdown link: ${target}`);
+      try {
+        if (
+          !(await localTargetExists({
+            canonicalRepositoryRoot,
+            repositoryRoot,
+            sourcePath: relativePath,
+            target,
+          }))
+        ) {
+          failures.push(
+            `${relativePath} has missing local Markdown link: ${target}`
+          );
+        }
+      } catch (error) {
+        failures.push(
+          error instanceof Error ? error.message : String(error)
+        );
       }
     }
   }
 
-  if (
-    ![...activeMarkdown.values()].some((markdown) =>
-      markdown.includes('skills/umeng-share')
-    )
-  ) {
+  if (!hasSkillLink) {
     failures.push(
-      'Active repository guidance must link to the skills/umeng-share path'
+      'Active repository guidance must hyperlink to the skills/umeng-share path'
     );
+  }
+
+  const validationWorkflow = await readFile(
+    resolve(repositoryRoot, '.github/workflows/project-validation.yml'),
+    'utf8'
+  );
+  const instructionRoutes = new Set(
+    pathFilterRoutes(validationWorkflow, 'instructions')
+  );
+  for (const requiredRoute of requiredInstructionRoutes) {
+    if (!instructionRoutes.has(requiredRoute)) {
+      failures.push(
+        `project-validation instructions filter must include ${requiredRoute}`
+      );
+    }
   }
 
   if (failures.length > 0) {
@@ -201,12 +444,19 @@ async function main() {
     );
   }
 
+  return { activeMarkdownFiles };
+}
+
+async function main() {
+  const result = await verifyAgentInstructions();
   console.log(
-    `Agent instruction verification passed (${activeMarkdownFiles.length} active Markdown files, dependency ranges and local links checked).`
+    `Agent instruction verification passed (${result.activeMarkdownFiles.length} active Markdown/MDX files, dependency ranges, local links and CI routes checked).`
   );
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exitCode = 1;
-});
+if (isDirectExecution(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
