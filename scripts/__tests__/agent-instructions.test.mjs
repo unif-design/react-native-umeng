@@ -124,6 +124,16 @@ test('rejects reverse CLAUDE delegation and negated Skill guidance', async () =>
       verifyAgentInstructions(fixtureRoot),
       /must positively require the umeng-share Skill/
     );
+
+    await write(
+      fixtureRoot,
+      'AGENTS.md',
+      'Agents may use the `umeng-share` Skill if desired.\n'
+    );
+    await assert.rejects(
+      verifyAgentInstructions(fixtureRoot),
+      /must positively require the umeng-share Skill/
+    );
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }
@@ -136,6 +146,16 @@ test('requires a real Skill hyperlink target instead of ordinary text', async ()
       fixtureRoot,
       'README.md',
       '`skills/umeng-share` is text, while [skills](https://github.com/unif-design/skills) is generic.\n'
+    );
+    await assert.rejects(
+      verifyAgentInstructions(fixtureRoot),
+      /must hyperlink to the skills\/umeng-share path/
+    );
+
+    await write(
+      fixtureRoot,
+      'README.md',
+      '[unused]: https://github.com/unif-design/skills/tree/main/skills/umeng-share\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
@@ -169,7 +189,10 @@ test('does not skip broken local links that contain braces', async () => {
 
 test('rejects lexical and symlink link escapes outside the repository', async () => {
   const fixtureRoot = await createValidRepository();
-  const outsideFile = join(dirname(fixtureRoot), 'outside-instructions.md');
+  const outsideRoot = await mkdtemp(
+    join(dirname(fixtureRoot), 'umeng-instructions-outside-')
+  );
+  const outsideFile = join(outsideRoot, 'outside-instructions.md');
   try {
     await writeFile(outsideFile, '# Outside\n');
     await write(
@@ -202,7 +225,7 @@ test('rejects lexical and symlink link escapes outside the repository', async ()
     );
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
-    await rm(outsideFile, { force: true });
+    await rm(outsideRoot, { recursive: true, force: true });
   }
 });
 

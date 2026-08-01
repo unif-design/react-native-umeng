@@ -147,16 +147,40 @@ function parseMarkdown(markdown, sourcePath) {
 
 function linkNodes(markdown, sourcePath) {
   const links = [];
+  const definitions = new Map();
+  const references = [];
+
   visit(parseMarkdown(markdown, sourcePath), (node) => {
     if (
-      (node.type === 'link' ||
-        node.type === 'image' ||
-        node.type === 'definition') &&
+      (node.type === 'link' || node.type === 'image') &&
       typeof node.url === 'string'
     ) {
       links.push({ type: node.type, url: node.url });
+    } else if (
+      node.type === 'definition' &&
+      typeof node.identifier === 'string' &&
+      typeof node.url === 'string' &&
+      !definitions.has(node.identifier)
+    ) {
+      definitions.set(node.identifier, node.url);
+    } else if (
+      (node.type === 'linkReference' || node.type === 'imageReference') &&
+      typeof node.identifier === 'string'
+    ) {
+      references.push({
+        identifier: node.identifier,
+        type: node.type === 'linkReference' ? 'link' : 'image',
+      });
     }
   });
+
+  for (const { identifier, type } of references) {
+    const url = definitions.get(identifier);
+    if (url) {
+      links.push({ type, url });
+    }
+  }
+
   return links;
 }
 
@@ -184,16 +208,19 @@ function proseBlocks(markdown, sourcePath) {
 
 function positivelyRequiresSkill(markdown, skillName) {
   const actionPattern =
-    /(?:读取|加载|使用|安装|叠加使用|read|load|use|install|require)/iu;
+    /(?:读取|加载|使用|安装|\b(?:read|load|use|install|requir(?:e|es|ed|ing))\b)/iu;
   const negationPattern =
-    /(?:不得|不要|禁止|无需|不(?:再|应)?(?:读取|加载|使用|安装)|do\s+not|don't|must\s+not|should\s+not|not\s+required)/iu;
+    /(?:不得|不要|禁止|无需|不(?:再|应)?(?:读取|加载|使用|安装)|do\s+not|don't|must\s+not|should\s+not|not\s+(?:required|mandatory))/iu;
+  const optionalPattern =
+    /(?:可以|可选|按需|建议|推荐|酌情|视情况|\b(?:may|can|could|optional(?:ly)?|recommend(?:ed)?|suggest(?:ed)?)\b|\bif\s+(?:desired|needed|appropriate)\b|\bas\s+needed\b)/iu;
 
   return proseBlocks(markdown, 'AGENTS.md').some(
     (block) =>
       block.includes(skillName) &&
       /skill/iu.test(block) &&
       actionPattern.test(block) &&
-      !negationPattern.test(block)
+      !negationPattern.test(block) &&
+      !optionalPattern.test(block)
   );
 }
 
