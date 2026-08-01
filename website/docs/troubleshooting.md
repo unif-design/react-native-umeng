@@ -74,7 +74,7 @@ await Common.preInit({ appkey: '...', /* ... */ }); // App 启动
 await Common.init();                                 // 用户同意后,无参
 ```
 
-统计不上报最常见原因:`init` 还没调(用户未同意《隐私协议》)。当前 Android 会在此时 no-op。若发生在 iOS,先注意当前 native 仍未完成 Task 9 的 `initialize(config)` 对齐,不能按 Android 结论排障。两段式见[隐私合规(PIPL)](./guides/privacy-pipl)。
+统计不上报最常见原因:`init` 还没完成(用户未同意《隐私协议》)。Android 与 iOS 的 `Analytics.*` 都会在 init 前同步 no-op,且不会缓存或补发。两段式见[隐私合规(PIPL)](./guides/privacy-pipl)。
 
 ---
 
@@ -83,7 +83,7 @@ await Common.init();                                 // 用户同意后,无参
 真实微信 / 钉钉分享必须用真机,但**模拟器编译失败不是可以直接忽略的预期结果**。
 
 - 模拟器没有真微信 / 钉钉,**无法完成回调跳转**,分享链路测不通。
-- iOS remediation 要求 simulator Pod/Codegen/build 通过;当前分支还存在 native spec mismatch,应先完成 Task 9,不能把任意编译错误归因于第三方 SDK 架构。
+- 仓库 iOS simulator Pod/Codegen/build/XCTest 已通过。消费者若编译失败,应核对自己的 Pod 图、New Architecture、Worklets plugin 与原生配置,不能把任意编译错误归因于“模拟器不能真分享”。
 
 :::tip 在 CI / 模拟器里测逻辑
 不要在模拟器里测真实分享。单元测试用[测试(Mock)](./testing)页的 `jest.mock` 方案,在无原生环境跑通分享流程逻辑。
@@ -108,9 +108,10 @@ await Common.init();                                 // 用户同意后,无参
 
 ### iOS
 
-- 当前 iOS native 还未完成 `initialize(config)`、module map/Codegen 和双路回调 remediation;先不要把回跳失败解释为单一宿主配置问题。
-- `Info.plist` 缺 `CFBundleURLTypes`,误给开放平台原值额外拼了 `wx` / `dingoa`,或缺 `LSApplicationQueriesSchemes` 白名单。
-- iOS 目标要求 AppDelegate / SceneDelegate 对 URL 与 Universal Link **分别调用** Umeng 和 `RCTLinkingManager`,两者都执行后再 OR;不能用短路表达式漏掉第二个 handler。
+- 仓库已通过 `initialize(config)`、module map/Codegen、AppDelegate/Scene compile fixture 与 XCTest；这些证据不代表消费者的真实 scheme/domain 已配置。
+- `Info.plist` 缺 `CFBundleURLTypes`,误在开放平台分配原值之外再拼 `wx` / `dingoa`,或缺 `LSApplicationQueriesSchemes` 白名单。
+- AppDelegate / SceneDelegate 对 URL 与 Universal Link 必须**分别调用** Umeng 和 `RCTLinkingManager`,两者都执行后再 OR;不能用短路表达式漏掉第二个 handler。
+- Universal Link 还要核对 Associated Domains、无重定向 AASA、`TeamID.BundleID`、path 与 `wechatUniversalLink` host。
 
 逐项见 [iOS 原生配置](./native-setup/ios)。
 

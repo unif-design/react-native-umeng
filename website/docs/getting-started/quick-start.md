@@ -8,8 +8,8 @@ description: "5 分钟跑通 @unif/react-native-umeng：App 根挂 <ShareSheetHo
 
 5 分钟跑通:根挂 `<ShareSheetHost />` → 启动时 `preInit` → 用户同意后 `init` → `await Share.openSheet()` 拉起面板。
 
-:::danger 当前平台状态
-这套流程当前已在 JS 与 Android 落地。iOS native 仍是旧 `preInit/init` bridge,等待 Task 9 对齐 `initialize(config)` 后才能按本页验收。
+:::info 当前验证边界
+这套流程已在 JS、Android 和 iOS 落地。iOS 已通过 simulator build/XCTest/native contract；Android 源码/static contract 已核对，仓库已有 JVM tests，但本轮 Gradle/JVM 留待 Android SDK CI。真实第三方 App 回跳仍需真机验证。
 :::
 
 :::warning 分享必须真机运行
@@ -58,6 +58,8 @@ await Common.preInit({
 });
 ```
 
+iOS 启用微信时 `wechatAppId`、`wechatAppSecret`、绝对 HTTPS `wechatUniversalLink` 三项必须同时提供；Android 启用微信时前两项必须成组，Universal Link 可省略。任一可选字段一旦出现也必须是非空字符串。
+
 ## ③ 用户同意后,`init` 开始采集(无参) {#init}
 
 ```ts
@@ -65,7 +67,7 @@ await Common.preInit({
 await Common.init();   // ⚠️ 无参 —— config 已给 preInit
 ```
 
-`Common.init()` **不接收 config**(配置已给 `preInit`)。没先 `preInit` 直接 `init` 会 reject;用户同意后调用时,Android native 才依次执行 vendor preInit、平台注册与正式 init。iOS 对应流程仍待 Task 9。两段式合规细节见[隐私合规(PIPL)](../guides/privacy-pipl)。
+`Common.init()` **不接收 config**(配置已给 `preInit`)。没先 `preInit` 直接 `init` 会 reject `E_NOT_INITIALIZED`。用户同意后调用时,Android 才依次执行 vendor preInit、平台注册、FileProvider 与正式 init；iOS 才执行 Universal Link 配置、微信 / 钉钉注册与 `UMConfigure.initWithAppkey`。两段式合规细节见[隐私合规(PIPL)](../guides/privacy-pipl)。
 
 ## ④ 拉起分享面板 {#open-sheet}
 

@@ -113,6 +113,6 @@ export interface ShareSheetOptions {
   cancelText?: string;
   /** 平台副标题覆盖；默认见 PLATFORM_DEFAULT_SUBTITLES */
   subtitles?: Partial<Record<Platform, string>>;
-  /** 未安装平台隐藏；默认 false（按钮置灰） */
+  /** 未安装平台隐藏；默认 false（仍显示且可点击，点击后 reject 未安装错误） */
   hideUninstalled?: boolean;
 }

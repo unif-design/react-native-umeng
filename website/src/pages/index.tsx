@@ -27,11 +27,20 @@ interface CodeWindowProps {
   lines: CodeLine[];
 }
 
-function CodeWindow({ file, tag, hl, lines }: CodeWindowProps): React.JSX.Element {
+function CodeWindow({
+  file,
+  tag,
+  hl,
+  lines,
+}: CodeWindowProps): React.JSX.Element {
   return (
     <div className="hp-code compact">
       <div className="hp-code-bar">
-        <span className="hp-code-dots"><i /><i /><i /></span>
+        <span className="hp-code-dots">
+          <i />
+          <i />
+          <i />
+        </span>
         <span className="hp-code-file">{file}</span>
         <span className="hp-code-tag">{tag}</span>
       </div>
@@ -39,7 +48,8 @@ function CodeWindow({ file, tag, hl, lines }: CodeWindowProps): React.JSX.Elemen
         <pre>
           {lines.map((node, i) => (
             <div key={i} className={'hp-cl' + (hl === i + 1 ? ' hl' : '')}>
-              <span className="ln">{i + 1}</span>{node}
+              <span className="ln">{i + 1}</span>
+              {node}
             </div>
           ))}
         </pre>
@@ -72,7 +82,9 @@ function ShareScreen(): React.JSX.Element {
       <div className="hp-share-bg">
         <div className="hp-sb-nav">
           <span>拜访总结</span>
-          <span className="hp-sb-share"><IconShare s={16} /></span>
+          <span className="hp-sb-share">
+            <IconShare s={16} />
+          </span>
         </div>
         <div className="hp-sb-card">
           <div className="hp-sb-eyebrow">AI 总结</div>
@@ -86,7 +98,9 @@ function ShareScreen(): React.JSX.Element {
         <span className="hp-sheet-grab" />
         <div className="hp-sheet-head">
           <span className="hp-sheet-title">分享至</span>
-          <span className="hp-sheet-x"><IconClose s={13} /></span>
+          <span className="hp-sheet-x">
+            <IconClose s={13} />
+          </span>
         </div>
         <div className="hp-sheet-list">
           {SHARE_TARGETS.map((t, i) => (
@@ -107,23 +121,36 @@ function ShareScreen(): React.JSX.Element {
 }
 
 /* ─── Install command ─── */
-const PKG = '@unif/react-native-umeng @unif/react-native-design';
-const PKG_DISPLAY = '@unif/react-native-umeng';
+const INSTALL_COMMAND = [
+  'yarn add @unif/react-native-umeng',
+  "'@sbaiahmed1/react-native-blur@>=4'",
+  "'@unif/react-native-design@^0.20.0'",
+  "'react-native-gesture-handler@>=3.0.0 <4.0.0'",
+  "'react-native-reanimated@^4.5.3'",
+  "'react-native-reanimated-carousel@>=5.0.0 <6.0.0'",
+  "'react-native-safe-area-context@>=5'",
+  "'react-native-svg@>=15'",
+  "'react-native-worklets@^0.11.3'",
+].join(' ');
 
 function InstallBlock(): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
-    void navigator.clipboard.writeText(`npm install ${PKG}`);
+    void navigator.clipboard.writeText(INSTALL_COMMAND);
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
   };
   return (
     <div className="hp-install">
       <span className="dollar">$</span>
-      <span>npm install <span className="pkg">{PKG_DISPLAY}</span></span>
+      <span>
+        yarn add <span className="pkg">@unif/react-native-umeng</span> …（8
+        peers）
+      </span>
       <button
         className={'hp-install-copy' + (copied ? ' copied' : '')}
-        title="复制"
+        title="复制完整 Yarn 安装命令（含全部 peers）"
+        aria-label="复制完整 Yarn 安装命令（含全部 peers）"
         onClick={handleCopy}
       >
         {copied ? <IconCheck s={15} /> : <IconCopy s={15} />}
@@ -137,14 +164,25 @@ const K = (kw: string) => <span className="tok-kw">{kw}</span>;
 const ST = (s: string) => <span className="tok-str">{s}</span>;
 const FN = (s: string) => <span className="tok-fn">{s}</span>;
 
-// shareVisit.ts — share code lines (hl = line 4: platform row)
+// shareVisit.ts — public barrel 可直接复制的 openSheet 示例
 const CODE_LINES: CodeLine[] = [
-  <>{K('import')} <span className="tok-id">{'{ share }'}</span> {K('from')} {ST("'@unif/react-native-umeng'")}</>,
-  <>{' '}</>,
-  <>{K('await')} {FN('share')}({'{'}</>,
-  <>{'  '}platform: {ST("'wechat'")},</>,
-  <>{'  '}title: {ST("'拜访总结'")},</>,
-  <>{'  '}link: <span className="tok-id">visit</span>.url,</>,
+  <>
+    {K('import')} <span className="tok-id">{'{ Share }'}</span> {K('from')}{' '}
+    {ST("'@unif/react-native-umeng'")}
+  </>,
+  <> </>,
+  <>
+    {K('await')} <span className="tok-id">Share</span>.{FN('openSheet')}({'{'}
+  </>,
+  <>
+    {'  '}type: {ST("'link'")},
+  </>,
+  <>
+    {'  '}title: {ST("'拜访总结'")},
+  </>,
+  <>
+    {'  '}url: <span className="tok-id">visit</span>.url,
+  </>,
   <>{'}'})</>,
 ];
 
@@ -159,7 +197,7 @@ const FEATURES: Feature[] = [
   {
     Icon: IconShare,
     title: '社会化分享',
-    desc: '一次调用唤起原生分享：微信会话 / 钉钉，支持链接 · 图片 · 文本，回调统一处理 success / cancel / failed。',
+    desc: '一次调用唤起微信会话 / 钉钉分享，支持链接 · 图片 · 文本；成功 resolve，取消 / 失败 reject UmengError。',
   },
   {
     Icon: IconChart,
@@ -169,7 +207,7 @@ const FEATURES: Feature[] = [
   {
     Icon: IconShield,
     title: '合规初始化',
-    desc: '预初始化与正式初始化分离，用户同意隐私协议后再采集，满足上架合规要求。',
+    desc: 'preInit 只保存 JS 配置快照；用户同意隐私协议后，无参 init 才进入 native/vendor 并开始采集。',
   },
 ];
 
@@ -188,23 +226,34 @@ export default function Home(): React.JSX.Element {
             <div className="hp-hero-copy">
               <span className="hp-eyebrow">@unif/react-native-umeng</span>
               <h1 className="hp-title">
-                社会化分享，<br />
+                社会化分享，
+                <br />
                 <span className="accent">微信 · 钉钉 · 统计</span>
               </h1>
               <p className="hp-tagline">
-                友盟+ U-Share + U-App 的 React Native 封装：微信会话 / 钉钉分享，叠加友盟移动统计，内置合规初始化与隐私授权时机控制。
+                友盟+ U-Share + U-App 的 React Native 封装：微信会话 /
+                钉钉分享，叠加友盟移动统计，内置合规初始化与隐私授权时机控制。
               </p>
               <div className="hp-cta-row">
                 <Link to="/docs/intro" className="hp-btn hp-btn-primary">
-                  开始使用 <span className="hp-arrow"><IconArrowRight s={18} /></span>
+                  开始使用{' '}
+                  <span className="hp-arrow">
+                    <IconArrowRight s={18} />
+                  </span>
                 </Link>
-                <Link to="/docs/getting-started/quick-start" className="hp-btn hp-btn-outline">
+                <Link
+                  to="/docs/getting-started/quick-start"
+                  className="hp-btn hp-btn-outline"
+                >
                   快速开始
                 </Link>
               </div>
               <InstallBlock />
               <div className="hp-meta-row">
-                <span className="hp-chip"><span className="dot" />U-Share</span>
+                <span className="hp-chip">
+                  <span className="dot" />
+                  U-Share
+                </span>
                 <span className="hp-chip">U-App 统计</span>
                 <span className="hp-chip">合规初始化</span>
               </div>
@@ -221,10 +270,13 @@ export default function Home(): React.JSX.Element {
                 />
               </div>
               <div className="hp-combo-phone">
-                <Phone><ShareScreen /></Phone>
+                <Phone>
+                  <ShareScreen />
+                </Phone>
               </div>
               <span className="hp-combo-badge">
-                <span className="dot" />原生分享面板
+                <span className="dot" />
+                原生分享面板
               </span>
             </div>
           </div>
@@ -233,10 +285,15 @@ export default function Home(): React.JSX.Element {
         {/* ── Features ── */}
         <section className="hp-features">
           <div className="hp-sec-label">核心能力</div>
-          <div className="hp-feature-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div
+            className="hp-feature-grid"
+            style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
+          >
             {FEATURES.map((f, i) => (
               <div className="hp-feature" key={i}>
-                <div className="hp-feat-icon"><f.Icon s={24} /></div>
+                <div className="hp-feat-icon">
+                  <f.Icon s={24} />
+                </div>
                 <h3 className="hp-feat-title">{f.title}</h3>
                 <p className="hp-feat-desc">{f.desc}</p>
               </div>

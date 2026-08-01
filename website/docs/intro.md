@@ -9,8 +9,8 @@ slug: /intro
 
 友盟（U-Share + U-App 移动统计）的 **React Native 新架构桥**:一次 `await Share.openSheet(payload)` 拉起分享面板,一行 `Analytics.onEvent(id)` 记录埋点,统计采集遵循 PIPL 两段式合规。
 
-:::danger 当前整改分支的平台状态
-JS 公共层和 Android 已实现新的初始化、错误与 ShareSheet 契约。iOS native 仍是旧 `preInit/init` 实现,与当前 Codegen `initialize(config)` spec 不一致;等待 Task 9 完成并通过 Pod/Codegen/build 前,iOS 不属于当前已支持平台。
+:::info 当前验证边界
+iOS 的 `initialize(config)` 状态机、Share/Analytics 门禁、TurboModule 注册与宿主回调接线已通过 native contract、simulator build 和 XCTest。Android 源码/static native contract 已核对，仓库已有 JVM tests，但本轮未执行 Gradle/JVM，留待 Android SDK CI。真实微信 / 钉钉回跳、iOS Universal Link/AASA 与 minified release 仍须在对应环境和真机验证。
 :::
 
 [![npm](https://img.shields.io/npm/v/@unif/react-native-umeng.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/@unif/react-native-umeng)
@@ -49,7 +49,7 @@ try {
 - **首版只支持微信会话 + 钉钉** —— `Platform` 枚举只有 `WECHAT_SESSION` 与 `DINGTALK` 两个成员。**没有朋友圈、QQ、微博**;传未支持的平台会抛 `E_PLATFORM_NOT_SUPPORTED`。
 - **分享面板 = session controller + Host 组件** —— `Share.openSheet()` 是推荐用法,它经模块级 controller 拉起 `<ShareSheetHost />` 渲染的 RN `Modal`。**Host 必须在 App 根挂一次**,否则立即 reject;一次只能有一个 session,迟到 callback 不能结算新 session,owner Host 卸载会 reject active Promise。
 - **取消 / 失败走 reject,不走 resolve** —— `openSheet` 与 `shareText/shareImage/shareLink` 在用户取消或分享失败时**抛 `UmengError`**(`E_USER_CANCEL` / `E_SHARE_FAILED`)。**resolve 到手的结果 `code` 恒为 `'success'`** —— 永远 try/catch,别去判 `r.code === 'cancel'`(到不了)。
-- **PIPL 两段式:`preInit`(JS-only)→ 同意 →`init`(native 初始化与采集)** —— `Common.preInit(config)` 在 App 启动后只校验并保存 JS config 快照,不调用 native、不注册平台;用户同意《隐私协议》后再调**无参**的 `Common.init()`,native 才执行 vendor preInit、平台注册与正式 init。
+- **PIPL 两段式:`preInit`(JS-only)→ 同意 →`init`(native 初始化与采集)** —— `Common.preInit(config)` 在 App 启动后只校验并保存 JS config 快照,不调用 native、不注册平台;用户同意《隐私协议》后再调**无参**的 `Common.init()`,native 才执行各平台对应的 vendor bootstrap。
 - **统计是同步 `void`** —— `Analytics.onEvent / signIn / signOut` 没有 Promise,**不要 await**。
 
 ## 能力
@@ -74,16 +74,16 @@ try {
 
 | 平台 | 支持 |
 | --- | --- |
-| iOS | ⏳ remediation Task 9,当前未支持 |
-| Android | ✅ |
-| Web / 模拟器 | ❌(分享需真机) |
+| iOS | ✅ native contract / simulator / XCTest；真实平台回跳待真机 |
+| Android | 源码/static contract 已核对；Gradle/JVM 与真实回跳待 CI/SDK |
+| Web / 模拟器 | 文档、JS 与 native 单测可运行；不能完成真分享 |
 
 :::info 仅支持新架构
-本库是 TurboModule 桥,**仅支持 React Native 0.85+ 新架构**、React 19。旧架构(Bridge)不在目标范围。
+本库是 TurboModule 桥,当前只验证 **React Native 0.85 New Architecture**、React 19。旧架构(Bridge)不在目标范围,也不能把当前证据外推到其他 RN 版本。
 :::
 
 :::warning 分享必须真机验证
-模拟器没有真微信 / 钉钉,无法完成真实回调跳转,所以端到端分享必须真机验证。同时 simulator Pod/Codegen/build 仍是 iOS remediation 的必过门禁,不能把编译失败当作预期结果。
+模拟器没有真微信 / 钉钉,无法完成真实回调跳转,所以端到端分享必须真机验证。仓库已经通过 iOS simulator Pod/Codegen/build/XCTest,但这些证据不能替代真机 URL Scheme、Universal Link/AASA 与平台回包矩阵。
 :::
 
 ## 下一步

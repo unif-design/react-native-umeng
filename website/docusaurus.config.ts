@@ -59,12 +59,6 @@ const config: Config = {
     './src/plugins/docusaurus-rnw',
   ],
 
-  clientModules: [
-    // 在 React 树启动前给 window 上注入 `global = window`,
-    // 让 @gorhom/bottom-sheet 等 RN 库的 lib/module/*.js 顶层 `global.X` 跑通。
-    './src/clientModules/rn-globals.ts',
-  ],
-
   themeConfig: {
     image: 'img/logo.png',
     colorMode: {
@@ -108,17 +102,32 @@ const config: Config = {
         {
           title: '资源',
           items: [
-            { label: 'npm', href: 'https://www.npmjs.com/package/@unif/react-native-umeng' },
-            { label: 'GitHub', href: 'https://github.com/unif-design/react-native-umeng' },
+            {
+              label: 'npm',
+              href: 'https://www.npmjs.com/package/@unif/react-native-umeng',
+            },
+            {
+              label: 'GitHub',
+              href: 'https://github.com/unif-design/react-native-umeng',
+            },
           ],
         },
         {
           title: 'Unif 生态',
           items: [
             { label: '文档总站', href: 'https://unif.design' },
-            { label: '设计系统 design', href: 'https://unif-design.github.io/react-native-design/' },
-            { label: '相机 camera', href: 'https://unif-design.github.io/react-native-camera/' },
-            { label: '华为扫码 hms-scan', href: 'https://unif-design.github.io/react-native-hms-scan/' },
+            {
+              label: '设计系统 design',
+              href: 'https://unif-design.github.io/react-native-design/',
+            },
+            {
+              label: '相机 camera',
+              href: 'https://unif-design.github.io/react-native-camera/',
+            },
+            {
+              label: '华为扫码 hms-scan',
+              href: 'https://unif-design.github.io/react-native-hms-scan/',
+            },
           ],
         },
       ],

@@ -56,6 +56,8 @@ async function onShareTap() {
 
 面板打开前会先加载平台安装状态。该查询失败(包括尚未 `Common.init()`)时,Promise 直接 reject且不显示 Modal;承载本 session 的 owner Host 卸载也会以 `E_UNKNOWN` 结束 Promise,不会永久 pending。
 
+一次只能有一个 active session,重入会以 busy 错误 reject。进入 sharing 后,遮罩/返回键 dismiss 不再抢先取消；底层平台回调决定最终结算。controller 的递增 `sessionId` 会忽略旧 session 的迟到/重复 callback,防止它们误结算下一次分享。
+
 ---
 
 ## 直拉单平台(跳过面板) {#share-xxx}
@@ -168,7 +170,7 @@ try {
 </ThemeProvider>
 ```
 
-Host 会在 RN `Modal` 内容内自行包 `GestureHandlerRootView`;App 外层 root 不能替代这个独立 native root 内的边界。完整挂载关系见[快速上手](../getting-started/quick-start#mount-host)。
+Host 会在 RN `Modal` 内容内自行包 `GestureHandlerRootView`;App 外层 root 不能替代这个独立 native root 内的边界,也不是 Host 生效的硬前提。完整挂载关系见[快速上手](../getting-started/quick-start#mount-host)。
 
 ### 2. 把 umeng 的 `Platform` 当成 React Native 的 {#platform-confusion}
 

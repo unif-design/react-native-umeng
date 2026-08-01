@@ -35,9 +35,6 @@ module.exports = function reactNativeWebPlugin(context) {
       return {
         plugins: [
           // RN 与各 RN 库都假设 __DEV__ 是个全局布尔；浏览器里得自己注入。
-          // 注意:RN 库还会用全局变量 `global`(读写 / typeof 都有),那个由
-          // `website/src/clientModules/rn-globals.ts` 在 client boot 时 `window.global = window`
-          // 真实注入(比 DefinePlugin 字面替换更稳;赋值/typeof 场景都能 handle)。
           new webpack.DefinePlugin({
             __DEV__: JSON.stringify(!isServer ? process.env.NODE_ENV !== 'production' : false),
             'process.env.JEST_WORKER_ID': JSON.stringify(undefined),

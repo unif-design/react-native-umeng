@@ -1,89 +1,91 @@
 ---
 sidebar_position: 1
 title: iOS 原生配置
-description: "iOS remediation 目标：URL Types 使用平台原值，Associated Domains/AASA 配套，AppDelegate/SceneDelegate 同时转发 Umeng 与 RCTLinkingManager；当前 native initialize 与 Pod/Codegen 尚未完成。"
+description: "iOS 原生接入：URL Types 使用平台分配原值，配置 queries、Associated Domains/AASA，并让 AppDelegate/SceneDelegate 分别调用 Umeng 与 RCTLinkingManager 后再 OR。"
 ---
 
 # iOS 原生配置
 
-本页记录**已批准的 iOS remediation 目标**,供 Task 9 及后续 iOS 回调任务实现和验收。
+分享后能否跳回 App，取决于 URL Scheme、Universal Link 与宿主 lifecycle 转发。友盟 appkey、微信 App Secret、Universal Link 等凭据不写进 plist；它们先由 JS `Common.preInit(config)` 保存，用户同意后调用 `Common.init()` 才跨入 native/vendor。
 
-:::danger 当前分支 iOS 尚未可用
-JS Codegen spec 已改为 `NativeUmengCommon.initialize(config)`,但当前 `ios/UmengCommon.mm` 仍只实现旧 `preInit/init`;`UmengBootstrap` 也仍在旧 `ensurePreInit/ensureInit` 路径中授权前注册平台。Podspec 尚未声明稳定的 `ReactNativeUmeng` module,`package.json#codegenConfig.ios.modulesProvider` 也未落地。因此下列 Swift import、初始化与双路回调都是**整改验收目标**,不是当前已完成能力。
+:::info 当前验证边界
+仓库已经通过 `ReactNativeUmeng` Swift module、三个 Codegen modulesProvider、Common bootstrap、Share/Analytics init gate、AppDelegate/Scene compile fixture、simulator build 与 30/30 XCTest。模拟器没有真实微信 / 钉钉；平台拉起、回包、URL Scheme、Universal Link 与生产 AASA 仍须带真实凭据在真机验证。
 :::
-
-:::tip appkey 走 JS，不写 plist
-友盟 appkey、微信 AppSecret、Universal Link 等配置先由 JS [`Common.preInit({ appkey, wechatAppId, ... })`](../api/common#preinit) 保存,用户授权后的 `Common.init()` 才交给 native,**不写在 Info.plist**。Info.plist 只配 iOS 系统强制的 URL 查询白名单与入站回调 scheme。
-:::
-
----
 
 ## `ios/<App>/Info.plist` {#info-plist}
 
 ```xml
-<!-- iOS 9+ 强制:声明 App 想用哪些第三方 App 的 URL Scheme 查询 / 跳转 -->
+<!-- iOS 9+ 的第三方 App scheme 查询白名单 -->
 <key>LSApplicationQueriesSchemes</key>
 <array>
   <string>weixin</string>
-  <string>weixinULAPI</string>
-  <string>weixinURLParamsAPI</string>
-  <string>wechat</string>
   <string>dingtalk</string>
   <string>dingtalk-open</string>
-  <string>dingtalk-sso</string>
 </array>
 
-<!-- 接收微信 / 钉钉分享回调跳回 App。填写开放平台分配值的原文:
-     微信 App ID / 钉钉 AppKey 或 Client ID,不要自行拼 wx / dingoa 前缀。 -->
+<!-- 入站回调 scheme：填写开放平台分配值的原文 -->
 <key>CFBundleURLTypes</key>
 <array>
   <dict>
-    <key>CFBundleTypeRole</key><string>Editor</string>
-    <key>CFBundleURLName</key><string>weixin</string>
+    <key>CFBundleTypeRole</key>
+    <string>Editor</string>
+    <key>CFBundleURLName</key>
+    <string>wechat</string>
     <key>CFBundleURLSchemes</key>
-    <array><string>YOUR_WECHAT_APP_ID</string></array>
+    <array>
+      <string>YOUR_WECHAT_APP_ID</string>
+    </array>
   </dict>
   <dict>
-    <key>CFBundleTypeRole</key><string>Editor</string>
-    <key>CFBundleURLName</key><string>dingtalk</string>
+    <key>CFBundleTypeRole</key>
+    <string>Editor</string>
+    <key>CFBundleURLName</key>
+    <string>dingtalk</string>
     <key>CFBundleURLSchemes</key>
-    <array><string>YOUR_DINGTALK_APP_KEY</string></array>
+    <array>
+      <string>YOUR_DINGTALK_APP_KEY</string>
+    </array>
   </dict>
 </array>
 ```
 
-| 键 | 必填 | 说明 |
-| --- | --- | --- |
-| `LSApplicationQueriesSchemes` | ✅ | 第三方 App scheme 查询白名单，缺则 `isInstalled` / 跳转判断不准 |
-| `CFBundleURLTypes` | ✅ | 微信 App ID 与钉钉 AppKey / Client ID 原值;不得自行加 `wx` / `dingoa`,缺则分享后跳不回 App |
+| 键 | 说明 |
+| --- | --- |
+| `LSApplicationQueriesSchemes` | `isInstalled` / 第三方跳转所需的查询白名单 |
+| `CFBundleURLTypes` | 微信 App ID 与钉钉 AppKey / Client ID 的**平台分配原值** |
 
----
+微信 App ID 本身通常以 `wx` 开头，钉钉旧 AppKey 也可能包含 `dingoa`；“使用原值”表示不要在平台分配值之外再手工拼一次前缀。
 
 ## `ios/<App>/AppDelegate.swift` {#appdelegate}
 
-整改完成后,`open URL` 与 `continue userActivity` 都要分别通知 Umeng 和 React Native `RCTLinkingManager`,两个 handler **都执行完**再返回逻辑 OR。不能写 `umengHandled || RCTLinkingManager...`,因为左侧为 `true` 时会短路 React Native Linking。
+URL Scheme 与 Universal Link 都要分别通知 Umeng 和 React Native `RCTLinkingManager`。先执行两个调用、再对保存的结果做 OR；不要写成单个短路表达式，否则前一个返回 `true` 时第二个 handler 不会运行。
 
 ```swift
 import UIKit
 import React
-import ReactNativeUmeng // 仅在 Task 9 的 module map / public header 落地后可用
+import ReactNativeUmeng
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
-  func application(_ app: UIApplication, open url: URL,
-                   options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+  func application(
+    _ application: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
     let umengHandled = UmengBootstrap.shared().handleOpen(url, options: options)
     let reactHandled = RCTLinkingManager.application(
-      app,
+      application,
       open: url,
       options: options
     )
     return umengHandled || reactHandled
   }
 
-  func application(_ application: UIApplication,
-                   continue userActivity: NSUserActivity,
-                   restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
+  func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
     let umengHandled = UmengBootstrap.shared().handleUniversalLink(userActivity)
     let reactHandled = RCTLinkingManager.application(
       application,
@@ -95,65 +97,66 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 ```
 
-:::danger 是 `handleOpen(_:options:)`，不是 `handleOpenURL`
-桥侧 Objective-C 方法签名是 `handleOpenURL:options:`，首参类型 `NSURL`。Swift 的 omit-needless-words 规则会去掉方法名末尾与首参类型重复的 `URL`，导入成 **`handleOpen(_:options:)`**。写 `handleOpenURL` 会编译报 `has been renamed to 'handleOpen(_:options:)'`。
+`ReactNativeUmeng.podspec` 已固定 `module_name = "ReactNativeUmeng"`、`DEFINES_MODULE = YES` 并公开 `UmengBootstrap.h`，因此 Swift 宿主可显式 `import ReactNativeUmeng`。
 
-<details>
-<summary>Swift omit-needless-words 规则说明</summary>
-
-Swift 导入 ObjC 时，若方法名末尾的词与首参类型名（去 `NS` 前缀后）完全匹配，则自动省略：
-
-- `handleOpenURL:options:` → 首参 `NSURL` → 末尾 `URL` 与类型名 `URL` 匹配 → 省略 → **`handleOpen(_:options:)`**
-- `handleUniversalLink:` → 首参 `NSUserActivity` → 末尾 `Link` 与 `UserActivity` 不匹配 → 不省略 → 保持 **`handleUniversalLink(_:)`**
-
-</details>
+:::note Swift 方法名是 `handleOpen(_:options:)`
+Objective-C 声明为 `handleOpenURL:options:`，Swift importer 会省略与首参 `URL` 类型重复的尾词，因此调用写成 `handleOpen(_:options:)`。`handleUniversalLink(_:)` 保持原名。
 :::
 
-:::warning module import 也是待验收目标
-只有在 Podspec 增加 `s.module_name = "ReactNativeUmeng"`、`DEFINES_MODULE=YES`,保留 `UmengBootstrap.h` 为 public header,并为三个 TurboModule 配好 iOS `modulesProvider` 后,`import ReactNativeUmeng` 才有稳定依据。`pod install` 成功或 Swift 能看到某个偶然 umbrella header,都不能替代生成 provider 与 runtime lookup 验证。
-:::
+回调发生在尚未初始化时，Umeng handler 返回 `false`，不会为了接回调而自动初始化 vendor；`RCTLinkingManager` 仍会收到事件。若产品要在冷启动接住平台回调，宿主需基于已持久化的**用户同意状态**设计合规启动流程；本包不会持久化 appkey/secret 或自动恢复初始化。
 
-| 转发方法（Swift 侧） | 触发场景 |
-| --- | --- |
-| `handleOpen(_:options:)` | App 通过 URL Scheme 被分享回调拉起 |
-| `handleUniversalLink(_:)` | 微信 Universal Link 回跳（1.8.6+ 必需） |
+## 使用 SceneDelegate 的宿主 {#scene-delegate}
 
----
-
-## 使用 SceneDelegate 的宿主(整改目标) {#scene-delegate}
-
-如果 App 使用 Scene lifecycle,仅改 AppDelegate 不够。必须覆盖 warm URL、warm Universal Link 与 `willConnectTo` 的冷启动 connection options,每条路径同样双路转发。下面 helper 展示目标结构;当前仓会以 compile-only fixture 验证,但尚未落地:
+使用 Scene lifecycle 时，除 AppDelegate 外还要覆盖 warm URL、warm Universal Link，以及 `willConnectTo` 的 cold URL/Universal Link。仓库中的 `SceneDelegateFixture.swift` 已编译验证以下结构：
 
 ```swift
-import UIKit
 import React
 import ReactNativeUmeng
+import UIKit
 
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-  private func openURL(_ context: UIOpenURLContext) {
-    var options: [UIApplication.OpenURLOptionsKey: Any] = [
-      .openInPlace: context.options.openInPlace,
-    ]
-    if let source = context.options.sourceApplication {
-      options[.sourceApplication] = source
+  func scene(_ scene: UIScene, openURLContexts contexts: Set<UIOpenURLContext>) {
+    for context in contexts {
+      let options = applicationOptions(for: context)
+      let umengHandled = UmengBootstrap.shared().handleOpen(
+        context.url,
+        options: options
+      )
+      let reactHandled = RCTLinkingManager.application(
+        UIApplication.shared,
+        open: context.url,
+        options: options
+      )
+      _ = umengHandled || reactHandled
     }
-    if let annotation = context.options.annotation as Any? {
-      options[.annotation] = annotation
-    }
-
-    let umengHandled = UmengBootstrap.shared().handleOpen(
-      context.url,
-      options: options
-    )
-    let reactHandled = RCTLinkingManager.application(
-      UIApplication.shared,
-      open: context.url,
-      options: options
-    )
-    _ = umengHandled || reactHandled
   }
 
-  private func continueActivity(_ userActivity: NSUserActivity) {
+  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+    forward(userActivity)
+  }
+
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    for context in connectionOptions.urlContexts {
+      let options = applicationOptions(for: context)
+      let umengHandled = UmengBootstrap.shared().handleOpen(
+        context.url,
+        options: options
+      )
+      let reactHandled = RCTLinkingManager.application(
+        UIApplication.shared,
+        open: context.url,
+        options: options
+      )
+      _ = umengHandled || reactHandled
+    }
+    connectionOptions.userActivities.forEach(forward)
+  }
+
+  private func forward(_ userActivity: NSUserActivity) {
     let umengHandled = UmengBootstrap.shared().handleUniversalLink(userActivity)
     let reactHandled = RCTLinkingManager.application(
       UIApplication.shared,
@@ -163,32 +166,31 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     _ = umengHandled || reactHandled
   }
 
-  func scene(_ scene: UIScene, openURLContexts contexts: Set<UIOpenURLContext>) {
-    contexts.forEach(openURL)
-  }
-
-  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-    continueActivity(userActivity)
-  }
-
-  func scene(
-    _ scene: UIScene,
-    willConnectTo session: UISceneSession,
-    options connectionOptions: UIScene.ConnectionOptions
-  ) {
-    connectionOptions.urlContexts.forEach(openURL)
-    connectionOptions.userActivities.forEach(continueActivity)
+  private func applicationOptions(
+    for context: UIOpenURLContext
+  ) -> [UIApplication.OpenURLOptionsKey: Any] {
+    var options: [UIApplication.OpenURLOptionsKey: Any] = [
+      .openInPlace: context.options.openInPlace,
+    ]
+    if let source = context.options.sourceApplication {
+      options[.sourceApplication] = source
+    }
+    if let annotation = context.options.annotation {
+      options[.annotation] = annotation
+    }
+    if let attribution = context.options.eventAttribution {
+      options[.eventAttribution] = attribution
+    }
+    return options
   }
 }
 ```
 
-冷启动回调不会替应用保存授权或凭据。目标 `UmengBootstrap` 在未初始化时对 Umeng handler 返回 `false`,但 `RCTLinkingManager` 仍必须收到事件。若业务要在冷启动时接住平台分享回调,需自行设计合规的 native 授权状态恢复;本包不会在回调路径自动初始化 vendor SDK。
+把 fixture 结构迁入真实 SceneDelegate 后，还要按宿主 lifecycle 配置注册它；example 只把 fixture 放进 Compile Sources，没有注册 runtime scene manifest。
 
----
+## Pods 与 Codegen {#podfile}
 
-## `ios/Podfile` {#podfile}
-
-目标仍使用标准 RN 新架构 Podfile,由 `use_native_modules!` 自动安装 pod 及友盟依赖:
+使用标准 RN New Architecture Podfile，由 `use_native_modules!` 安装本 pod 与友盟依赖：
 
 ```ruby
 target 'YourApp' do
@@ -201,21 +203,25 @@ target 'YourApp' do
 end
 ```
 
-:::danger 当前不能用“标准 Podfile”推导已支持
-当前 Podspec/Codegen/module contract 尚未完成。Task 9 必须让 Swift fixture 实际 `import ReactNativeUmeng` 并调用 `UmengBootstrap`,检查生成的 `RCTModuleProviders.mm` 含 `UmengCommon` / `UmengAnalytics` / `UmengShare`,再通过 simulator build。真实微信 / 钉钉跳转仍需真机,但 simulator 编译失败不是预期成功条件。
-:::
+依赖变化后：
 
----
+```sh
+cd ios
+bundle exec pod install
+```
+
+仓库生成的 `RCTModuleProviders.mm` 已验证包含 `UmengCommon`、`UmengAnalytics`、`UmengShare` 三个精确映射。消费者仍须在自己的 Pod 图实际 build，不能只以 `pod install` 成功推断 runtime lookup 一定成功。
 
 ## 微信 Universal Link {#universal-link}
 
-微信 SDK 1.8.6+ 强制 Universal Link。整改验收必须同时满足三处配置:
+微信 Universal Link 需要 App 与网站双向配置：
 
-1. 到 Apple Developer Portal 为 App ID 启用 **Associated Domains** capability,Entitlements 写 `applinks:your.host`(**不带 URL path**)。
-2. 站点通过 HTTPS 在 `/.well-known/apple-app-site-association` 提供 AASA;证书有效、响应不重定向,`appID` 使用正确的 `TEAM_ID.BUNDLE_ID`,并放行实际路径。
-3. [`Common.preInit({ wechatUniversalLink })`](../api/common#umenginitconfig) 传入的绝对 HTTPS URL,其 host 与 entitlement/AASA 域名一致。
+1. 在 Apple Developer / Xcode 为 App target 启用 **Associated Domains**，entitlements 添加 `applinks:your.host`。这里只写域名，不带 scheme、path、query 或尾随 `/`。
+2. 网站通过有效 HTTPS 在 `/.well-known/apple-app-site-association` 提供 AASA，响应不得重定向。
+3. AASA 的 app identifier 使用正确的 `TEAM_ID.BUNDLE_ID`，并让 paths/components 覆盖真实回调 path。
+4. `Common.preInit({ wechatUniversalLink })` 传入带 host 的绝对 HTTPS URL；其 host、path 与 entitlement/AASA 相互对应。
 
-最小 AASA 结构示例:
+最小 legacy AASA 示例：
 
 ```json
 {
@@ -224,30 +230,46 @@ end
     "details": [
       {
         "appID": "TEAM_ID.com.example.app",
-        "paths": ["/*"]
+        "paths": ["/wechat/*"]
       }
     ]
   }
 }
 ```
 
-占位 Team ID、Bundle ID、域名和 path 必须替换为生产值;真实回跳需带凭据真机验收。
+占位 Team ID、Bundle ID、域名和 path 必须替换为生产值。AASA 可访问不等于回跳已生效；安装 App 后仍要在真机从第三方 App 完成整条链路。
 
----
+## 初始化顺序 {#initialization-order}
+
+iOS 没有公开 vendor preInit API。用户授权后的 `Common.init()` 在主线程依次执行：
+
+1. 配置微信 Universal Link。
+2. 注册微信平台。
+3. 注册钉钉平台。
+4. `UMConfigure.initWithAppkey`。
+
+`Common.preInit(config)` 在此之前只处理 JS 快照，零 native/vendor 调用。Share 在 init 前 reject `E_NOT_INITIALIZED`；Analytics 在 init 前同步 no-op。
 
 ## 平台支持 {#platform-support}
 
-| 配置项 | iOS | Android |
+| 配置/门禁 | 当前仓库证据 | 消费者仍需验证 |
 | --- | --- | --- |
-| `LSApplicationQueriesSchemes` | ⏳ 已批准目标,待 iOS remediation 验收 | — |
-| `CFBundleURLTypes` 原值 | ⏳ 已批准目标,待 iOS remediation 验收 | — |
-| AppDelegate 双路转发 | ⏳ 待实现 | — |
-| SceneDelegate warm/cold 双路转发 | ⏳ 使用 Scene 时必做,待 fixture 验收 | — |
-| Pod module + Codegen registration | ⏳ Task 9 | — |
-| Associated Domains + AASA | ⏳ 微信必做,待真机验收 | — |
+| `ReactNativeUmeng` module + Codegen provider | simulator build / provider scan PASS | 自己的 Pod 图与 runtime lookup |
+| Common/Share/Analytics native gate | 30/30 XCTest PASS | 真实 vendor 行为 |
+| AppDelegate URL/UL 双路转发 | example compile + XCTest PASS | 真实 URL Scheme 回跳 |
+| Scene warm/cold 双路转发 | compile fixture PASS | 真实 Scene lifecycle 注册与回跳 |
+| queries / URL Types / entitlement | example plist/entitlement lint PASS | 替换真实平台原值与域名 |
+| AASA / Universal Link | 配置契约已文档化 | HTTPS、无重定向、TeamID.BundleID/path/domain 与真机 |
 
 ## 相关 {#related}
 
 - [Android 原生配置](./android) —— 回调 Activity / 权限 / queries
 - [快速上手](../getting-started/quick-start) —— 完整接入流程
 - [常见问题 → 分享无回调](../troubleshooting#native-callback) —— 原生未注册的排障
+
+## 官方参考
+
+- [React Native 0.85 Linking](https://reactnative.dev/docs/0.85/linking)
+- [Apple: Supporting universal links in your app](https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app)
+- [Apple: Supporting associated domains](https://developer.apple.com/documentation/xcode/supporting-associated-domains)
+- [友盟 U-Share iOS 开发者中心](https://devs.umeng.com/?component=share&platform=ios)

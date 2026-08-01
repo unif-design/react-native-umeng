@@ -5,87 +5,117 @@
 [![License](https://img.shields.io/npm/l/@unif/react-native-umeng.svg?color=blue)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-unif--design.github.io-orange.svg)](https://unif-design.github.io/react-native-umeng/)
 
-友盟 React Native 新架构桥：**U-Share**（微信会话 / 钉钉分享）+ **U-App** 移动统计。面向 RN 0.85 新架构（TurboModule）。Unif 私有。
+友盟 React Native 新架构桥：**U-Share**（微信会话 / 钉钉分享）+ **U-App** 移动统计。当前只验证 **React Native 0.85 New Architecture**（TurboModule）与 React 19。
 
-> **当前整改分支状态:** JS 公共层与 Android 已实现下述新契约。iOS native 仍导出旧的 `preInit/init`,与 JS Codegen spec 的 `initialize(config)` 不匹配;在 iOS remediation Task 9 完成并通过 Pod/Codegen/build 验证前,**不得把 iOS 视为已支持**。文档中的 iOS 原生配置以已批准整改目标标注。
+> iOS 的初始化状态机、Share/Analytics 门禁、TurboModule 注册、AppDelegate/SceneDelegate 转发和 example 配置已通过 native contract、simulator build 与 XCTest。Android 源码与 static native contract 已核对，仓库已有 bootstrap/callback JVM tests，但本轮未执行 Android Gradle/JVM。真实微信 / 钉钉拉起、回包、URL Scheme、Universal Link/AASA、Android SDK CI 及 minified release 仍须在对应环境验证。
 
 ## 特性
 
-- **U-Share** — 微信会话 + 钉钉分享，支持文本 / 图片 / 链接三种内容。
-- **命令式分享面板** — 根上挂一次 `<ShareSheetHost />`，`Share.openSheet()` 即可拉起，RN `Modal` 底部弹层 + `@unif/react-native-design` 组件渲染。
-- **U-App 统计** — `onEvent` 自定义事件 + `signIn` / `signOut` 账号埋点。
-- **PIPL 合规** — 两段式初始化（`preInit` 只存 JS 配置快照、零 native 调用 → 用户同意后 `init` 才完成平台配置并采集）。
-- **TypeScript 优先** — 全量类型 + `UmengError` 错误码，随包附带官方 Jest mock。
+- **U-Share** — 微信会话 + 钉钉，支持文本 / 图片 / 链接。
+- **命令式分享面板** — 根上挂一次 `<ShareSheetHost />`，调用 `Share.openSheet()` 即可拉起 RN `Modal` 面板。
+- **U-App 统计** — 同步的 `Analytics.onEvent` / `signIn` / `signOut`。
+- **PIPL 合规** — `Common.preInit(config)` 只保存 JS 快照；用户同意后，无参 `Common.init()` 才进入 native/vendor 初始化。
+- **稳定错误契约** — 分享只在成功时 resolve；取消、失败和未安装平台均 reject `UmengError`。
+- **官方 Jest mock** — 随包导出 `@unif/react-native-umeng/mock`。
 
-> 首版只支持微信会话 + 钉钉，朋友圈 / QQ / 微博暂不支持。
+> 首版不支持朋友圈、QQ 或微博。
 
 ## 安装
 
+RN 工程提供 `react` / `react-native`，其余 peerDependencies 使用 Yarn 一次装齐：
+
 ```sh
 yarn add @unif/react-native-umeng \
-  @sbaiahmed1/react-native-blur \
-  @unif/react-native-design \
-  react-native-gesture-handler \
-  react-native-reanimated \
-  react-native-reanimated-carousel \
-  react-native-safe-area-context \
-  react-native-svg \
-  react-native-worklets
+  '@sbaiahmed1/react-native-blur@>=4' \
+  '@unif/react-native-design@^0.20.0' \
+  'react-native-gesture-handler@>=3.0.0 <4.0.0' \
+  'react-native-reanimated@^4.5.3' \
+  'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
+  'react-native-safe-area-context@>=5' \
+  'react-native-svg@>=15' \
+  'react-native-worklets@^0.11.3'
 ```
 
-包共声明 10 个 peers;`react` / `react-native` 由 RN 工程提供,其余 8 个如上全部安装。React Native Babel 还必须把 `react-native-worklets/plugin` 放在 plugins 最后。完整范围与原生步骤见[安装文档](https://unif-design.github.io/react-native-umeng/docs/getting-started/installation)。
+React Native Community CLI 项目的 `babel.config.js` 还必须把 Worklets plugin 放在 `plugins` 最后：
+
+```js
+module.exports = {
+  presets: ['module:@react-native/babel-preset'],
+  plugins: [
+    // 其它 plugin
+    'react-native-worklets/plugin',
+  ],
+};
+```
+
+当前 `@unif/react-native-design@^0.20.0` 组合使用 RNGH 3 与 Carousel 5。Carousel 5 发布 metadata 的 RNGH peer 仍停在 `<3`，仓库通过 scoped override、窄 allowlist 与漂移检查管理这条已验证例外；不要为消除该 warning 降级 RNGH，也不要使用 `--force` 或 `--legacy-peer-deps`。
+
+完整依赖范围见[安装文档](https://unif-design.github.io/react-native-umeng/docs/getting-started/installation)。
 
 ## 快速开始
 
-根组件挂一次 `<ShareSheetHost />`,并保证它位于 `<ThemeProvider>` 内。下面外层的 `<GestureHandlerRootView>` 服务于 App 其余 RNGH 内容;`ShareSheetHost` 自己会在 RN `Modal` 的独立 native root 内再包一层,外层不能替代 Modal 内部边界：
+`<ShareSheetHost />` 必须在 App 根挂一次，并位于 design 的 `<ThemeProvider>` 内。Host 已在自己的 `Modal` 内容里创建 `GestureHandlerRootView`；App 外层 root 只按其他 UI 的需要保留，不是 Host 生效的硬前提。
 
 ```tsx
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from '@unif/react-native-design';
-import { Common, Share, ShareSheetHost, UmengError } from '@unif/react-native-umeng';
+import {
+  Common,
+  Share,
+  ShareSheetHost,
+  UmengError,
+} from '@unif/react-native-umeng';
 
-function App() {
+export function App() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <Screen />
-        <ShareSheetHost />
-      </ThemeProvider>
-    </GestureHandlerRootView>
+    <ThemeProvider>
+      <Screen />
+      <ShareSheetHost />
+    </ThemeProvider>
   );
 }
 
-// 1. App 启动只保存 JS 配置快照（隐私协议前，零 native 调用）
+// 1. App 启动、用户授权前：只在 JS 校验、标准化并冻结配置快照
 await Common.preInit({
-  appkey: 'YOUR_APPKEY',
+  appkey: 'YOUR_UMENG_APPKEY',
   wechatAppId: 'YOUR_WECHAT_APP_ID',
   wechatAppSecret: 'YOUR_WECHAT_APP_SECRET',
-  wechatUniversalLink: 'https://your.host/',
+  wechatUniversalLink: 'https://your.host/path/',
   dingtalkAppId: 'YOUR_DINGTALK_APP_ID',
 });
-// 2. 用户同意《隐私协议》后正式启动采集；init 无参
+
+// 2. 用户明确同意《隐私协议》后：无参 init 才跨入 native/vendor
 await Common.init();
 
-// 3. 拉起分享面板 —— 取消 / 失败都 reject，只有成功才 resolve，所以用 try/catch
+// 3. 只有成功才 resolve；取消 / 失败都在 catch 中处理
 try {
-  const r = await Share.openSheet({ type: 'link', title: '标题', url: 'https://example.com' });
-  // r.code === 'success'
-} catch (e) {
-  if (e instanceof UmengError && e.code === 'E_USER_CANCEL') { /* 用户取消 */ }
+  const result = await Share.openSheet({
+    type: 'link',
+    title: '标题',
+    url: 'https://example.com',
+  });
+  // result.code === 'success'
+} catch (error) {
+  if (error instanceof UmengError && error.code === 'E_USER_CANCEL') {
+    // 用户取消，通常静默
+  }
 }
 ```
 
-底层直拉 `Share.shareLink`、统计 `Analytics.onEvent`、错误码、PIPL 合规细节 —— 见下方文档。
+iOS 启用微信时 `wechatAppId`、`wechatAppSecret`、绝对 HTTPS `wechatUniversalLink` 三项必须同时提供；Android 启用微信时前两项必须成组，Universal Link 可省略。初始化开始后更换 config 会 reject `E_INVALID_OPTIONS`；没先 `preInit` 直接 `init` 会 reject `E_NOT_INITIALIZED`。
 
 ## 文档
 
-- 文档站：<https://unif-design.github.io/react-native-umeng/>（安装 · iOS/Android 原生配置 · API · 错误码 · PIPL 合规）
+- 文档站：<https://unif-design.github.io/react-native-umeng/>
 - AI 索引：<https://unif-design.github.io/react-native-umeng/llms.txt> · 全文：<https://unif-design.github.io/react-native-umeng/llms-full.txt>
-- AI 编码助手用 [`umeng-share`](https://github.com/unif-design/skills) Skill（含验证过的 API / 坑 / 原生 setup）。
+- AI 编码助手：[`umeng-share`](https://github.com/unif-design/skills/tree/main/skills/umeng-share) Skill
 
-## 兼容性
+## 平台与验证边界
 
-仅支持 **RN 0.85 新架构**（New Architecture / TurboModule）、React 19。当前整改分支 Android 已实现;Web 不支持;iOS 等待 Task 9 完成 native `initialize`、Pod module 与 Codegen registration 后再恢复支持声明。
+| 平台 | 当前证据 | 仍需验证 |
+| --- | --- | --- |
+| iOS | native contract、simulator build、30/30 XCTest、三个 TurboModule provider | 真机微信 / 钉钉分享、URL Scheme、Universal Link/AASA |
+| Android | 源码/static native contract；仓库已有 JVM tests | Android SDK CI 中执行 Gradle/JVM、真实回跳、minified release |
+| Web / 模拟器 | JS、文档站和 native 单测可运行 | 不能代替第三方 App 真分享 |
 
 ## License
 

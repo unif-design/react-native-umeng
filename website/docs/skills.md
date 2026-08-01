@@ -18,7 +18,7 @@ description: "umeng-share 是 @unif/react-native-umeng 的 Agent Skill,路由真
 **覆盖的能力:**
 
 - U-Share 分享:`ShareSheetHost` 挂载 + `openSheet`,success-only 返回、取消 / 失败 reject,以及 session / owner 生命周期。
-- PIPL 两段式初始化:`preInit` 只存 JS 快照 → 同意 → 无参 `init`,顺序不能反。当前 Android 已实现,iOS remediation 状态以仓库文档为准。
+- PIPL 两段式初始化:`preInit` 只存 JS 快照 → 同意 → 无参 `init`,顺序不能反；Android/iOS 的 init gate 与 bootstrap 状态以仓库文档为准。
 - U-App 统计:`onEvent` 埋点、登录 / 登出,方法是同步 void、别 await。
 - 易错点:cancel/failure 误当 resolve、`init` 带参、忘挂 Host、依赖 / Worklets plugin、原生回调与 umeng `Platform` / RN `Platform` 混用。
 
@@ -26,18 +26,13 @@ description: "umeng-share 是 @unif/react-native-umeng 的 Agent Skill,路由真
 
 ## 如何安装
 
-**Claude Code 插件市场:**
-
-```bash
-/plugin marketplace add unif-design/skills
-/plugin install unif@skills
-```
-
-**或用 skills CLI:**
+按 [`unif-design/skills`](https://github.com/unif-design/skills) 仓库 README 选择你的 Agent 支持的安装方式。例如使用 skills CLI:
 
 ```bash
 npx skills add unif-design/skills
 ```
+
+不要从旧文档猜插件市场包名；Skill 的稳定名称是 `umeng-share`。
 
 ## 在 GitHub 查看
 

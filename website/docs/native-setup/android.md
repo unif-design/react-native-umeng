@@ -8,6 +8,10 @@ description: "Android 原生接入:宿主提供 WXEntryActivity : WXCallbackActi
 
 分享后能否跳回 App 全靠回调 Activity 的注册。**模板别凭记忆编**，逐项核对本页。
 
+:::info 当前验证边界
+Android 源码/static native contract 已核对，仓库已有 bootstrap/callback state machine 与 module JVM tests；本轮没有执行 Android Gradle/JVM，留待具备 SDK 的 CI。真实微信/钉钉回跳和启用 R8 的 minified release 同样尚未验证，因此本页仍要求消费者实际构建与真机验收。
+:::
+
 ---
 
 ## `android/app/src/main/AndroidManifest.xml` {#manifest}
@@ -120,7 +124,7 @@ fun disableUmengCallbackActivities(context: Context) {
 }
 ```
 
-`DONT_KILL_APP` 只避免在写组件状态的中途被系统终止,**不代表可以免重启继续运行**。包不会保存 appkey/secret,也不会在下次进程冷启动时自动恢复授权初始化。
+`DONT_KILL_APP` 只避免在写组件状态的中途被系统终止,**不代表可以免重启继续运行**。本包不会把凭据持久化到下一次冷启动、也不会自动恢复授权初始化；但在当前进程内，JS `configSnapshot`、native 已接受的 config 与已加载 vendor 状态仍然存在。因此不能只清业务授权标记或 JS state 后继续运行，必须提供受控 native 禁用入口并安排完整进程重启。
 
 ---
 

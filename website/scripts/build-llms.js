@@ -24,16 +24,30 @@ const staticDir = path.join(root, 'static');
 const MD_SUBDIR = 'md';
 const outDir = path.join(staticDir, MD_SUBDIR);
 
-// 站点名从 docusaurus.config 的 title 读 —— 本脚本各库共用,自动适配,不硬编码库名。
-function readSiteTitle() {
+// 站点名与部署前缀从 docusaurus.config 读 —— 本脚本各库共用,自动适配,不硬编码库名。
+function readSiteConfig() {
   for (const ext of ['ts', 'js', 'mjs']) {
     const cfg = path.join(root, `docusaurus.config.${ext}`);
     if (fs.existsSync(cfg)) {
-      const m = fs.readFileSync(cfg, 'utf8').match(/title:\s*['"]([^'"]+)['"]/);
-      if (m) return m[1];
+      const source = fs.readFileSync(cfg, 'utf8');
+      const title = source.match(/title:\s*['"]([^'"]+)['"]/)?.[1];
+      const baseUrl = source.match(/baseUrl:\s*['"]([^'"]+)['"]/)?.[1];
+      return {
+        title: title || 'Documentation',
+        baseUrl: normalizeBaseUrl(baseUrl || '/'),
+      };
     }
   }
-  return 'Documentation';
+  return { title: 'Documentation', baseUrl: '/' };
+}
+
+function normalizeBaseUrl(baseUrl) {
+  const stripped = baseUrl.replace(/^\/+|\/+$/g, '');
+  return stripped ? `/${stripped}/` : '/';
+}
+
+function withBaseUrl(baseUrl, urlPath) {
+  return `${baseUrl}${urlPath.replace(/^\/+/, '')}`;
 }
 
 function walk(dir) {
@@ -63,7 +77,11 @@ function write(file, content) {
 function relSlug(file) {
   // 去扩展名 + 统一成 POSIX 分隔(URL / section 用);跨平台把 Windows 反斜杠也转成 /。
   // 不在这里做安全过滤 —— 写入安全统一由 safeOutPath() 用 path.resolve + 前缀校验兜底。
-  return path.relative(docsDir, file).replace(/\.(mdx?|md)$/, '').split(path.sep).join('/');
+  return path
+    .relative(docsDir, file)
+    .replace(/\.(mdx?|md)$/, '')
+    .split(path.sep)
+    .join('/');
 }
 
 // 把任意 slug(含来自 frontmatter 的 slug)解析成 outDir 内的安全写入绝对路径。
@@ -79,16 +97,23 @@ function safeOutPath(slug) {
 
 /** Pull the `slug:` / `title:` values out of a frontmatter block. */
 function parseFrontmatter(content) {
-  if (!content.startsWith('---')) return { slug: null, title: null, description: null, body: content };
+  if (!content.startsWith('---'))
+    return { slug: null, title: null, description: null, body: content };
   const end = content.indexOf('\n---', 3);
-  if (end === -1) return { slug: null, title: null, description: null, body: content };
+  if (end === -1)
+    return { slug: null, title: null, description: null, body: content };
   const block = content.slice(3, end);
   const body = content.slice(end + 4).replace(/^\n/, '');
   const slugM = block.match(/^\s*slug:\s*(.+)\s*$/m);
   const titleM = block.match(/^\s*title:\s*(.+)\s*$/m);
   const descM = block.match(/^\s*description:\s*(.+)\s*$/m);
-  const unq = s => s && s.trim().replace(/^['"]|['"]$/g, '');
-  return { slug: unq(slugM && slugM[1]), title: unq(titleM && titleM[1]), description: unq(descM && descM[1]), body };
+  const unq = (s) => s && s.trim().replace(/^['"]|['"]$/g, '');
+  return {
+    slug: unq(slugM && slugM[1]),
+    title: unq(titleM && titleM[1]),
+    description: unq(descM && descM[1]),
+    body,
+  };
 }
 
 /**
@@ -162,17 +187,60 @@ function stripMdxNoise(src) {
       continue;
     }
 
+    // 自闭合 LiveDemo 没有可提取的源码；只移除 wrapper，保留同一行后续正文。
+    const selfClosingDemo = line.match(/^\s*<LiveDemo\b[^>]*\/>(.*)$/);
+    if (selfClosingDemo) {
+      if (selfClosingDemo[1]) out.push(selfClosingDemo[1]);
+      i++;
+      continue;
+    }
+
     // Convert `<LiveDemo>...</LiveDemo>` into a fenced ```tsx block so the
     // component usage survives as readable source for the LLM.
-    if (/^\s*<LiveDemo[\s>]/.test(line)) {
-      let j = i + 1;
+    const openingDemo = line.match(/^\s*<LiveDemo\b[^>]*>/);
+    if (openingDemo) {
+      const afterOpening = line.slice(openingDemo[0].length);
       const inner = [];
-      while (j < lines.length && !/<\/LiveDemo>/.test(lines[j])) { inner.push(lines[j]); j++; }
-      const fence = inner.some(l => /```/.test(l)) ? '````' : '```';
-      out.push(fence + 'tsx');
-      out.push('// web demo 源码,组件用法可参考');
-      out.push(...inner);
-      out.push(fence);
+      let trailing = '';
+      let j = i;
+      const sameLineClose = afterOpening.indexOf('</LiveDemo>');
+
+      if (sameLineClose !== -1) {
+        inner.push(afterOpening.slice(0, sameLineClose));
+        trailing = afterOpening.slice(sameLineClose + '</LiveDemo>'.length);
+      } else {
+        if (afterOpening) inner.push(afterOpening);
+        j = i + 1;
+        while (j < lines.length) {
+          const closeAt = lines[j].indexOf('</LiveDemo>');
+          if (closeAt !== -1) {
+            inner.push(lines[j].slice(0, closeAt));
+            trailing = lines[j].slice(closeAt + '</LiveDemo>'.length);
+            break;
+          }
+          inner.push(lines[j]);
+          j++;
+        }
+      }
+
+      // 畸形的未闭合 wrapper 不应导致后续整页被吞；原样保留并继续逐行处理。
+      if (sameLineClose === -1 && j >= lines.length) {
+        out.push(line);
+        i++;
+        continue;
+      }
+
+      while (inner.length > 0 && inner[0].trim() === '') inner.shift();
+      while (inner.length > 0 && inner[inner.length - 1].trim() === '')
+        inner.pop();
+      const fence = inner.some((l) => /```/.test(l)) ? '````' : '```';
+      if (inner.length > 0) {
+        out.push(fence + 'tsx');
+        out.push('// web demo 源码,组件用法可参考');
+        out.push(...inner);
+        out.push(fence);
+      }
+      if (trailing) out.push(trailing);
       i = j + 1;
       continue;
     }
@@ -182,11 +250,14 @@ function stripMdxNoise(src) {
   }
 
   // Collapse 3+ blank lines to 2.
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, '');
+  return out
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\n+/, '');
 }
 
 function main() {
-  const SITE_NAME = readSiteTitle();
+  const { title: SITE_NAME, baseUrl: BASE_URL } = readSiteConfig();
   if (!fs.existsSync(docsDir)) {
     console.error('[build-llms] docs/ directory not found at', docsDir);
     process.exit(0);
@@ -238,40 +309,50 @@ function main() {
     tocTitles.push(title || finalSlug);
     bodyBlocks.push(`## ${title || finalSlug}`);
     bodyBlocks.push('');
-    bodyBlocks.push(`*Source: \`docs/${slug}${file.endsWith('.mdx') ? '.mdx' : '.md'}\` · Slug: \`/${finalSlug}\`*`);
+    bodyBlocks.push(
+      `*Source: \`docs/${slug}${file.endsWith('.mdx') ? '.mdx' : '.md'}\` · Slug: \`/${finalSlug}\`*`
+    );
     bodyBlocks.push('');
     bodyBlocks.push(cleanBody);
     bodyBlocks.push('');
   }
 
   // /llms-full.txt — 全文聚合(站点根,标准命名),顶部带目录
-  const llmsFull = [...head, buildToc(tocTitles), ...bodyBlocks].join('\n').replace(/\n{3,}/g, '\n\n');
+  const llmsFull = [...head, buildToc(tocTitles), ...bodyBlocks]
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
   write(path.join(staticDir, 'llms-full.txt'), llmsFull);
 
   // /llms.txt — 标准索引(H1 + 摘要 + 按顶层目录分节的链接列表,站点根)。
   // 链接指向每页纯 .md(供 agent 按需抓取),全文一次性喂入走 /llms-full.txt。
-  const entries = files.map(f => {
-    const slug = relSlug(f);
-    const outPath = safeOutPath(slug);
-    if (!outPath) return null; // 越界 slug 的页 md 也没写,不进索引 → 保持链接一致
-    const { slug: fmSlug, title, description } = parseFrontmatter(read(f));
-    const finalSlug = fmSlug ? fmSlug.replace(/^\/+/, '') : slug;
-    const seg = slug.split('/');
-    return {
-      title: title || finalSlug,
-      // mdPath 从规范化写入路径 outPath 反推,与实际 md 文件严格一致(不用可能含 ../ 的原始 slug)
-      mdPath: '/' + path.relative(staticDir, outPath).split(path.sep).join('/'),
-      slug: `/${finalSlug}`,
-      section: seg.length > 1 ? seg[0] : '概览',
-      description: description || null,
-    };
-  }).filter(Boolean);
+  const entries = files
+    .map((f) => {
+      const slug = relSlug(f);
+      const outPath = safeOutPath(slug);
+      if (!outPath) return null; // 越界 slug 的页 md 也没写,不进索引 → 保持链接一致
+      const { slug: fmSlug, title, description } = parseFrontmatter(read(f));
+      const finalSlug = fmSlug ? fmSlug.replace(/^\/+/, '') : slug;
+      const seg = slug.split('/');
+      return {
+        title: title || finalSlug,
+        // mdPath 从规范化写入路径 outPath 反推,与实际 md 文件严格一致(不用可能含 ../ 的原始 slug)
+        mdPath: withBaseUrl(
+          BASE_URL,
+          path.relative(staticDir, outPath).split(path.sep).join('/')
+        ),
+        slug: `/${finalSlug}`,
+        section: seg.length > 1 ? seg[0] : '概览',
+        description: description || null,
+      };
+    })
+    .filter(Boolean);
   const bySection = {};
-  for (const e of entries) (bySection[e.section] = bySection[e.section] || []).push(e);
+  for (const e of entries)
+    (bySection[e.section] = bySection[e.section] || []).push(e);
   const llmsLines = [
     `# ${SITE_NAME}`,
     '',
-    `> ${SITE_NAME} 文档索引。每个链接是该页的纯 Markdown 版(供 LLM 抓取);需要完整全文一次性喂入时用 /llms-full.txt。`,
+    `> ${SITE_NAME} 文档索引。每个链接是该页的纯 Markdown 版(供 LLM 抓取);需要完整全文一次性喂入时用 ${withBaseUrl(BASE_URL, 'llms-full.txt')}。`,
     '',
   ];
   for (const section of sortSections(Object.keys(bySection))) {
@@ -290,15 +371,25 @@ function main() {
 }
 
 function buildToc(titles) {
-  return ['## 目录', '', ...titles.map(t => `- ${t}`), ''].join('\n');
+  return ['## 目录', '', ...titles.map((t) => `- ${t}`), ''].join('\n');
 }
 function formatIndexLine(e) {
-  return e.description ? `- [${e.title}](${e.mdPath}) — ${e.description}` : `- [${e.title}](${e.mdPath})`;
+  return e.description
+    ? `- [${e.title}](${e.mdPath}) — ${e.description}`
+    : `- [${e.title}](${e.mdPath})`;
 }
 function sortSections(keys) {
-  return [...keys].sort((a, b) => (a === '概览' ? -1 : b === '概览' ? 1 : a.localeCompare(b)));
+  return [...keys].sort((a, b) =>
+    a === '概览' ? -1 : b === '概览' ? 1 : a.localeCompare(b)
+  );
 }
 
-module.exports = { parseFrontmatter, stripMdxNoise, buildToc, formatIndexLine, sortSections };
+module.exports = {
+  parseFrontmatter,
+  stripMdxNoise,
+  buildToc,
+  formatIndexLine,
+  sortSections,
+};
 
 if (require.main === module) main();

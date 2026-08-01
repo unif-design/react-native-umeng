@@ -1,24 +1,24 @@
 ---
 sidebar_position: 1
 title: 安装
-description: "安装 @unif/react-native-umeng 的 10 个 peerDependencies，配置 react-native-worklets/plugin，并进入 Android 当前接入与 iOS remediation 目标。"
+description: "用 Yarn 安装 @unif/react-native-umeng 的 10 个 peerDependencies，配置最后一项 react-native-worklets/plugin，并完成 Android/iOS 原生接线。"
 ---
 
 # 安装
 
-装齐 `@unif/react-native-umeng` 的同伴包,配置 Android 当前接入,并了解尚待完成的 iOS remediation。**分享面板的 UI 依赖 `@unif/react-native-design`,peerDeps 缺失会在解析或运行时失败** —— 本页以 `package.json` 的 `peerDependencies` 为准逐项列出。
+装齐 `@unif/react-native-umeng` 的同伴包并完成 Android/iOS 原生接线。**分享面板的 UI 依赖 `@unif/react-native-design`,peerDeps 缺失会在解析或运行时失败** —— 本页以当前 `package.json#peerDependencies` 为准逐项列出。
 
 ## 环境要求
 
 | 要求 | 版本 |
 | --- | --- |
-| React Native | **0.85+**(仅新架构 Fabric + TurboModules) |
-| React | 19+ |
-| iOS | **当前整改分支未完成**;等待 native `initialize` / Pod module / Codegen Task 9 |
-| Android | minSdk 24;其余由 RN 与锁定的友盟 SDK 决定 |
+| React Native | 当前只验证 **0.85 New Architecture**(Fabric + TurboModules) |
+| React | 当前验证 19 |
+| iOS | RN 0.85 最低系统要求;仓库 simulator build/XCTest 已通过 |
+| Android | minSdk 24;Gradle SDK build 与真机矩阵须在具备 Android SDK 的环境验证 |
 
 :::info 仅支持新架构
-本库是 TurboModule 桥,**仅支持 React Native 0.85+ 新架构**。旧架构(Bridge)不在目标范围。
+本库是 TurboModule 桥,当前只验证 **React Native 0.85 New Architecture**。旧架构(Bridge)不在目标范围；“当前在 0.85.3 通过”不等于所有后续 RN 版本都自动兼容。
 :::
 
 ---
@@ -29,14 +29,14 @@ description: "安装 @unif/react-native-umeng 的 10 个 peerDependencies，配�
 
 ```sh
 yarn add @unif/react-native-umeng \
-  @sbaiahmed1/react-native-blur \
-  @unif/react-native-design \
-  react-native-gesture-handler \
-  react-native-reanimated \
-  react-native-reanimated-carousel \
-  react-native-safe-area-context \
-  react-native-svg \
-  react-native-worklets
+  '@sbaiahmed1/react-native-blur@>=4' \
+  '@unif/react-native-design@^0.20.0' \
+  'react-native-gesture-handler@>=3.0.0 <4.0.0' \
+  'react-native-reanimated@^4.5.3' \
+  'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
+  'react-native-safe-area-context@>=5' \
+  'react-native-svg@>=15' \
+  'react-native-worklets@^0.11.3'
 ```
 
 各包的作用与版本约束:
@@ -55,6 +55,10 @@ yarn add @unif/react-native-umeng \
 | `react-native-worklets` | `^0.11.3` | Reanimated / design 运行时与 Babel 转换 |
 
 范围以安装版本的 `package.json#peerDependencies` 为唯一真相源,不要从旧文档猜版本。
+
+:::note RNGH 3 + Carousel 5 的窄 peer 例外
+当前 design 0.20 组合使用 RNGH 3 与 Carousel 5。Carousel 5 发布 metadata 的 RNGH peer 为 `>=2.9 <3`,与当前组合没有交集,但仓库已通过 scoped override、窄 allowlist 与漂移检查管理该已验证例外。不要为了清掉 warning 降级 RNGH,也不要使用全局 override、`--force` 或 `--legacy-peer-deps`;Carousel 或 RNGH major 变化时再重新评估。
+:::
 
 ### Worklets Babel plugin(React Native App 必配) {#worklets-babel}
 
@@ -84,25 +88,25 @@ Docusaurus website 不需要为此新增 Babel 配置;这一要求只针对 Metr
 
 ## 2. iOS:pod install
 
-安装或升级依赖后,最终 iOS 实现仍需执行 `pod install`:
+安装或升级依赖后执行 `pod install`:
 
 ```sh
 cd ios && bundle exec pod install
 ```
 
-:::danger 当前分支的 iOS 还不能按本文验收
-JS 已调用 `NativeUmengCommon.initialize(config)`,但当前 `ios/UmengCommon.mm` 仍实现旧的 native `preInit/init`;Pod module 与 Codegen modules provider 也未完成。单独运行 `pod install` 不能消除这组契约不匹配。等待 iOS remediation Task 9 落地并通过 Pod/Codegen/build 后,再用本页 iOS 目标配置接入。
+:::info iOS 已验证与待验边界
+仓库已验证 `ReactNativeUmeng` module、三个 Codegen modulesProvider、simulator build 与 XCTest。消费者仍需在自己的 Pod 图和宿主 target 重新执行 build；真实微信 / 钉钉 App、URL Scheme 与 Universal Link/AASA 只能在带真实凭据的真机验收。
 :::
 
 :::warning 模拟器只能验编译与 JS/native 逻辑
-模拟器没有真微信 / 钉钉,不能完成真实分享回跳;最终链路必须真机验收。但模拟器 build 本身是 iOS remediation 的 CI 验收项,**编译失败不能笼统归为“模拟器预期限制”**。
+模拟器没有真微信 / 钉钉,不能完成真实分享回跳;最终链路必须真机验收。模拟器 build/XCTest 仍是独立门禁,**编译失败不能笼统归为“模拟器预期限制”**。
 :::
 
 ---
 
 ## 3. Android
 
-Android 端依赖随 Gradle 自动同步,无需手动 link。直接 `npx react-native run-android` 即可编译。
+Android 端依赖随 Gradle 自动同步,无需手动 link。使用项目已有的 Yarn Android script 编译，例如 `yarn android`。
 
 > 微信 / 钉钉的分享回调 Activity 需要落在宿主包名下,见下一步原生配置。
 
@@ -124,3 +128,8 @@ Android 端依赖随 Gradle 自动同步,无需手动 link。直接 `npx react-n
 - [快速上手](./quick-start) —— 5 分钟跑通初始化 + 第一次分享
 - [指南 → 隐私合规(PIPL)](../guides/privacy-pipl) —— preInit / init 两段式时序
 - [API 参考 → Common](../api/common) —— preInit / init / isInited 完整参数
+
+## 官方参考
+
+- [Reanimated 4 Getting started](https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/getting-started/) —— New Architecture、独立安装 Worklets、Community CLI plugin 与“必须最后”
+- [Migrating from Reanimated 3.x to 4.x](https://docs.swmansion.com/react-native-reanimated/docs/guides/migration-from-3.x/) —— Reanimated 4 的 Worklets 依赖与 Babel plugin 迁移说明

@@ -92,6 +92,8 @@ export default function App() {
 未挂载时 `Share.openSheet()` 立即 reject（`E_UNKNOWN`，message `No <ShareSheetHost /> mounted`）；**一次只能有一个 active session**，重入会 reject。平台查询失败会在 loading 阶段直接 reject,不会显示假数据;本次 owner Host 卸载也会 reject `E_UNKNOWN`。挂载细节见[快速上手](../getting-started/quick-start#mount-host)。
 :::
 
+controller 用 `sessionId + owner Host + phase` 隔离生命周期。最早注册的 Host 承载本次 session；非 owner 卸载不影响它。进入 sharing 后 dismiss 不会抢先取消，旧 session 的迟到/重复回调也不能结算新 session。
+
 :::info Modal 内部的 Gesture Handler 边界
 RN `Modal` 在 Android 创建独立 native root。`ShareSheetHost` 已在 Modal 内容内包 `GestureHandlerRootView`;App 外层 root 不能跨过 Modal 边界,也不能替代内部这一层。消费者只负责正常挂 Host,不要复制或移除库内边界。
 :::
@@ -105,7 +107,7 @@ RN `Modal` 在 Android 创建独立 native root。`ShareSheetHost` 已在 Modal 
 | | iOS | Android |
 | --- | --- | --- |
 | `Platform` 枚举 / 常量 | ✅ | ✅ |
-| `<ShareSheetHost />` | ⏳ UI 可渲染,端到端分享待 iOS remediation | ✅ |
+| `<ShareSheetHost />` | ✅ UI/controller；端到端分享待真机 | ✅ UI/controller；端到端分享待真机 |
 
 ## 相关 {#related}
 

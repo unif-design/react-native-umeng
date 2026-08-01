@@ -1,15 +1,15 @@
 ---
 sidebar_position: 3
 title: 隐私合规（PIPL）
-description: "@unif/react-native-umeng 的 PIPL 两段式初始化：Common.preInit(config) 启动时只在 JS 校验并保存配置、零 native 调用；用户同意《隐私协议》后再调无参 Common.init()，才执行 vendor preInit、平台注册与正式初始化。"
+description: "@unif/react-native-umeng 的 PIPL 两段式初始化：Common.preInit(config) 启动时只在 JS 校验并保存配置、零 native 调用；用户同意《隐私协议》后再调无参 Common.init()，才执行各平台对应的 vendor bootstrap。"
 ---
 
 # 隐私合规（PIPL）
 
 本库的公共契约采用 **preInit → init** 两段式,用于满足 PIPL(个人信息保护法)对「用户同意前不采集」的要求。本页讲清两段职责与时序。
 
-:::danger iOS 当前实现例外
-JS-only `preInit` 与 Android 授权后初始化已落地。iOS native 仍保留旧的授权前 `ensurePreInit` / 授权后 `ensureInit`,而 JS spec 已改成单一 `initialize(config)`;Task 9 完成前不能声称 iOS 已满足本页的新边界。
+:::info 验证边界
+Android 与 iOS 都已实现本页边界。iOS simulator/XCTest/native contract 已验证授权前模块构造、Share/Analytics gate 与 bootstrap 顺序；Android 源码/static contract 已核对，仓库已有 JVM 状态机测试，但本轮未执行 Gradle/JVM，留待 Android SDK CI。真实 vendor 网络、平台回跳与数据后台仍需对应真机/测试账号验证。
 :::
 
 ---
@@ -19,7 +19,7 @@ JS-only `preInit` 与 Android 授权后初始化已落地。iOS native 仍保留
 | 阶段 | 调用时机 | 行为 |
 | --- | --- | --- |
 | `Common.preInit(config)` | App 启动后立刻,**可在用户同意之前** | 仅 JS 校验、标准化并保存 config 快照,**零 native 调用** |
-| `Common.init()` | 用户点「同意《隐私协议》」之后 | Android 当前执行 vendor preInit、平台注册与正式 init;iOS 目标待 Task 9 |
+| `Common.init()` | 用户点「同意《隐私协议》」之后 | 首次把快照交给 native，并在对应平台执行全部 vendor bootstrap |
 
 ```ts
 import { Common } from '@unif/react-native-umeng';
@@ -37,7 +37,7 @@ await Common.preInit({
 await Common.init();   // ⚠️ 无参 —— config 已给 preInit
 ```
 
-> 相同 config 的 `preInit` 与成功后的 `init` 都可安全重复。native 初始化开始后不得更换 config。
+> 相同 config 的 `preInit` 与成功后的 `init` 都可安全重复；并发 `init` 复用同一个 Promise。native 初始化开始后更换 config 会 reject `E_INVALID_OPTIONS`。
 
 :::danger init 必须在用户同意之后
 `Common.init()` **必须在用户明确同意《隐私协议》之后**才能调用。隐私弹窗弹出前、或用户拒绝时,不可调 `init()`。违反将导致合规风险。
@@ -60,10 +60,10 @@ App 启动
 
 ## iOS / Android 差异 {#platform-notes}
 
-- **Android** —— JS `Common.preInit()` 不触达 native。用户同意后调 `Common.init()`,native 才在一次状态机事务中执行 `UMConfigure.preInit`、平台注册与 `UMConfigure.init`。
-- **iOS 目标(Task 9)** —— JS `Common.preInit()` 同样不触达 native;用户同意后一次 `initialize(config)` 才设置 Universal Link、注册平台并执行 `UMConfigure.initWithAppkey`。当前旧 native 两方法尚未替换,不列为已支持。
+- **Android** —— JS `Common.preInit()` 不触达 native。用户同意后调 `Common.init()`,native 才在一次状态机事务中执行 `UMConfigure.preInit`、平台注册、FileProvider 与 `UMConfigure.init`,成功后动态启用已配置平台的 callback Activity。
+- **iOS** —— JS `Common.preInit()` 同样不触达 native;用户同意后一次 `initialize(config)` 才在主线程按 Universal Link → 微信注册 → 钉钉注册 → `UMConfigure.initWithAppkey` 执行。
 
-除调用时序外,还必须完成原生实现与回调门禁验证;不能只凭“业务在同意后调用 `init()`”就替 iOS 当前旧实现作合规结论。
+两个平台的 Share native 入口在 init 前 reject `E_NOT_INITIALIZED`;Analytics 的三个同步 `void` 入口在 init 前 no-op。回调 handler 在未初始化时不会自动初始化 vendor，React Native Linking 仍应独立收到事件。
 
 ---
 

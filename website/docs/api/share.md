@@ -76,6 +76,8 @@ type ShareSheetPayload =
 
 `openSheet` 先进入 `loadingPlatforms` 并调用 `listPlatforms()`。查询失败时 Modal 不会伪装成“全部未安装”,而是用原错误结束当前 Promise。多个 Host 同时挂载时,最早注册者成为本次 owner;owner 在 loading / ready / sharing 任一阶段卸载都会 reject `E_UNKNOWN`,message 为 `The active <ShareSheetHost /> unmounted before the share completed.`。非 owner 卸载不影响当前 session。
 
+controller 用递增 `sessionId` 隔离会话。当前 session 开始 sharing 后，遮罩/返回键 dismiss 不会抢先结算；平台回调才决定成功或失败。旧 session 的迟到 callback、重复 callback 或旧 Host 事件不能结算后续 session。
+
 ```tsx
 import { Share, UmengError } from '@unif/react-native-umeng';
 
@@ -238,10 +240,12 @@ try {
 
 | API | iOS | Android |
 | --- | --- | --- |
-| `openSheet` | ⏳ iOS native remediation 后验收 | ✅ |
-| `shareText` / `shareImage` / `shareLink` | ⏳ iOS init gate / lifecycle 待实现 | ✅ |
-| `isInstalled` | ⏳ iOS init gate 待实现 | ✅ |
-| `listPlatforms` | ⏳ 随 iOS `isInstalled` 验收 | ✅ |
+| `openSheet` | ✅ UI/controller；真分享待真机 | ✅ UI/controller；真分享待真机 |
+| `shareText` / `shareImage` / `shareLink` | ✅ init gate / first-settle XCTest | 源码已核对；仓库有 JVM callback tests，待 CI 执行 |
+| `isInstalled` | ✅ init gate XCTest | 源码已核对；仓库有 JVM tests，待 CI 执行 |
+| `listPlatforms` | ✅ | ✅ |
+
+> iOS simulator/XCTest 已验证桥接、门禁和结算语义；Android Gradle/JVM 本轮未执行，留待具备 SDK 的 CI。两类自动化证据都不能替代微信 / 钉钉真实 App 的拉起与回包。
 
 ## 相关 {#related}
 

@@ -77,11 +77,11 @@ function signOut(): void;
 
 | API | iOS | Android |
 | --- | --- | --- |
-| `onEvent` | ⏳ iOS native gate / registration 待后续任务 | ✅ |
-| `signIn` | ⏳ iOS native gate / registration 待后续任务 | ✅ |
-| `signOut` | ⏳ iOS native gate / registration 待后续任务 | ✅ |
+| `onEvent` | ✅ | ✅ |
+| `signIn` | ✅ | ✅ |
+| `signOut` | ✅ | ✅ |
 
-> 埋点需要先完成 [`Common.init()`](./common#init) 才会真正上报。当前 Android native 在未 init 时 no-op;iOS 旧实现尚未补同等门禁,因此不能把这条行为外推到当前 iOS。
+> 埋点需要先完成 [`Common.init()`](./common#init) 才会真正上报。Android 与 iOS native 在未 init 时都同步 no-op，不缓存或补发这次事件；三个入口均在 vendor adapter 前执行门禁。
 
 ## 相关 {#related}
 
