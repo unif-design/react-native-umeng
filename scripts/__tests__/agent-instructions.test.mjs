@@ -134,6 +134,26 @@ test('rejects reverse CLAUDE delegation and negated Skill guidance', async () =>
       verifyAgentInstructions(fixtureRoot),
       /must positively require the umeng-share Skill/
     );
+
+    await write(
+      fixtureRoot,
+      'AGENTS.md',
+      'Agents might use the `umeng-share` Skill.\n'
+    );
+    await assert.rejects(
+      verifyAgentInstructions(fixtureRoot),
+      /must positively require the umeng-share Skill/
+    );
+
+    await write(
+      fixtureRoot,
+      'AGENTS.md',
+      'Agent 可使用 `umeng-share` Skill。\n'
+    );
+    await assert.rejects(
+      verifyAgentInstructions(fixtureRoot),
+      /must positively require the umeng-share Skill/
+    );
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }
