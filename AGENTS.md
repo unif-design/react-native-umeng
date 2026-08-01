@@ -98,8 +98,8 @@ yarn workspace @unif/react-native-umeng-website build:llms
 #### 原生接线状态(不得跨平台泛化)
 
 - **Android 当前已实现** —— `UmengBootstrapStateMachine` 在授权后的单次 `initialize(config)` 中依次执行 vendor preInit、平台注册、FileProvider 配置、正式 init 与 callback component enable;只接受同一 config,不确定 vendor 失败进入需重启的 terminal state。
-- **iOS 当前尚未完成整改,不可发布** —— `src/NativeUmengCommon.ts` 已要求 `initialize(config)`,但 `ios/UmengCommon.mm` 仍导出旧 `preInit/init`,`ios/UmengBootstrap.mm` 仍在旧 `ensurePreInit` 阶段注册平台。`node scripts/verify-native-contract.mjs --platform ios` 当前应明确失败,不得把 JS / Android 契约写成 iOS 已生效。
-- **iOS 整改目标** —— 按批准计划实现 Codegen `initialize`、同配置并发状态机与 terminal failure;主线程调用顺序为 Universal Link → 微信 `setPlaform` → 钉钉 `setPlaform` → `UMConfigure.initWithAppkey`。iOS 没有 vendor preInit API,不得臆造该阶段。完成 Task 9 / 10、native contract、XCTest、example 编译与真机矩阵前,不得声称 iOS 初始化闭环通过。
+- **iOS 当前已实现代码闭环** —— `UmengCommon.mm` 导出 Codegen `initialize(config)`,`UmengBootstrap` 实现同配置并发状态机与 terminal failure;主线程调用顺序为 Universal Link → 微信 `setPlaform` → 钉钉 `setPlaform` → `UMConfigure.initWithAppkey`。iOS 没有 vendor preInit API,不得臆造该阶段。
+- **iOS 已验证边界** —— native contract、TurboModule provider、30/30 XCTest 与 example simulator build 已通过,证明编译、注册、状态机和回调生命周期;真实微信 / 钉钉拉起与回包、URL Scheme、Universal Link 和生产 AASA 仍须真机 / 线上域名矩阵验证。
 
 ### Share + ShareSheet
 
@@ -133,7 +133,7 @@ yarn workspace @unif/react-native-umeng-website build:llms
 
 - **iOS**
   - `Info.plist` — `LSApplicationQueriesSchemes`(weixin/dingtalk 等 scheme 白名单)+ `CFBundleURLTypes`。回调 URL 值使用微信 App ID 与钉钉 AppKey / Client ID **原值**,不得额外拼 `wx` 或 `dingoa` 前缀。
-  - **整改目标** — Pod module map 稳定后显式 `import ReactNativeUmeng`;AppDelegate / SceneDelegate 的 URL 与 Universal Link 入口同时执行 `RCTLinkingManager` 和 Umeng handler,最后 OR 两个结果,不得用短路表达式漏掉第二个 handler。AASA 必须无重定向,`appID = TeamID.BundleID`,path / domain 与 `wechatUniversalLink` 一致。当前 iOS native contract 未通过,这些不能写成已验收能力。
+  - **当前实现 / 宿主要求** — Pod 已稳定导出 `ReactNativeUmeng` module;AppDelegate / SceneDelegate 的 URL 与 Universal Link 入口必须同时执行 `RCTLinkingManager` 和 Umeng handler,最后 OR 两个结果,不得用短路表达式漏掉第二个 handler。AASA 必须无重定向,`appID = TeamID.BundleID`,path / domain 与 `wechatUniversalLink` 一致。example 编译 fixture 与静态 doctor 已通过,真实回跳和生产 AASA 仍须真机 / 线上域名验证。
 - **Android**
   - Activity 位置 — `WXEntryActivity`(超类 `WXCallbackActivity`)/ `DDShareActivity` **必须在宿主包名下**(微信/钉钉 SDK 反射查 `getPackageName() + ".wxapi.WXEntryActivity"` / `+ ".ddshare.DDShareActivity"`,不能放 library 包)。
   - Activity 只继承 SDK 回调基类:`WXEntryActivity : WXCallbackActivity()`、`DDShareActivity : DingCallBack()`;**不要在 Activity 硬编码 appId**。凭据只从 `Common.preInit(config)` 的快照进入授权后的 native 初始化。
@@ -150,7 +150,7 @@ yarn workspace @unif/react-native-umeng-website build:llms
 
 ### 真机验证
 
-模拟器没有真微信 / 钉钉,**不能真分享**(iOS UMShare 在 Apple Silicon 模拟器还有 `EXCLUDED_ARCHS=arm64` 限制)。分享改动一律真机验证 —— 这是预期行为,不是 bug。
+模拟器可做编译、TurboModule 注册与 XCTest,但没有真微信 / 钉钉,**不能验收真实分享**。平台拉起、回包、URL Scheme 与 Universal Link 改动一律真机验证 —— 这是预期边界,不是 bug。
 
 ### 构建(`react-native-builder-bob`)
 
