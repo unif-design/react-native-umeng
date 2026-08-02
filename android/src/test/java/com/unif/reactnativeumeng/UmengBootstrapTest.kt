@@ -1,8 +1,8 @@
 package com.unif.reactnativeumeng
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
-import android.test.mock.MockContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
@@ -12,7 +12,7 @@ import org.junit.Test
 
 class UmengBootstrapTest {
   private val context: Context =
-    object : MockContext() {
+    object : ContextWrapper(null) {
       override fun getPackageName(): String = "com.example.app"
     }
 
