@@ -83,11 +83,14 @@ data class UmengNativeConfig(
       key: String,
       required: Boolean = false,
     ): String? {
-      if (!config.hasKey(key) || config.isNull(key)) {
+      if (!config.hasKey(key)) {
         if (required) {
           throw IllegalArgumentException("`$key` is required")
         }
         return null
+      }
+      if (config.isNull(key)) {
+        throw IllegalArgumentException("`$key` must be a string")
       }
       require(config.getType(key) == ReadableType.String) {
         "`$key` must be a string"

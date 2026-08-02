@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import com.facebook.react.bridge.ActivityEventListener
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.LifecycleEventListener
@@ -33,6 +34,7 @@ internal class UmengShareController<Host>(
   private val adapterFactory: (Host) -> UmengShareAdapter,
   private val uiDispatcher: ShareUiDispatcher,
   private val requests: ShareRequestRegistry = ShareRequestRegistry(),
+  private val reportLifecycleError: (Throwable) -> Unit,
 ) {
   fun shareText(
     platform: String,
@@ -99,11 +101,20 @@ internal class UmengShareController<Host>(
     resultCode: Int,
     data: Intent?,
   ) {
-    requests.withActiveInvocation {
-      // 宿主回调也必须先 gate，不能为了“转发一下”提前取得 UMShareAPI。
-      if (!isInitialized()) return@withActiveInvocation
-      if (currentHost() != host) return@withActiveInvocation
-      adapterFactory(host).onActivityResult(requestCode, resultCode, data)
+    try {
+      requests.withActiveInvocation {
+        // 宿主回调也必须先 gate，不能为了“转发一下”提前取得 UMShareAPI。
+        if (!isInitialized()) return@withActiveInvocation
+        if (currentHost() != host) return@withActiveInvocation
+        adapterFactory(host).onActivityResult(requestCode, resultCode, data)
+      }
+    } catch (error: Throwable) {
+      // Activity listener 不能把第三方 SDK 异常抛回 React Native 生命周期。
+      try {
+        reportLifecycleError(error)
+      } catch (_: Throwable) {
+        // 诊断回调失败也不能替换原始 lifecycle 边界。
+      }
     }
   }
 
@@ -274,6 +285,9 @@ class UmengShareModule(
       currentHost = { currentActivity },
       adapterFactory = ::ProductionUmengShareAdapter,
       uiDispatcher = AndroidShareUiDispatcher(),
+      reportLifecycleError = { error ->
+        Log.e(NAME, "Failed to forward Umeng activity result", error)
+      },
     )
 
   init {

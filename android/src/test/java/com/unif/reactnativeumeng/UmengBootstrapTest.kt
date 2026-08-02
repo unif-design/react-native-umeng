@@ -131,10 +131,15 @@ class UmengBootstrapTest {
       expectThrows<UmengIndeterminateInitializationException> {
         bootstrap.initialize(context, completeConfig.copy(channel = "other"))
       }
+    val malformedConfig =
+      expectThrows<UmengIndeterminateInitializationException> {
+        bootstrap.initialize(context, completeConfig.copy(appkey = " "))
+      }
 
     assertTrue(first.restartRequired)
     assertSame(first, second)
     assertSame(first, differentConfig)
+    assertSame(first, malformedConfig)
     assertEquals(
       listOf("preInit", "setWeixin", "setDing"),
       calls,

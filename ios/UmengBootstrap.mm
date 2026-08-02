@@ -166,14 +166,24 @@ static BOOL UmengRunVendorStages(id<UmengSDKAdapter> adapter, NSDictionary<NSStr
   return YES;
 }
 
+static BOOL UmengRunLifecycleHandlerSafely(BOOL (^block)(void)) {
+  @try {
+    return block();
+  } @catch (NSException *exception) {
+    // UIApplication / UIScene lifecycle 边界不能被第三方 SDK 异常击穿。
+    NSLog(@"[ReactNativeUmeng] Failed to forward lifecycle callback (%@): %@", exception.name, exception.reason);
+    return NO;
+  }
+}
+
 /// 在主线程同步取一个 BOOL。已在主线程时直接执行 —— 否则 dispatch_sync 自死锁。
 static BOOL UmengRunBoolOnMainThread(BOOL (^block)(void)) {
   if ([NSThread isMainThread]) {
-    return block();
+    return UmengRunLifecycleHandlerSafely(block);
   }
   __block BOOL result = NO;
   dispatch_sync(dispatch_get_main_queue(), ^{
-    result = block();
+    result = UmengRunLifecycleHandlerSafely(block);
   });
   return result;
 }

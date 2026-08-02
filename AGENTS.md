@@ -99,7 +99,7 @@ yarn workspace @unif/react-native-umeng-website build:llms
 
 - **Android 当前已实现** —— `UmengBootstrapStateMachine` 在授权后的单次 `initialize(config)` 中依次执行 vendor preInit、平台注册、FileProvider 配置、正式 init 与 callback component enable;只接受同一 config,不确定 vendor 失败进入需重启的 terminal state。
 - **iOS 当前已实现代码闭环** —— `UmengCommon.mm` 导出 Codegen `initialize(config)`,`UmengBootstrap` 实现同配置并发状态机与 terminal failure;主线程调用顺序为 Universal Link → 微信 `setPlaform` → 钉钉 `setPlaform` → `UMConfigure.initWithAppkey`。iOS 没有 vendor preInit API,不得臆造该阶段。
-- **iOS 已验证边界** —— native contract、TurboModule provider、30/30 XCTest 与 example simulator build 已通过,证明编译、注册、状态机和回调生命周期;真实微信 / 钉钉拉起与回包、URL Scheme、Universal Link 和生产 AASA 仍须真机 / 线上域名矩阵验证。
+- **iOS 已验证边界** —— native contract、TurboModule provider、31/31 XCTest 与 example simulator build 已通过,证明编译、注册、状态机和回调生命周期;真实微信 / 钉钉拉起与回包、URL Scheme、Universal Link 和生产 AASA 仍须真机 / 线上域名矩阵验证。
 
 ### Share + ShareSheet
 

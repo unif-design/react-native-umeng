@@ -35,11 +35,11 @@ internal class UmengBootstrapStateMachine(
     context: Context,
     config: UmengNativeConfig,
   ) {
-    // 完整校验必须发生在保存 config 或触达任何第三方 API 之前。
-    config.validate()
-
     synchronized(lock) {
+      // 一旦进入不可判定状态，所有后续调用都必须得到同一个稳定错误。
       terminalError?.let { throw it }
+      // 完整校验必须发生在保存 config 或触达任何第三方 API 之前。
+      config.validate()
       val existingConfig = acceptedConfig
       if (existingConfig != null && existingConfig != config) {
         throw IllegalStateException(

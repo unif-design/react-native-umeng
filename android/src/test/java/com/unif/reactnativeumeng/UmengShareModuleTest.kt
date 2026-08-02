@@ -2,6 +2,7 @@ package com.unif.reactnativeumeng
 
 import android.content.Intent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.fail
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
@@ -259,6 +260,35 @@ class UmengShareModuleTest {
       ),
       adapter.calls,
     )
+  }
+
+  @Test
+  fun `activity result vendor failure is reported without escaping lifecycle`() {
+    val failure = IllegalStateException("activity result exploded")
+    val reported = mutableListOf<Throwable>()
+    val adapter =
+      RecordingShareAdapter(
+        activityResultFailure = failure,
+      )
+    val controller =
+      controller(
+        initialized = true,
+        adapter = adapter,
+        reportLifecycleError = { reported += it },
+      )
+
+    controller.onActivityResult("activity", 7, 8, null)
+    controller.onHostDestroy("activity")
+
+    assertEquals(
+      listOf(
+        ShareAdapterCall.ActivityResult(7, 8, null),
+        ShareAdapterCall.Release,
+      ),
+      adapter.calls,
+    )
+    assertEquals(1, reported.size)
+    assertSame(failure, reported.single())
   }
 
   @Test
@@ -795,6 +825,7 @@ class UmengShareModuleTest {
     onAdapterAcquired: () -> Unit = {},
     requests: ShareRequestRegistry = ShareRequestRegistry(),
     currentHost: () -> String? = { "activity" },
+    reportLifecycleError: (Throwable) -> Unit = {},
   ): UmengShareController<String> =
     UmengShareController(
       isInitialized = { initialized },
@@ -805,6 +836,7 @@ class UmengShareModuleTest {
       },
       uiDispatcher = dispatcher,
       requests = requests,
+      reportLifecycleError = reportLifecycleError,
     )
 
   private fun await(
@@ -950,6 +982,7 @@ class UmengShareModuleTest {
   private class RecordingShareAdapter(
     private val installed: Boolean = false,
     private val shareFailure: Throwable? = null,
+    private val activityResultFailure: Throwable? = null,
     private val releaseFailure: Throwable? = null,
     private val order: MutableList<String>? = null,
   ) : UmengShareAdapter {
@@ -978,6 +1011,7 @@ class UmengShareModuleTest {
       data: Intent?,
     ) {
       calls += ShareAdapterCall.ActivityResult(requestCode, resultCode, data)
+      activityResultFailure?.let { throw it }
     }
 
     override fun release() {

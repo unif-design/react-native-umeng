@@ -113,7 +113,7 @@ iOS 启用微信时 `wechatAppId`、`wechatAppSecret`、绝对 HTTPS `wechatUniv
 
 | 平台 | 当前证据 | 仍需验证 |
 | --- | --- | --- |
-| iOS | native contract、simulator build、30/30 XCTest、三个 TurboModule provider | 真机微信 / 钉钉分享、URL Scheme、Universal Link/AASA |
+| iOS | native contract、simulator build、31/31 XCTest、三个 TurboModule provider | 真机微信 / 钉钉分享、URL Scheme、Universal Link/AASA |
 | Android | 源码/static native contract；仓库已有 JVM tests | Android SDK CI 中执行 Gradle/JVM、真实回跳、minified release |
 | Web / 模拟器 | JS、文档站和 native 单测可运行 | 不能代替第三方 App 真分享 |
 

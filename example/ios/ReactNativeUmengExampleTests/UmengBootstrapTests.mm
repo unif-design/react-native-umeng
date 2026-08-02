@@ -254,6 +254,34 @@
   XCTAssertTrue(adapter.allCallsWereOnMainThread);
 }
 
+- (void)testHandlerVendorExceptionsReturnFalseWithoutEscapingLifecycle {
+  RecordingUmengSDKAdapter *adapter = [RecordingUmengSDKAdapter new];
+  UmengBootstrap *bootstrap = [[UmengBootstrap alloc] initWithAdapter:adapter];
+  XCTAssertNil([self initializeBootstrap:bootstrap config:[self completeConfig]]);
+
+  adapter.exceptionCall = @"openURL";
+  __block BOOL handledURL = YES;
+  @try {
+    handledURL = [bootstrap handleOpenURL:[NSURL URLWithString:@"example://callback"] options:@{}];
+  } @catch (NSException *exception) {
+    XCTFail(@"open URL exception escaped lifecycle: %@", exception);
+  }
+
+  adapter.exceptionCall = @"universalLinkCallback";
+  NSUserActivity *activity = [[NSUserActivity alloc] initWithActivityType:NSUserActivityTypeBrowsingWeb];
+  activity.webpageURL = [NSURL URLWithString:@"https://example.com/wechat/callback"];
+  __block BOOL handledUniversalLink = YES;
+  @try {
+    handledUniversalLink = [bootstrap handleUniversalLink:activity];
+  } @catch (NSException *exception) {
+    XCTFail(@"universal link exception escaped lifecycle: %@", exception);
+  }
+
+  XCTAssertFalse(handledURL);
+  XCTAssertFalse(handledUniversalLink);
+  XCTAssertTrue([bootstrap isInited]);
+}
+
 - (NSError *)initializeBootstrap:(UmengBootstrap *)bootstrap config:(NSDictionary *)config {
   XCTestExpectation *completion = [self expectationWithDescription:@"initialize"];
   __block NSError *capturedError = nil;

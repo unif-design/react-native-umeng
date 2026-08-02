@@ -9,7 +9,7 @@ description: "iOS 原生接入：URL Types 使用平台分配原值，配置 que
 分享后能否跳回 App，取决于 URL Scheme、Universal Link 与宿主 lifecycle 转发。友盟 appkey、微信 App Secret、Universal Link 等凭据不写进 plist；它们先由 JS `Common.preInit(config)` 保存，用户同意后调用 `Common.init()` 才跨入 native/vendor。
 
 :::info 当前验证边界
-仓库已经通过 `ReactNativeUmeng` Swift module、三个 Codegen modulesProvider、Common bootstrap、Share/Analytics init gate、AppDelegate/Scene compile fixture、simulator build 与 30/30 XCTest。模拟器没有真实微信 / 钉钉；平台拉起、回包、URL Scheme、Universal Link 与生产 AASA 仍须带真实凭据在真机验证。
+仓库已经通过 `ReactNativeUmeng` Swift module、三个 Codegen modulesProvider、Common bootstrap、Share/Analytics init gate、AppDelegate/Scene compile fixture、simulator build 与 31/31 XCTest。模拟器没有真实微信 / 钉钉；平台拉起、回包、URL Scheme、Universal Link 与生产 AASA 仍须带真实凭据在真机验证。
 :::
 
 ## `ios/<App>/Info.plist` {#info-plist}
@@ -255,7 +255,7 @@ iOS 没有公开 vendor preInit API。用户授权后的 `Common.init()` 在主�
 | 配置/门禁 | 当前仓库证据 | 消费者仍需验证 |
 | --- | --- | --- |
 | `ReactNativeUmeng` module + Codegen provider | simulator build / provider scan PASS | 自己的 Pod 图与 runtime lookup |
-| Common/Share/Analytics native gate | 30/30 XCTest PASS | 真实 vendor 行为 |
+| Common/Share/Analytics native gate | 31/31 XCTest PASS | 真实 vendor 行为 |
 | AppDelegate URL/UL 双路转发 | example compile + XCTest PASS | 真实 URL Scheme 回跳 |
 | Scene warm/cold 双路转发 | compile fixture PASS | 真实 Scene lifecycle 注册与回跳 |
 | queries / URL Types / entitlement | example plist/entitlement lint PASS | 替换真实平台原值与域名 |
