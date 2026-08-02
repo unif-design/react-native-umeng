@@ -3,6 +3,7 @@ package com.unif.reactnativeumeng
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.PackageManager
+import com.facebook.react.bridge.JavaOnlyMap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
@@ -146,6 +147,36 @@ class UmengBootstrapTest {
     )
     assertEquals(UmengBootstrapStage.INDETERMINATE_FAILURE, bootstrap.stage)
     assertFalse(bootstrap.isInited())
+  }
+
+  @Test
+  fun `terminal failure wins before a later raw config is parsed`() {
+    val calls = mutableListOf<String>()
+    val bootstrap =
+      UmengBootstrapStateMachine(
+        adapter = RecordingAdapter(calls, failAt = "preInit"),
+        callbackComponentsFactory = { RecordingCallbacks(calls) },
+      )
+    val first =
+      expectThrows<UmengIndeterminateInitializationException> {
+        bootstrap.initialize(context, completeConfig)
+      }
+    var parsedRawConfig = false
+
+    val second =
+      expectThrows<UmengIndeterminateInitializationException> {
+        bootstrap.initialize(context) {
+          parsedRawConfig = true
+          UmengNativeConfig.fromReadableMap(
+            JavaOnlyMap().apply {
+              putNull("appkey")
+            },
+          )
+        }
+      }
+
+    assertSame(first, second)
+    assertFalse(parsedRawConfig)
   }
 
   @Test

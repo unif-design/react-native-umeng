@@ -90,7 +90,12 @@ test('new initialization helpers cannot bypass the minor release gate', () => {
   const initializationPaths = [
     'src/internal/newInitializationState.ts',
     'android/src/main/java/com/unif/reactnativeumeng/UmengInitializationState.kt',
+    'android/src/main/java/com/unif/reactnativeumeng/UmengShareModule.kt',
+    'android/src/main/java/com/unif/reactnativeumeng/UmengAnalyticsModule.kt',
+    'android/src/main/java/com/unif/reactnativeumeng/UmengVendorStages.kt',
     'ios/UmengInitializationState.mm',
+    'ios/UmengShare.mm',
+    'ios/UmengAnalytics.mm',
   ];
 
   for (const relativePath of initializationPaths) {
