@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
+import {
+  assertSharedDependencyRanges,
+} from './dependency-contract.mjs';
+
 const rootDir = process.cwd();
 const designPeers = [
   '@sbaiahmed1/react-native-blur',
@@ -22,11 +26,6 @@ const installedPackageNames = [
     '@react-native/metro-config',
   ]),
 ];
-const shared = {
-  '@unif/react-native-design': '^0.20.0',
-  'react-native-reanimated': '^4.5.3',
-  'react-native-worklets': '^0.11.3',
-};
 const requiredSecurityResolutions = {
   'copy-webpack-plugin/serialize-javascript': '7.0.7',
   'css-minimizer-webpack-plugin/serialize-javascript': '7.0.7',
@@ -168,12 +167,10 @@ const [root, example, website] = await Promise.all([
   readJson('website/package.json'),
 ]);
 
-assert.deepEqual(
-  Object.fromEntries(
-    Object.keys(shared).map((name) => [name, root.peerDependencies[name]]),
-  ),
-  shared,
-);
+assertSharedDependencyRanges(root, 'peerDependencies', 'package.json');
+assertSharedDependencyRanges(root, 'devDependencies', 'package.json');
+assertSharedDependencyRanges(example, 'dependencies', 'example/package.json');
+assertSharedDependencyRanges(website, 'dependencies', 'website/package.json');
 assert.equal(root.peerDependencies['react-native-gesture-handler'], '>=3.0.0 <4.0.0');
 assert.deepEqual(
   Object.fromEntries(

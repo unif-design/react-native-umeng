@@ -310,6 +310,9 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Verify dependencies
+        run: yarn verify:dependencies
+
       - name: Test llms generator
         run: node website/scripts/build-llms.test.js
 

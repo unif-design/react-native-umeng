@@ -73,6 +73,7 @@ const minorContractFiles = new Set([
   ...publicContractFiles,
   ...initializationContractFiles,
 ]);
+const initializationContractFileSet = new Set(initializationContractFiles);
 const releaseIncrements = new Set(['auto', 'patch', 'minor', 'major']);
 
 function run(command, args, options = {}) {
@@ -127,12 +128,38 @@ export function equalManifestContractField(field, left, right) {
   );
 }
 
+export function isInitializationContractPath(relativePath) {
+  if (initializationContractFileSet.has(relativePath)) {
+    return true;
+  }
+
+  if (relativePath.startsWith('src/internal/')) {
+    return true;
+  }
+
+  if (
+    !relativePath.startsWith(
+      'android/src/main/java/com/unif/reactnativeumeng/'
+    ) &&
+    !relativePath.startsWith('ios/')
+  ) {
+    return false;
+  }
+
+  const filename = relativePath.split('/').at(-1) ?? '';
+  return /(bootstrap|common|config|initialization|initializer|init|consent|privacy|stateMachine)/i.test(
+    filename
+  );
+}
+
 export function minimumReleaseLevel({
+  changedInitialization = [],
   changedManifestFields,
   changedNativeMetadata,
   publishedSourceChanges,
 }) {
   const hasContractChange =
+    changedInitialization.length > 0 ||
     changedManifestFields.length > 0 ||
     changedNativeMetadata.length > 0 ||
     publishedSourceChanges.length > 0;
@@ -142,6 +169,7 @@ export function minimumReleaseLevel({
   }
 
   if (
+    changedInitialization.length > 0 ||
     changedManifestFields.some((field) =>
       minorManifestContractFields.has(field)
     ) ||
@@ -417,11 +445,10 @@ async function main() {
     latestTag,
     publicContractFiles
   );
-  const changedInitialization = await changedFilesSinceTag(
-    latestTag,
-    initializationContractFiles
-  );
   const publishedSourceChanges = changedPublishedSources(latestTag);
+  const changedInitialization = publishedSourceChanges.filter(
+    isInitializationContractPath
+  );
 
   const changeCategories = [];
   if (changedManifestFields.length > 0) {
@@ -460,6 +487,7 @@ async function main() {
   });
   const hasContractChange = changeCategories.length > 0;
   const minimumLevel = minimumReleaseLevel({
+    changedInitialization,
     changedManifestFields,
     changedNativeMetadata,
     publishedSourceChanges,

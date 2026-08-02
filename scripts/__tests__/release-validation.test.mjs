@@ -1,15 +1,20 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import {
   equalManifestContractField,
+  isInitializationContractPath,
   minimumReleaseLevel,
   parsePublishContractArgs,
   selectReleaseVersion,
 } from '../verify-publish-contract.mjs';
+import {
+  assertSharedDependencyRanges,
+  sharedDependencyRanges,
+} from '../dependency-contract.mjs';
 import {
   assertProductionNativeFiles,
   collectProductionNativeFiles,
@@ -79,6 +84,71 @@ test('mock-only and native adapter-only changes require a minor release', () => 
       manifestField
     );
   }
+});
+
+test('new initialization helpers cannot bypass the minor release gate', () => {
+  const initializationPaths = [
+    'src/internal/newInitializationState.ts',
+    'android/src/main/java/com/unif/reactnativeumeng/UmengInitializationState.kt',
+    'ios/UmengInitializationState.mm',
+  ];
+
+  for (const relativePath of initializationPaths) {
+    assert.equal(isInitializationContractPath(relativePath), true, relativePath);
+    assert.equal(
+      minimumReleaseLevel({
+        changedInitialization: [relativePath],
+        changedManifestFields: [],
+        changedNativeMetadata: [],
+        publishedSourceChanges: [relativePath],
+      }),
+      'minor',
+      relativePath
+    );
+  }
+
+  assert.equal(
+    isInitializationContractPath(
+      'src/ShareSheet/ShareSheetController.ts'
+    ),
+    false
+  );
+});
+
+test('shared Design runtime ranges must remain exact in every manifest', () => {
+  const manifest = {
+    dependencies: { ...sharedDependencyRanges },
+  };
+  assert.doesNotThrow(() =>
+    assertSharedDependencyRanges(
+      manifest,
+      'dependencies',
+      'fixture/package.json'
+    )
+  );
+
+  manifest.dependencies['react-native-worklets'] = '^0.12.0';
+  assert.throws(
+    () =>
+      assertSharedDependencyRanges(
+        manifest,
+        'dependencies',
+        'fixture/package.json'
+      ),
+    /react-native-worklets.*\^0\.11\.3/
+  );
+});
+
+test('website validation runs the cross-workspace dependency verifier', async () => {
+  const workflow = await readFile(
+    new URL('../../.github/workflows/project-validation.yml', import.meta.url),
+    'utf8'
+  );
+  const websiteJob = workflow
+    .split(/^  website:/m)[1]
+    ?.split(/^  instructions:/m)[0];
+
+  assert.match(websiteJob ?? '', /yarn verify:dependencies/);
 });
 
 test('explicit release increment selects an exact version for validation and release', () => {
