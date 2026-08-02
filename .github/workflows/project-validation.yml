@@ -226,8 +226,6 @@ jobs:
         run: ./example/android/gradlew -p example/android testDebugUnitTest
 
       - name: Build minified release and merged manifest
-        env:
-          JAVA_OPTS: -XX:MaxHeapSize=6g
         run: ./example/android/gradlew -p example/android :app:processReleaseMainManifest :app:assembleRelease
 
       - name: Verify merged Android manifest
