@@ -17,9 +17,7 @@ class UmengCommonModule(
     promise: Promise,
   ) {
     try {
-      // 先把整个 map 防御性解析成不可变值，再允许 bootstrap 触达友盟。
-      val nativeConfig = UmengNativeConfig.fromReadableMap(config)
-      UmengBootstrap.initialize(reactApplicationContext, nativeConfig)
+      UmengBootstrap.initialize(reactApplicationContext, config)
       promise.resolve(null)
     } catch (error: UmengIndeterminateInitializationException) {
       val metadata =

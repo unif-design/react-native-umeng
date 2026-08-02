@@ -86,7 +86,7 @@ test('mock-only and native adapter-only changes require a minor release', () => 
   }
 });
 
-test('new initialization helpers cannot bypass the minor release gate', () => {
+test('native runtime sources and new init helpers cannot bypass minor', () => {
   const initializationPaths = [
     'src/internal/newInitializationState.ts',
     'android/src/main/java/com/unif/reactnativeumeng/UmengInitializationState.kt',
@@ -112,12 +112,16 @@ test('new initialization helpers cannot bypass the minor release gate', () => {
     );
   }
 
-  assert.equal(
-    isInitializationContractPath(
-      'src/ShareSheet/ShareSheetController.ts'
-    ),
-    false
-  );
+  for (const relativePath of [
+    'src/ShareSheet/ShareSheetController.ts',
+    'android/src/test/java/com/unif/reactnativeumeng/UmengBootstrapTest.kt',
+  ]) {
+    assert.equal(
+      isInitializationContractPath(relativePath),
+      false,
+      relativePath
+    );
+  }
 });
 
 test('shared Design runtime ranges must remain exact in every manifest', () => {

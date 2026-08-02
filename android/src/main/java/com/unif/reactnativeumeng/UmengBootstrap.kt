@@ -1,6 +1,7 @@
 package com.unif.reactnativeumeng
 
 import android.content.Context
+import com.facebook.react.bridge.ReadableMap
 
 internal enum class UmengBootstrapStage {
   NOT_STARTED,
@@ -34,10 +35,17 @@ internal class UmengBootstrapStateMachine(
   fun initialize(
     context: Context,
     config: UmengNativeConfig,
+  ) = initialize(context) { config }
+
+  fun initialize(
+    context: Context,
+    configProvider: () -> UmengNativeConfig,
   ) {
     synchronized(lock) {
       // 一旦进入不可判定状态，所有后续调用都必须得到同一个稳定错误。
       terminalError?.let { throw it }
+      // raw bridge config 也必须在 terminal 检查后解析，避免 reload 绕过稳定错误。
+      val config = configProvider()
       // 完整校验必须发生在保存 config 或触达任何第三方 API 之前。
       config.validate()
       val existingConfig = acceptedConfig
@@ -107,9 +115,11 @@ object UmengBootstrap {
 
   fun initialize(
     context: Context,
-    config: UmengNativeConfig,
+    config: ReadableMap,
   ) {
-    stateMachine.initialize(context, config)
+    stateMachine.initialize(context) {
+      UmengNativeConfig.fromReadableMap(config)
+    }
   }
 
   fun isInited(): Boolean = stateMachine.isInited()

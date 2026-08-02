@@ -137,18 +137,11 @@ export function isInitializationContractPath(relativePath) {
     return true;
   }
 
-  if (
-    !relativePath.startsWith(
-      'android/src/main/java/com/unif/reactnativeumeng/'
-    ) &&
-    !relativePath.startsWith('ios/')
-  ) {
-    return false;
-  }
-
-  const filename = relativePath.split('/').at(-1) ?? '';
-  return /(bootstrap|common|config|initialization|initializer|init|consent|privacy|stateMachine)/i.test(
-    filename
+  // Native gate/helper 的文件名没有稳定约束；生产 native 源码统一按 minor
+  // 处理，避免新增文件绕过初始化与公共运行时契约的发布门禁。
+  return (
+    /^android\/src\/main\/.*\.(?:java|kt)$/.test(relativePath) ||
+    /^ios\/.*\.(?:h|m|mm|swift|cpp)$/.test(relativePath)
   );
 }
 
@@ -468,7 +461,9 @@ async function main() {
     );
   }
   if (changedInitialization.length > 0) {
-    changeCategories.push(`initialization:${changedInitialization.join(',')}`);
+    changeCategories.push(
+      `initialization/native-runtime:${changedInitialization.join(',')}`
+    );
   }
 
   const currentPodspec = await currentFile('ReactNativeUmeng.podspec');
