@@ -49,7 +49,12 @@ jest.mock('../share', () => ({
   listPlatforms: jest.fn(),
 }));
 
-import { render, act, cleanup, fireEvent } from '@testing-library/react-native';
+import {
+  render,
+  act,
+  cleanupAsync,
+  fireEvent,
+} from '@testing-library/react-native';
 import { Modal } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ShareSheetHost } from '../ShareSheet/ShareSheetHost';
@@ -129,7 +134,7 @@ describe('ShareSheetHost', () => {
   });
 
   afterEach(async () => {
-    cleanup();
+    await cleanupAsync();
     await act(async () => {
       await Promise.resolve();
     });
