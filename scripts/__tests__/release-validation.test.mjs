@@ -161,6 +161,19 @@ test('website validation runs the cross-workspace dependency verifier', async ()
   assert.match(websiteJob ?? '', /yarn verify:dependencies/);
 });
 
+test('release workflow runs when release-validation scripts change', async () => {
+  const workflow = await readFile(
+    new URL('../../.github/workflows/release.yml', import.meta.url),
+    'utf8'
+  );
+  const pushTrigger = workflow
+    .split(/^  push:/m)[1]
+    ?.split(/^  workflow_dispatch:/m)[0];
+
+  assert.match(pushTrigger ?? '', /branches:\s*\[main\]/);
+  assert.match(pushTrigger ?? '', /^\s{6}- 'scripts\/\*\*'$/m);
+});
+
 test('explicit release increment selects an exact version for validation and release', () => {
   assert.deepEqual(
     parsePublishContractArgs([
