@@ -3,7 +3,7 @@ import type { Platform } from '@unif/react-native-umeng';
 
 import type { ShareContentDraft } from '../content/shareContent';
 import type { OperationFeedback } from '../errors/classifyUmengError';
-import type { NavigationState } from '../navigation';
+import type { NavigationState, RouteId } from '../navigation';
 import type { DemoLog } from './logs';
 import type { DirectShareType, PlatformState, SheetDraft } from './operations';
 import type { CredentialDraft, SetupState, SetupAction } from './setupState';
@@ -20,6 +20,9 @@ export type SetupActions = {
 };
 
 export type ShowcaseActions = SetupActions & {
+  readonly navigate: (route: RouteId) => void;
+  readonly back: () => void;
+  readonly clearLogs: () => void;
   readonly refreshPlatforms: () => Promise<void>;
   readonly checkPlatform: (platform: Platform) => Promise<void>;
   readonly openShareSheet: (draft: SheetDraft) => Promise<void>;

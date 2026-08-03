@@ -33,6 +33,7 @@ import {
 } from '../navigation';
 import {
   appendLog,
+  clearLogs as createEmptyLogs,
   type DemoLog,
   type DemoLogLevel,
   type DemoLogScope,
@@ -172,6 +173,24 @@ export function ShowcaseProvider({
     },
     [dispatchSetup]
   );
+
+  const navigate = useCallback<ShowcaseActions['navigate']>((route) => {
+    if (setupRef.current.phase !== 'initialized' || route === SETUP_ROUTE) {
+      return;
+    }
+    dispatchNavigation({ type: 'navigate', route });
+  }, []);
+
+  const back = useCallback<ShowcaseActions['back']>(() => {
+    if (setupRef.current.phase !== 'initialized') {
+      return;
+    }
+    dispatchNavigation({ type: 'back' });
+  }, []);
+
+  const clearLogs = useCallback<ShowcaseActions['clearLogs']>(() => {
+    setLogs(createEmptyLogs());
+  }, []);
 
   const preInitialize = useCallback(async (): Promise<void> => {
     if (setupRef.current.phase !== 'editing') {
@@ -475,6 +494,9 @@ export function ShowcaseProvider({
       setConsent,
       initialize,
       retryInitialize,
+      navigate,
+      back,
+      clearLogs,
       refreshPlatforms,
       checkPlatform,
       openShareSheet,
@@ -484,8 +506,11 @@ export function ShowcaseProvider({
       signOut,
     }),
     [
+      back,
       checkPlatform,
+      clearLogs,
       initialize,
+      navigate,
       openShareSheet,
       preInitialize,
       refreshPlatforms,
