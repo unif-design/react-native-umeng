@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -16,10 +16,28 @@ import {
   ShareSheetHost,
   UmengError,
   type ShareResult,
+  type UmengInitConfig,
 } from '@unif/react-native-umeng';
+
+// 仅用于接线演示；真机验证前必须替换为开放平台登记的测试凭据。
+const UMENG_CONFIG: UmengInitConfig = {
+  appkey: 'YOUR_UMENG_APPKEY',
+  wechatAppId: 'YOUR_WECHAT_APP_ID',
+  wechatAppSecret: 'YOUR_WECHAT_APP_SECRET',
+  wechatUniversalLink: 'https://your.host/path/',
+  dingtalkAppId: 'YOUR_DINGTALK_APP_ID',
+};
+
+type InitState =
+  | 'preparing'
+  | 'awaitingConsent'
+  | 'initializing'
+  | 'initialized'
+  | 'failed';
 
 export default function App() {
   return (
+    // 外层 root 服务于 App 其它 RNGH UI；ShareSheetHost 的 Modal 内已有自己的 root。
     <GestureHandlerRootView style={styles.root}>
       <ThemeProvider>
         <DemoScreen />
@@ -31,18 +49,56 @@ export default function App() {
 
 function DemoScreen() {
   const [log, setLog] = useState<string>('—');
+  const [initState, setInitState] = useState<InitState>('preparing');
   const append = (line: string) =>
     setLog((prev) => `${line}\n${prev}`.slice(0, 1200));
 
-  const runShare = async (label: string, fn: () => Promise<ShareResult>) => {
+  useEffect(() => {
+    let active = true;
+
+    // App 启动、用户授权前执行：Common.preInit 只保存 JS 配置快照。
+    Common.preInit(UMENG_CONFIG)
+      .then(() => {
+        if (!active) return;
+        setInitState('awaitingConsent');
+        append('✓ preInit 完成：等待用户同意，尚未触达 native/vendor');
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setInitState('failed');
+        append(`✗ Common.preInit: ${(error as Error).message}`);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const initializeAfterConsent = async () => {
+    setInitState('initializing');
     try {
-      const r = await fn();
-      append(`✓ ${label}: ${r.code}@${r.platform}`);
-    } catch (e) {
-      const code = e instanceof UmengError ? e.code : 'E_UNKNOWN';
-      append(`✗ ${label}: ${code} – ${(e as Error).message}`);
+      // 只有用户明确同意后才调用；config 已由 preInit 保存，因此 init 无参。
+      await Common.init();
+      setInitState('initialized');
+      append('✓ Common.init OK：native/vendor 已初始化');
+    } catch (error) {
+      setInitState('failed');
+      const code = error instanceof UmengError ? error.code : 'E_UNKNOWN';
+      append(`✗ Common.init: ${code} – ${(error as Error).message}`);
     }
   };
+
+  const runShare = async (label: string, fn: () => Promise<ShareResult>) => {
+    try {
+      const result = await fn();
+      append(`✓ ${label}: ${result.code}@${result.platform}`);
+    } catch (error) {
+      const code = error instanceof UmengError ? error.code : 'E_UNKNOWN';
+      append(`✗ ${label}: ${code} – ${(error as Error).message}`);
+    }
+  };
+
+  const initialized = initState === 'initialized';
 
   return (
     <ScrollView
@@ -51,41 +107,21 @@ function DemoScreen() {
     >
       <Text style={styles.h1}>@unif/react-native-umeng 验证矩阵</Text>
 
-      <Section title="Common">
+      <Section title="PIPL 初始化">
+        <Text style={styles.status}>当前状态：{initState}</Text>
         <RNButton
-          title="Common.preInit(config)（App 启动后立刻调）"
-          onPress={async () => {
-            try {
-              await Common.preInit({
-                appkey: 'YOUR_UMENG_APPKEY',
-                channel: 'App Store',
-                wechatAppId: 'wxXXXXXXXX',
-                wechatAppSecret: 'XXXXXXXX',
-                wechatUniversalLink: 'https://your.host/path/',
-                dingtalkAppId: 'dingoaXXXXXXXX',
-              });
-              append('✓ Common.preInit OK');
-            } catch (e) {
-              append(`✗ Common.preInit: ${(e as Error).message}`);
-            }
-          }}
-        />
-        <RNButton
-          title="Common.init()（同意后调，preInit 之后）"
-          onPress={async () => {
-            try {
-              await Common.init();
-              append('✓ Common.init OK');
-            } catch (e) {
-              append(`✗ Common.init: ${(e as Error).message}`);
-            }
-          }}
+          title="我已同意隐私协议并初始化"
+          disabled={initState !== 'awaitingConsent'}
+          onPress={() => initializeAfterConsent()}
         />
         <RNButton
           title="Common.isInited()"
-          onPress={async () => {
-            const v = await Common.isInited();
-            append(`Common.isInited → ${v}`);
+          onPress={() => {
+            Common.isInited()
+              .then((value) => append(`Common.isInited → ${value}`))
+              .catch((error: unknown) =>
+                append(`✗ Common.isInited: ${(error as Error).message}`)
+              );
           }}
         />
       </Section>
@@ -93,6 +129,7 @@ function DemoScreen() {
       <Section title="Share（命令式面板，主用例）">
         <RNButton
           title="openSheet · 链接"
+          disabled={!initialized}
           onPress={() =>
             runShare('openSheet(link)', () =>
               Share.openSheet({
@@ -107,6 +144,7 @@ function DemoScreen() {
         />
         <RNButton
           title="openSheet · 文本"
+          disabled={!initialized}
           onPress={() =>
             runShare('openSheet(text)', () =>
               Share.openSheet({ type: 'text', text: 'Hello from Unif Umeng' })
@@ -115,11 +153,12 @@ function DemoScreen() {
         />
         <RNButton
           title="openSheet · 图片"
+          disabled={!initialized}
           onPress={() =>
             runShare('openSheet(image)', () =>
               Share.openSheet({
                 type: 'image',
-                image: 'https://example.com/x.png',
+                image: 'https://example.com/image.png',
               })
             )
           }
@@ -129,6 +168,7 @@ function DemoScreen() {
       <Section title="Share（底层直拉）">
         <RNButton
           title="shareLink → 微信会话（跳过面板）"
+          disabled={!initialized}
           onPress={() =>
             runShare('shareLink', () =>
               Share.shareLink({
@@ -142,9 +182,10 @@ function DemoScreen() {
         />
       </Section>
 
-      <Section title="Analytics">
+      <Section title="Analytics（同步 void）">
         <RNButton
           title="onEvent('demo_event', { source: 'btn' })"
+          disabled={!initialized}
           onPress={() => {
             Analytics.onEvent('demo_event', { source: 'btn', count: 1 });
             append('Analytics.onEvent fired');
@@ -152,6 +193,7 @@ function DemoScreen() {
         />
         <RNButton
           title="signIn('demo-user-123', 'WX')"
+          disabled={!initialized}
           onPress={() => {
             Analytics.signIn('demo-user-123', 'WX');
             append('Analytics.signIn fired');
@@ -159,6 +201,7 @@ function DemoScreen() {
         />
         <RNButton
           title="signOut()"
+          disabled={!initialized}
           onPress={() => {
             Analytics.signOut();
             append('Analytics.signOut fired');
@@ -194,6 +237,7 @@ const styles = StyleSheet.create({
   contentContainer: { padding: 16, paddingBottom: 60 },
   h1: { fontSize: 18, fontWeight: '600', marginBottom: 12 },
   h2: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#666' },
+  status: { fontSize: 12, color: '#444', marginBottom: 6 },
   section: { marginBottom: 16 },
   btns: { gap: 6 },
   log: { fontFamily: 'Menlo', fontSize: 11, color: '#444' },

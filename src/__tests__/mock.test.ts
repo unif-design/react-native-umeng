@@ -8,6 +8,7 @@ import {
   UmengError,
   shareSuccess,
   shareCancel,
+  shareFailed,
 } from '../mock';
 
 describe('mock', () => {
@@ -18,6 +19,7 @@ describe('mock', () => {
     expect(jest.isMockFunction(Share.shareText)).toBe(true);
     expect(jest.isMockFunction(Share.openSheet)).toBe(true);
     expect(jest.isMockFunction(Analytics.onEvent)).toBe(true);
+    expect(Common).not.toHaveProperty('__resetForTests');
   });
 
   it('Common.isInited 默认 false', async () => {
@@ -31,12 +33,28 @@ describe('mock', () => {
   });
 
   it('结果可按单次调用覆盖', async () => {
-    (Share.shareText as jest.Mock).mockResolvedValueOnce(
-      shareCancel(Platform.DINGTALK)
-    );
+    const error = shareCancel(Platform.DINGTALK);
+    expect(error).toBeInstanceOf(UmengError);
+
+    (Share.shareText as jest.Mock).mockRejectedValueOnce(error);
     await expect(
       Share.shareText({ platform: Platform.DINGTALK, text: 'hi' })
-    ).resolves.toEqual({ code: 'cancel', platform: Platform.DINGTALK });
+    ).rejects.toMatchObject({
+      code: 'E_USER_CANCEL',
+      message: 'User cancelled',
+      nativeError: { platform: Platform.DINGTALK },
+    });
+  });
+
+  it('shareFailed creates an E_SHARE_FAILED UmengError', () => {
+    const error = shareFailed(Platform.WECHAT_SESSION);
+
+    expect(error).toBeInstanceOf(UmengError);
+    expect(error).toMatchObject({
+      code: 'E_SHARE_FAILED',
+      message: 'mock failed',
+      nativeError: { platform: Platform.WECHAT_SESSION },
+    });
   });
 
   it('listPlatforms 返回全平台 installed', async () => {

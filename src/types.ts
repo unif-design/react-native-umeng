@@ -32,10 +32,10 @@ export const PLATFORM_BRAND_COLORS: Readonly<Record<Platform, string>> = {
   [Platform.DINGTALK]: '#2595E8',
 };
 
-export type ShareCode = 'success' | 'cancel' | 'failed';
+export type ShareCode = 'success';
 
 export interface ShareResult {
-  code: ShareCode;
+  code: 'success';
   message?: string;
   platform: Platform;
 }
@@ -90,20 +90,17 @@ export type ShareSheetPayload =
       thumb?: string;
     };
 
-/** 友盟初始化配置。`Common.init(config)` 接收。
- *
- *  PIPL 合规:user 同意《隐私协议》之后才调 `Common.init(config)`,
- *  在那之前 native 完全不持有 appkey,不会调任何友盟 API。 */
+/** 友盟预初始化配置，仅传给 JS 的 `Common.preInit(config)`；`Common.init()` 无参。 */
 export interface UmengInitConfig {
   /** 友盟 appkey,必填 */
   appkey: string;
   /** 渠道标识。默认 iOS = 'App Store',Android = 'default' */
   channel?: string;
-  /** 微信平台 appid;不传则不注册微信分享 */
+  /** 微信平台 appid;启用微信时须与 wechatAppSecret 同时提供 */
   wechatAppId?: string;
-  /** 微信平台 appsecret;有 wechatAppId 才生效 */
+  /** 微信平台 appsecret;启用微信时须与 wechatAppId 同时提供 */
   wechatAppSecret?: string;
-  /** 微信 Universal Link (1.8.6+ 强制);iOS 才用,有 wechatAppId 才生效 */
+  /** 带 host 的绝对 HTTPS Universal Link;iOS 启用微信时必填,Android 可选 */
   wechatUniversalLink?: string;
   /** 钉钉平台 appid;不传则不注册钉钉分享 */
   dingtalkAppId?: string;
@@ -116,6 +113,6 @@ export interface ShareSheetOptions {
   cancelText?: string;
   /** 平台副标题覆盖；默认见 PLATFORM_DEFAULT_SUBTITLES */
   subtitles?: Partial<Record<Platform, string>>;
-  /** 未安装平台隐藏；默认 false（按钮置灰） */
+  /** 未安装平台隐藏；默认 false（仍显示且可点击，点击后 reject 未安装错误） */
   hideUninstalled?: boolean;
 }

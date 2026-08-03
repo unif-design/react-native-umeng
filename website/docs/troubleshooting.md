@@ -46,7 +46,7 @@ try {
 ```
 
 ```tsx
-// ✅ Correct:App 根挂一次,且在 GestureHandlerRootView + ThemeProvider 内
+// ✅ Correct:App 根挂一次并位于 ThemeProvider 内;外层 root 供 App 其它 RNGH UI 使用
 <GestureHandlerRootView style={{ flex: 1 }}>
   <ThemeProvider>
     <App />
@@ -55,7 +55,7 @@ try {
 </GestureHandlerRootView>
 ```
 
-> 若 message 是 "Another ShareSheet is already open",说明**一次只能开一个面板**,前一个还没关。等它 resolve / reject(或取消)后再开。挂载细节见[快速上手](./getting-started/quick-start#mount-host)。
+> Host 已在 Modal 内容里创建自己的 `GestureHandlerRootView`;外层 root 不能替代内部边界。若 message 是 `Another ShareSheet is already open`,说明前一个 session 还没结束;若是 `The active <ShareSheetHost /> unmounted...`,说明承载当前 session 的 owner Host 被卸载。两者都使用 `E_UNKNOWN`。
 
 ---
 
@@ -74,16 +74,16 @@ await Common.preInit({ appkey: '...', /* ... */ }); // App 启动
 await Common.init();                                 // 用户同意后,无参
 ```
 
-统计不上报最常见原因:`init` 还没调(用户未同意《隐私协议》)。此时 `Analytics.*` 不会崩溃,但数据不上报。两段式见[隐私合规(PIPL)](./guides/privacy-pipl)。
+统计不上报最常见原因:`init` 还没完成(用户未同意《隐私协议》)。Android 与 iOS 的 `Analytics.*` 都会在 init 前同步 no-op,且不会缓存或补发。两段式见[隐私合规(PIPL)](./guides/privacy-pipl)。
 
 ---
 
 ## 症状:模拟器上分享编译失败 / 无法跑起来 / 不能真分享 {#simulator}
 
-✅ **这是预期行为,不是 bug。用真机验证分享。**
+真实微信 / 钉钉分享必须用真机,但**模拟器编译失败不是可以直接忽略的预期结果**。
 
 - 模拟器没有真微信 / 钉钉,**无法完成回调跳转**,分享链路测不通。
-- 友盟 U-Share 在 **Apple Silicon Mac 模拟器**上有 `EXCLUDED_ARCHS=arm64` 限制(旧式 `.framework` 未出 arm64 simulator slice)。这是友盟 SDK 已知限制,**强制清 `EXCLUDED_ARCHS` 反而可能触发 arm64 链接错**。
+- 仓库 iOS simulator Pod/Codegen/build/XCTest 已通过。消费者若编译失败,应核对自己的 Pod 图、New Architecture、Worklets plugin 与原生配置,不能把任意编译错误归因于“模拟器不能真分享”。
 
 :::tip 在 CI / 模拟器里测逻辑
 不要在模拟器里测真实分享。单元测试用[测试(Mock)](./testing)页的 `jest.mock` 方案,在无原生环境跑通分享流程逻辑。
@@ -91,11 +91,14 @@ await Common.init();                                 // 用户同意后,无参
 
 ---
 
-## 症状:Android 后台调 `Share.openSheet()` 报 `E_UNKNOWN`（"No current Activity"） {#no-activity}
+## 症状:Android 后台调用分享 {#no-activity}
 
-✅ **分享 API 依赖前台 Activity,不能在后台 / App 不可见时调。**
+分享 UI 应只由前台用户操作触发,但要区分 `openSheet` 与直拉 API 的当前行为:
 
-Android 在无前台 Activity 时会 reject `E_UNKNOWN`,`message` 为 `No current Activity; cannot invoke share` —— 用 `message` 区分此场景与其它 `E_UNKNOWN`。请在用户有操作的前台场景(如按钮回调)中调用分享。
+- `Share.openSheet()` 先调用 `listPlatforms()`。Android 没有 current Activity 时,`isInstalled` 当前保守 resolve `false`,所以 `openSheet` **不会必然立即抛** `No current Activity`;它可能保持 pending、等 App 回前台显示,或把平台显示为未安装(`hideUninstalled=true` 时为空)。
+- `Share.shareText/shareImage/shareLink` 直拉时没有 current Activity,才会 reject `E_UNKNOWN`,message 为 `No current Activity; cannot invoke share`。
+
+不要依赖后台 Modal 或上述降级细节;在前台按钮回调中调用分享。
 
 ---
 
@@ -105,15 +108,17 @@ Android 在无前台 Activity 时会 reject `E_UNKNOWN`,`message` 为 `No curren
 
 ### iOS
 
-- `Info.plist` 缺 `CFBundleURLTypes` 回调 scheme(微信 = `wx`+appid,钉钉 = `dingoa`+appid),或缺 `LSApplicationQueriesSchemes` 白名单。
-- `AppDelegate` 没把 `open url` / `continue userActivity` 转发给桥导出的 `UmengBootstrap`。注意 Swift 侧方法名是 **`handleOpen(_:options:)`**(omit-needless-words),不是 `handleOpenURL`。
+- 仓库已通过 `initialize(config)`、module map/Codegen、AppDelegate/Scene compile fixture 与 XCTest；这些证据不代表消费者的真实 scheme/domain 已配置。
+- `Info.plist` 缺 `CFBundleURLTypes`,误在开放平台分配原值之外再拼 `wx` / `dingoa`,或缺 `LSApplicationQueriesSchemes` 白名单。
+- AppDelegate / SceneDelegate 对 URL 与 Universal Link 必须**分别调用** Umeng 和 `RCTLinkingManager`,两者都执行后再 OR;不能用短路表达式漏掉第二个 handler。
+- Universal Link 还要核对 Associated Domains、无重定向 AASA、`TeamID.BundleID`、path 与 `wechatUniversalLink` host。
 
 逐项见 [iOS 原生配置](./native-setup/ios)。
 
 ### Android
 
 - `WXEntryActivity`(超类 `WXCallbackActivity`)/ `DDShareActivity` **必须在宿主包名下** —— 微信 / 钉钉 SDK 通过 `getPackageName() + ".wxapi.WXEntryActivity"` / `+ ".ddshare.DDShareActivity"` 反射查找,放在 library 包里查不到、回调丢失。
-- 钉钉 `appId` 在 Activity `onCreate` 写死,要与 JS `preInit({ dingtalkAppId })` 一致。
+- `DDShareActivity` 没有直接继承友盟 `DingCallBack`,或把 appId 硬编码进 Activity。Activity 应为空回调壳,凭据由授权后的 native 初始化读取 JS config 快照。
 
 逐项见 [Android 原生配置](./native-setup/android)。
 
@@ -129,8 +134,8 @@ Android 在无前台 Activity 时会 reject `E_UNKNOWN`,`message` 为 `No curren
 | `E_SHARE_FAILED` | 分享失败 | 未配 URL Scheme、网络错、内容不合规等 | 查 `message`;核对原生回调配置 |
 | `E_PLATFORM_NOT_INSTALLED` | 目标 App 未安装 | 微信 / 钉钉未装 | `isInstalled()` 预检,或 `hideUninstalled: true` |
 | `E_PLATFORM_NOT_SUPPORTED` | 平台不在白名单 | 传了非 `WECHAT_SESSION` / `DINGTALK` 的值 | 用 `Platform` 枚举值 |
-| `E_INVALID_OPTIONS` | 参数缺失 / 非法 | `shareLink` 缺 `title`/`url`、`preInit` 缺 `appkey`、没 `preInit` 就 `init` | 检查必填字段 / 初始化顺序 |
-| `E_NOT_INITIALIZED` | 预留错误码 | — | — |
-| `E_UNKNOWN` | 未归类错误 | 未挂 Host、面板重入、Android 无前台 Activity、SDK 未知错 | 看 `message` / `nativeError` 区分 |
+| `E_INVALID_OPTIONS` | 参数缺失 / 非法 | `shareLink` 缺 `title`/`url`、`preInit` config 非法或 init 开始后换 config | 检查必填字段 / config 一致性 |
+| `E_NOT_INITIALIZED` | 尚未初始化 | 没 `preInit` 就 `init`,或在完成 init 前调用要求初始化的 native API | 按 `preInit` → 用户同意 → `init` 顺序调用 |
+| `E_UNKNOWN` | 未归类错误 | 未挂 Host、面板重入、owner Host 卸载、直拉时 Android 无前台 Activity、SDK 未知错 | 看 `message` / `nativeError` 区分 |
 
 > `UmengError` 还带 `nativeError` 字段(原始错误)。错误码在 JS 层的判别用法见[分享指南](./guides/sharing#reject-on-cancel)。

@@ -1,77 +1,90 @@
 #import "UmengShare.h"
-#import <UIKit/UIKit.h>
-#import <UMShare/UMShare.h>
 
-@implementation UmengShare
+#import <React/RCTLog.h>
+
+#import "UmengBootstrap.h"
+#import "UmengSDKAdapters.h"
+#import "UmengShareRequestRegistry.h"
+
+static NSString *const UmengShareNotInitializedCode = @"E_NOT_INITIALIZED";
+static NSString *const UmengShareNotInitializedMessage = @"Umeng must be initialized before sharing";
+
+static void UmengLogIfShareCallbackWasIgnored(BOOL didSettle) {
+  if (!didSettle) {
+    RCTLogInfo(@"Ignored duplicate or late Umeng share callback.");
+  }
+}
+
+@interface UmengShare ()
+
+- (instancetype)initWithIsInitialized:(BOOL (^)(void))isInitialized
+                              adapter:(id<UmengShareSDKAdapter>)adapter
+                       mainDispatcher:(void (^)(dispatch_block_t block))mainDispatcher;
+- (nullable NSUUID *)beginRequestForPlatform:(NSString *)platform
+                                     resolve:(RCTPromiseResolveBlock)resolve
+                                      reject:(RCTPromiseRejectBlock)reject;
+- (void)invokeRequest:(NSUUID *)requestId
+             platform:(NSString *)platform
+                block:(void (^)(UmengShareSDKCompletion completion))adapterInvocation;
+
+@end
+
+@implementation UmengShare {
+  BOOL (^_isInitialized)(void);
+  id<UmengShareSDKAdapter> _adapter;
+  void (^_mainDispatcher)(dispatch_block_t block);
+  UmengShareRequestRegistry *_requestRegistry;
+}
 
 RCT_EXPORT_MODULE(UmengShare)
+
+- (instancetype)init {
+  return [self
+      initWithIsInitialized:^BOOL {
+        return [[UmengBootstrap shared] isInited];
+      }
+      adapter:[UmengProductionSDKAdapter new]
+      mainDispatcher:^(dispatch_block_t block) {
+        dispatch_async(dispatch_get_main_queue(), block);
+      }];
+}
+
+- (instancetype)initWithIsInitialized:(BOOL (^)(void))isInitialized
+                              adapter:(id<UmengShareSDKAdapter>)adapter
+                       mainDispatcher:(void (^)(dispatch_block_t block))mainDispatcher {
+  self = [super init];
+  if (self) {
+    _isInitialized = [isInitialized copy];
+    _adapter = adapter;
+    _mainDispatcher = [mainDispatcher copy];
+    _requestRegistry = [UmengShareRequestRegistry new];
+  }
+  return self;
+}
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params {
   return std::make_shared<facebook::react::NativeUmengShareSpecJSI>(params);
 }
 
-// MARK: - helpers
-
-static BOOL mapPlatform(NSString *p, UMSocialPlatformType *out, RCTPromiseRejectBlock reject) {
-  if ([p isEqualToString:@"wechat_session"]) {
-    *out = UMSocialPlatformType_WechatSession;
-    return YES;
-  }
-  if ([p isEqualToString:@"dingtalk"]) {
-    *out = UMSocialPlatformType_DingDing;
-    return YES;
-  }
-  reject(@"E_PLATFORM_NOT_SUPPORTED", [NSString stringWithFormat:@"Platform '%@' is not supported", p], nil);
-  return NO;
+- (void)invalidate {
+  [_requestRegistry invalidate];
 }
-
-- (void)runShareWithPlatform:(NSString *)platform
-                  umPlatform:(UMSocialPlatformType)umPlatform
-                     message:(UMSocialMessageObject *)message
-                     resolve:(RCTPromiseResolveBlock)resolve
-                      reject:(RCTPromiseRejectBlock)reject {
-  [[UMSocialManager defaultManager]
-            shareToPlatform:umPlatform
-              messageObject:message
-      currentViewController:nil
-                 completion:^(id data, NSError *error) {
-                   if (error) {
-                     // 友盟错误码: 2009 = cancel; 2008 = NotInstall; 其他 = failed
-                     NSInteger code = error.code;
-                     if (code == 2009) {
-                       resolve(@{@"code" : @"cancel", @"platform" : platform});
-                     } else if (code == 2008) {
-                       resolve(@{@"code" : @"failed", @"message" : @"platform not installed", @"platform" : platform});
-                     } else {
-                       resolve(@{
-                         @"code" : @"failed",
-                         @"message" : error.localizedDescription ?: @"unknown error",
-                         @"platform" : platform
-                       });
-                     }
-                     return;
-                   }
-                   resolve(@{@"code" : @"success", @"platform" : platform});
-                 }];
-}
-
-// MARK: - turbo module API
 
 - (void)shareText:(NSString *)platform
              text:(NSString *)text
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject {
-  UMSocialPlatformType umPlatform;
-  if (!mapPlatform(platform, &umPlatform, reject))
+  NSUUID *requestId = [self beginRequestForPlatform:platform resolve:resolve reject:reject];
+  if (requestId == nil) {
     return;
-
-  __weak UmengShare *weakSelf = self;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    UMSocialMessageObject *msg = [UMSocialMessageObject new];
-    msg.text = text;
-    [weakSelf runShareWithPlatform:platform umPlatform:umPlatform message:msg resolve:resolve reject:reject];
-  });
+  }
+  id<UmengShareSDKAdapter> adapter = _adapter;
+  [self invokeRequest:requestId
+             platform:platform
+                block:^(UmengShareSDKCompletion completion) {
+                  [adapter shareText:text platform:platform completion:completion];
+                }];
 }
 
 - (void)shareImage:(NSString *)platform
@@ -79,21 +92,16 @@ static BOOL mapPlatform(NSString *p, UMSocialPlatformType *out, RCTPromiseReject
              thumb:(NSString *)thumb
            resolve:(RCTPromiseResolveBlock)resolve
             reject:(RCTPromiseRejectBlock)reject {
-  UMSocialPlatformType umPlatform;
-  if (!mapPlatform(platform, &umPlatform, reject))
+  NSUUID *requestId = [self beginRequestForPlatform:platform resolve:resolve reject:reject];
+  if (requestId == nil) {
     return;
-
-  __weak UmengShare *weakSelf = self;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    UMShareImageObject *img = [UMShareImageObject new];
-    img.shareImage = image;
-    if (thumb.length > 0) {
-      img.thumbImage = thumb;
-    }
-    UMSocialMessageObject *msg = [UMSocialMessageObject new];
-    msg.shareObject = img;
-    [weakSelf runShareWithPlatform:platform umPlatform:umPlatform message:msg resolve:resolve reject:reject];
-  });
+  }
+  id<UmengShareSDKAdapter> adapter = _adapter;
+  [self invokeRequest:requestId
+             platform:platform
+                block:^(UmengShareSDKCompletion completion) {
+                  [adapter shareImage:image thumb:thumb platform:platform completion:completion];
+                }];
 }
 
 - (void)shareLink:(NSString *)platform
@@ -103,37 +111,122 @@ static BOOL mapPlatform(NSString *p, UMSocialPlatformType *out, RCTPromiseReject
             thumb:(NSString *)thumb
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject {
-  UMSocialPlatformType umPlatform;
-  if (!mapPlatform(platform, &umPlatform, reject))
+  NSUUID *requestId = [self beginRequestForPlatform:platform resolve:resolve reject:reject];
+  if (requestId == nil) {
     return;
-
-  __weak UmengShare *weakSelf = self;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    UMShareWebpageObject *web = [UMShareWebpageObject shareObjectWithTitle:title
-                                                                     descr:description ?: @""
-                                                                 thumImage:thumb];
-    web.webpageUrl = url;
-    UMSocialMessageObject *msg = [UMSocialMessageObject new];
-    msg.shareObject = web;
-    [weakSelf runShareWithPlatform:platform umPlatform:umPlatform message:msg resolve:resolve reject:reject];
-  });
+  }
+  id<UmengShareSDKAdapter> adapter = _adapter;
+  [self invokeRequest:requestId
+             platform:platform
+                block:^(UmengShareSDKCompletion completion) {
+                  [adapter shareLinkWithTitle:title
+                                          url:url
+                                  description:description
+                                        thumb:thumb
+                                     platform:platform
+                                   completion:completion];
+                }];
 }
 
 - (void)isInstalled:(NSString *)platform resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
-  NSString *scheme = nil;
-  if ([platform isEqualToString:@"wechat_session"]) {
-    scheme = @"weixin://";
-  } else if ([platform isEqualToString:@"dingtalk"]) {
-    scheme = @"dingtalk://";
-  } else {
-    reject(@"E_PLATFORM_NOT_SUPPORTED", [NSString stringWithFormat:@"Platform '%@' is not supported", platform], nil);
+  NSUUID *requestId = [self beginRequestForPlatform:platform resolve:resolve reject:reject];
+  if (requestId == nil) {
     return;
   }
+  UmengShareRequestRegistry *registry = _requestRegistry;
+  id<UmengShareSDKAdapter> adapter = _adapter;
+  _mainDispatcher(^{
+    if (![registry isActive:requestId]) {
+      return;
+    }
+    @try {
+      BOOL installed = [adapter isInstalledForPlatform:platform];
+      [registry resolveRequest:requestId result:@(installed)];
+    } @catch (NSException *exception) {
+      [registry rejectRequest:requestId
+                         code:@"E_UNKNOWN"
+                      message:[NSString stringWithFormat:@"Unable to check platform installation: %@",
+                                                         exception.reason ?: exception.name]
+                        error:nil];
+    }
+  });
+}
 
-  NSString *finalScheme = scheme;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    NSURL *url = [NSURL URLWithString:finalScheme];
-    resolve(@([[UIApplication sharedApplication] canOpenURL:url]));
+- (NSUUID *)beginRequestForPlatform:(NSString *)platform
+                            resolve:(RCTPromiseResolveBlock)resolve
+                             reject:(RCTPromiseRejectBlock)reject {
+  UmengShareRequestRegistry *registry = _requestRegistry;
+  NSUUID *requestId = [registry registerResolve:resolve reject:reject];
+  if (requestId == nil) {
+    return nil;
+  }
+  if (!_isInitialized()) {
+    [registry rejectRequest:requestId
+                       code:UmengShareNotInitializedCode
+                    message:UmengShareNotInitializedMessage
+                      error:nil];
+    return nil;
+  }
+
+  if (![platform isEqualToString:@"wechat_session"] && ![platform isEqualToString:@"dingtalk"]) {
+    [registry rejectRequest:requestId
+                       code:@"E_PLATFORM_NOT_SUPPORTED"
+                    message:[NSString stringWithFormat:@"Platform '%@' is not supported", platform]
+                      error:nil];
+    return nil;
+  }
+  return requestId;
+}
+
+- (void)invokeRequest:(NSUUID *)requestId
+             platform:(NSString *)platform
+                block:(void (^)(UmengShareSDKCompletion completion))adapterInvocation {
+  UmengShareRequestRegistry *registry = _requestRegistry;
+  _mainDispatcher(^{
+    if (![registry isActive:requestId]) {
+      return;
+    }
+
+    __weak UmengShareRequestRegistry *weakRegistry = registry;
+    UmengShareSDKCompletion completion = ^(NSError *error) {
+      UmengShareRequestRegistry *strongRegistry = weakRegistry;
+      if (strongRegistry == nil) {
+        return;
+      }
+      if (error == nil) {
+        BOOL didSettle = [strongRegistry resolveRequest:requestId
+                                                 result:@{@"code" : @"success", @"platform" : platform}];
+        UmengLogIfShareCallbackWasIgnored(didSettle);
+        return;
+      }
+      BOOL didSettle;
+      if (error.code == 2009) {
+        didSettle = [strongRegistry rejectRequest:requestId
+                                             code:@"E_USER_CANCEL"
+                                          message:error.localizedDescription ?: @"Share cancelled"
+                                            error:error];
+      } else if (error.code == 2008) {
+        didSettle = [strongRegistry rejectRequest:requestId
+                                             code:@"E_PLATFORM_NOT_INSTALLED"
+                                          message:error.localizedDescription ?: @"Platform is not installed"
+                                            error:error];
+      } else {
+        didSettle = [strongRegistry rejectRequest:requestId
+                                             code:@"E_SHARE_FAILED"
+                                          message:error.localizedDescription ?: @"Share failed"
+                                            error:error];
+      }
+      UmengLogIfShareCallbackWasIgnored(didSettle);
+    };
+
+    @try {
+      adapterInvocation(completion);
+    } @catch (NSException *exception) {
+      [registry rejectRequest:requestId
+                         code:@"E_SHARE_FAILED"
+                      message:[NSString stringWithFormat:@"Share failed: %@", exception.reason ?: exception.name]
+                        error:nil];
+    }
   });
 }
 

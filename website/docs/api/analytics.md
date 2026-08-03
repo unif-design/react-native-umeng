@@ -81,7 +81,7 @@ function signOut(): void;
 | `signIn` | ✅ | ✅ |
 | `signOut` | ✅ | ✅ |
 
-> 埋点需要先完成 [`Common.init()`](./common#init) 才会真正上报；未 `init` 时调用不会崩溃，但数据不上报。
+> 埋点需要先完成 [`Common.init()`](./common#init) 才会真正上报。Android 与 iOS native 在未 init 时都同步 no-op，不缓存或补发这次事件；三个入口均在 vendor adapter 前执行门禁。
 
 ## 相关 {#related}
 

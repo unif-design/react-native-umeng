@@ -1,12 +1,16 @@
 ---
 sidebar_position: 3
 title: 隐私合规（PIPL）
-description: "@unif/react-native-umeng 的 PIPL 两段式初始化：Common.preInit(config) 启动时调、只存配置注册平台不上报；用户同意《隐私协议》后再调无参 Common.init() 开始采集。含 init 带参 / init 早于同意两个易错点。"
+description: "@unif/react-native-umeng 的 PIPL 两段式初始化：Common.preInit(config) 启动时只在 JS 校验并保存配置、零 native 调用；用户同意《隐私协议》后再调无参 Common.init()，才执行各平台对应的 vendor bootstrap。"
 ---
 
 # 隐私合规（PIPL）
 
-本库的初始化采用 **preInit → init** 两段式,满足 PIPL(个人信息保护法)对「用户同意前不采集」的要求。本页讲清两段的职责、时序与两个易错点。
+本库的公共契约采用 **preInit → init** 两段式,用于满足 PIPL(个人信息保护法)对「用户同意前不采集」的要求。本页讲清两段职责与时序。
+
+:::info 验证边界
+Android 与 iOS 都已实现本页边界。iOS simulator/XCTest/native contract 已验证授权前模块构造、Share/Analytics gate 与 bootstrap 顺序；Android 源码/static contract 已核对，仓库已有 JVM 状态机测试，但本轮未执行 Gradle/JVM，留待 Android SDK CI。真实 vendor 网络、平台回跳与数据后台仍需对应真机/测试账号验证。
+:::
 
 ---
 
@@ -14,8 +18,8 @@ description: "@unif/react-native-umeng 的 PIPL 两段式初始化：Common.preI
 
 | 阶段 | 调用时机 | 行为 |
 | --- | --- | --- |
-| `Common.preInit(config)` | App 启动后立刻,**可在用户同意之前** | 存 config + 注册微信 / 钉钉平台,**不上报任何数据** |
-| `Common.init()` | 用户点「同意《隐私协议》」之后 | 正式启动友盟数据采集 |
+| `Common.preInit(config)` | App 启动后立刻,**可在用户同意之前** | 仅 JS 校验、标准化并保存 config 快照,**零 native 调用** |
+| `Common.init()` | 用户点「同意《隐私协议》」之后 | 首次把快照交给 native，并在对应平台执行全部 vendor bootstrap |
 
 ```ts
 import { Common } from '@unif/react-native-umeng';
@@ -33,7 +37,7 @@ await Common.preInit({
 await Common.init();   // ⚠️ 无参 —— config 已给 preInit
 ```
 
-> 两个方法都是 **idempotent**(幂等),重复调只触发一次,可放心多次调用。
+> 相同 config 的 `preInit` 与成功后的 `init` 都可安全重复；并发 `init` 复用同一个 Promise。native 初始化开始后更换 config 会 reject `E_INVALID_OPTIONS`。
 
 :::danger init 必须在用户同意之后
 `Common.init()` **必须在用户明确同意《隐私协议》之后**才能调用。隐私弹窗弹出前、或用户拒绝时,不可调 `init()`。违反将导致合规风险。
@@ -45,7 +49,7 @@ await Common.init();   // ⚠️ 无参 —— config 已给 preInit
 
 ```
 App 启动
-  └─▶ Common.preInit(config)   // 立刻调,注册微信/钉钉,不采集
+  └─▶ Common.preInit(config)   // 立刻调,仅存 JS 快照,零 native 调用
 
 用户进入隐私协议弹窗
   └─▶ 用户点「同意」
@@ -56,10 +60,10 @@ App 启动
 
 ## iOS / Android 差异 {#platform-notes}
 
-- **Android** —— Native 侧在 `preInit` 时调友盟官方 `UMConfigure.preInit(context, appkey, channel)` 并注册微信 / 钉钉平台,行为与 JS `Common.preInit()` 一致 —— **不上报**;`init` 时才调 `UMConfigure.init` 启动采集。
-- **iOS** —— 友盟 iOS SDK **没有 preInit 接口**。`preInit` 只把 config 存进 native 状态并跑平台配置,真正的 `UMConfigure.initWithAppkey` **推迟到 `init()` 才执行**。因此 `Common.init()` 调用之前,桥不会调任何会上报的友盟 iOS API。
+- **Android** —— JS `Common.preInit()` 不触达 native。用户同意后调 `Common.init()`,native 才在一次状态机事务中执行 `UMConfigure.preInit`、平台注册、FileProvider 与 `UMConfigure.init`,成功后动态启用已配置平台的 callback Activity。
+- **iOS** —— JS `Common.preInit()` 同样不触达 native;用户同意后一次 `initialize(config)` 才在主线程按 Universal Link → 微信注册 → 钉钉注册 → `UMConfigure.initWithAppkey` 执行。
 
-无论哪个平台,只要保证 `init()` 在用户同意后调,即满足合规要求。
+两个平台的 Share native 入口在 init 前 reject `E_NOT_INITIALIZED`;Analytics 的三个同步 `void` 入口在 init 前 no-op。回调 handler 在未初始化时不会自动初始化 vendor，React Native Linking 仍应独立收到事件。
 
 ---
 
@@ -82,7 +86,7 @@ await Common.init();
 
 ### 2. 没先 `preInit` 就 `init`(或 init 早于同意) {#init-order}
 
-`init` 前必须先 `preInit`,否则会 reject(`E_INVALID_OPTIONS`):
+`init` 前必须先 `preInit`,否则会 reject(`E_NOT_INITIALIZED`):
 
 ```ts
 // ❌ Incorrect:没 preInit 直接 init —— reject;或在用户同意前就 init —— 违规

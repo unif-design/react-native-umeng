@@ -1,97 +1,64 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# React Native Umeng Example
 
-# Getting Started
+这个 RN 0.85 New Architecture app 用来验证 `@unif/react-native-umeng` 的初始化、分享、统计与原生回调接线。它不是可直接发布的应用；仓库中的 appkey、secret、URL Scheme 与 Associated Domain 都是明显占位符。
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 准备
 
-## Step 1: Start Metro
-
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
-
-To start the Metro dev server, run the following command from the root of your React Native project:
+在仓库根目录安装依赖：
 
 ```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+yarn
 ```
 
-## Step 2: Build and run your app
+把 [`src/App.tsx`](./src/App.tsx) 中的 `UMENG_CONFIG` 替换为测试应用的真实凭据。字段规则：
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+- `appkey` 必填。
+- iOS 启用微信时，`wechatAppId`、`wechatAppSecret`、带 host 的绝对 HTTPS `wechatUniversalLink` 必须同时提供。
+- Android 启用微信时，`wechatAppId` 与 `wechatAppSecret` 必须同时提供；Universal Link 可省略。
+- 钉钉只需 `dingtalkAppId`。
 
-### Android
+同时按文档完成原生占位替换：
+
+- [iOS 原生配置](../website/docs/native-setup/ios.md)：URL Types 使用平台分配原值，配置 Associated Domains/AASA。
+- [Android 原生配置](../website/docs/native-setup/android.md)：在最终宿主包名的 `.wxapi` / `.ddshare` 下提供两个 callback Activity。
+
+## 运行
+
+终端一，从仓库根启动 Metro：
 
 ```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+yarn example start
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+终端二运行平台：
 
 ```sh
-bundle install
+yarn example ios
 ```
 
-Then, and every time you update your native dependencies, run:
+或：
 
 ```sh
+yarn example android
+```
+
+iOS 依赖变化后先安装 Pods：
+
+```sh
+cd example/ios
 bundle exec pod install
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+## 验证流程
 
-```sh
-# Using npm
-npm run ios
+1. App 挂载时自动调用 `Common.preInit(UMENG_CONFIG)`。这一步发生在模拟授权之前，只在 JS 校验、标准化并缓存配置，零 native/vendor 调用。
+2. 界面显示“等待隐私授权”后，点击“我已同意隐私协议并初始化”。只有此按钮会调用无参 `Common.init()`。
+3. 初始化成功后，分享与统计按钮才会启用。
+4. 分享成功显示 `success@platform`；取消、失败或未安装平台显示对应 `UmengError.code`。
 
-# OR using Yarn
-yarn ios
-```
+## 验证边界
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- iOS simulator build、native contract、TurboModule provider 与 XCTest 已有通过证据。
+- 模拟器没有真实微信 / 钉钉，不能证明平台拉起、回包、URL Scheme 或 Universal Link/AASA。
+- Android Gradle SDK build、真实回跳与启用 R8 的 minified release 仍需在具备 Android SDK 的环境和真机执行。
+- `Analytics.*` 是同步 `void`，示例不会 `await`；init 前 native 会 no-op。

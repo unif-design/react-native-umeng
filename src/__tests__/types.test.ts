@@ -6,6 +6,8 @@ import {
   PLATFORM_DEFAULT_SUBTITLES,
   PLATFORM_BRAND_COLORS,
   UmengError,
+  type ShareCode,
+  type ShareResult,
 } from '../types';
 
 describe('types', () => {
@@ -40,5 +42,25 @@ describe('types', () => {
     expect(e.message).toBe('cancelled');
     expect(e.name).toBe('UmengError');
     expect(e).toBeInstanceOf(Error);
+  });
+
+  it('public share results only model successful resolutions', () => {
+    const code: ShareCode = 'success';
+    const result: ShareResult = {
+      code,
+      platform: Platform.WECHAT_SESSION,
+    };
+
+    // @ts-expect-error cancel 通过 UmengError reject，不是公共 ShareCode。
+    const cancelCode: ShareCode = 'cancel';
+    const failedResult: ShareResult = {
+      // @ts-expect-error failed 通过 UmengError reject，不是公共 ShareResult。
+      code: 'failed',
+      platform: Platform.DINGTALK,
+    };
+
+    expect(result.code).toBe('success');
+    expect(cancelCode).toBe('cancel');
+    expect(failedResult.code).toBe('failed');
   });
 });

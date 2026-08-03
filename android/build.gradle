@@ -71,6 +71,7 @@ repositories {
 
 dependencies {
   implementation "com.facebook.react:react-android"
+  implementation "androidx.core:core:1.15.0"
 
   // 友盟基础
   implementation "com.umeng.umsdk:common:9.9.1"
@@ -84,4 +85,6 @@ dependencies {
   // 微信 / 钉钉官方 SDK（友盟不传递依赖，必须显式）
   implementation "com.tencent.mm.opensdk:wechat-sdk-android:6.8.34"
   implementation "com.alibaba.android:ddsharesdk:1.2.2"
+
+  testImplementation "junit:junit:4.13.2"
 }

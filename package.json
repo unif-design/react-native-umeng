@@ -23,13 +23,13 @@
     "android",
     "ios",
     "*.podspec",
-    "react-native.config.js",
     "!ios/build",
     "!android/build",
     "!android/gradle",
     "!android/gradlew",
     "!android/gradlew.bat",
     "!android/local.properties",
+    "!android/src/test",
     "!**/__tests__",
     "!**/__fixtures__",
     "!**/__mocks__",
@@ -42,6 +42,12 @@
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "test": "jest",
+    "verify:dependencies": "node scripts/verify-dependencies.mjs",
+    "verify:agent-instructions": "node scripts/verify-agent-instructions.mjs",
+    "verify:release-validation": "node --test scripts/__tests__/*.test.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:consumers": "node scripts/verify-consumers.mjs",
+    "verify:publish-contract": "node scripts/verify-publish-contract.mjs",
     "release": "release-it --only-version"
   },
   "keywords": [
@@ -66,50 +72,71 @@
     "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
-    "@commitlint/config-conventional": "^20.5.0",
+    "@babel/core": "^7.25.2",
+    "@commitlint/config-conventional": "^21.2.0",
     "@eslint/compat": "^2.0.3",
     "@eslint/eslintrc": "^3.3.5",
-    "@eslint/js": "^10.0.1",
+    "@eslint/js": "^9.39.5",
     "@react-native/babel-preset": "0.85.3",
-    "@react-native/eslint-config": "0.85.0",
+    "@react-native/eslint-config": "0.85.3",
     "@react-native/jest-preset": "0.85.3",
-    "@release-it/conventional-changelog": "^10.0.6",
-    "@testing-library/react-native": "^12.7.2",
+    "@react-native/metro-config": "0.85.3",
+    "@release-it/conventional-changelog": "^12.0.0",
+    "@sbaiahmed1/react-native-blur": "^4.6.2",
+    "@testing-library/react-native": "^13.3.3",
     "@types/jest": "^29.5.14",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19",
-    "@unif/react-native-design": "0.5.1",
-    "commitlint": "^20.5.0",
+    "@unif/react-native-design": "^0.20.0",
+    "commitlint": "^21.2.1",
     "del-cli": "^7.0.0",
-    "eslint": "^9.39.4",
+    "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-ft-flow": "^3.0.11",
     "eslint-plugin-prettier": "^5.5.5",
+    "hermes-eslint": "^0.37.0",
     "jest": "^29.7.0",
     "lefthook": "^2.1.4",
     "prettier": "^3.8.1",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-builder-bob": "^0.41.0",
-    "react-native-gesture-handler": "^2.21.0",
+    "react-native-gesture-handler": "^3.1.0",
+    "react-native-reanimated": "^4.5.3",
+    "react-native-reanimated-carousel": "^5.0.0",
+    "react-native-safe-area-context": "^5.7.0",
     "react-native-svg": "^15.15.5",
+    "react-native-worklets": "^0.11.3",
     "react-test-renderer": "19.2.3",
-    "release-it": "^19.2.4",
+    "release-it": "^21.0.1",
+    "remark-mdx": "^3.1.1",
+    "remark-parse": "^11.0.0",
+    "semver": "^7.7.2",
     "turbo": "^2.8.21",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "unified": "^11.0.5"
   },
   "peerDependencies": {
-    "@unif/react-native-design": ">=0.1.2",
+    "@sbaiahmed1/react-native-blur": ">=4",
+    "@unif/react-native-design": "^0.20.0",
     "react": "*",
     "react-native": "*",
-    "react-native-gesture-handler": ">=2.21.0",
-    "react-native-svg": ">=15"
+    "react-native-gesture-handler": ">=3.0.0 <4.0.0",
+    "react-native-reanimated": "^4.5.3",
+    "react-native-reanimated-carousel": ">=5.0.0 <6.0.0",
+    "react-native-safe-area-context": ">=5",
+    "react-native-svg": ">=15",
+    "react-native-worklets": "^0.11.3"
   },
   "workspaces": [
     "example",
     "website"
   ],
   "packageManager": "yarn@4.11.0",
+  "resolutions": {
+    "copy-webpack-plugin/serialize-javascript": "7.0.7",
+    "css-minimizer-webpack-plugin/serialize-javascript": "7.0.7"
+  },
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",
@@ -134,6 +161,13 @@
     "jsSrcsDir": "src",
     "android": {
       "javaPackageName": "com.unif.reactnativeumeng"
+    },
+    "ios": {
+      "modulesProvider": {
+        "UmengCommon": "UmengCommon",
+        "UmengAnalytics": "UmengAnalytics",
+        "UmengShare": "UmengShare"
+      }
     }
   },
   "jest": {
@@ -145,7 +179,8 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "<rootDir>/website/",
-      "<rootDir>/example/"
+      "<rootDir>/example/",
+      "<rootDir>/src/__tests__/fixtures/"
     ],
     "passWithNoTests": true
   },

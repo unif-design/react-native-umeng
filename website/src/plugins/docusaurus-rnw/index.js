@@ -23,10 +23,10 @@ module.exports = function reactNativeWebPlugin(context) {
 
   // 几个 ESM-shipped 且带 Flow / TS 注解的 RN 库要让 babel-loader 处理（默认 node_modules 不走 babel）。
   // 用 regex 匹配，因为这些包同时在 root 和 website/ 两份 node_modules 下都可能存在。
-  // @gorhom/bottom-sheet 与 @sbaiahmed1/react-native-blur 的 lib/module 里有 .ts NativeComponent
+  // @sbaiahmed1/react-native-blur 的 lib/module 里有 .ts NativeComponent
   // 规范文件,带 import type 等 TS 语法,默认 webpack parser 解析不了,需要 babel + preset-typescript。
   const rnPackagesPattern =
-    /node_modules\/(react-native-(?:reanimated|worklets|gesture-handler|keyboard-controller|svg|safe-area-context|web)|@gorhom\/bottom-sheet|@sbaiahmed1\/react-native-blur)\//;
+    /node_modules\/(react-native-(?:reanimated|worklets|gesture-handler|keyboard-controller|svg|safe-area-context|web)|@sbaiahmed1\/react-native-blur)\//;
 
   return {
     name: 'docusaurus-rnw',
@@ -35,9 +35,6 @@ module.exports = function reactNativeWebPlugin(context) {
       return {
         plugins: [
           // RN 与各 RN 库都假设 __DEV__ 是个全局布尔；浏览器里得自己注入。
-          // 注意:RN 库还会用全局变量 `global`(读写 / typeof 都有),那个由
-          // `website/src/clientModules/rn-globals.ts` 在 client boot 时 `window.global = window`
-          // 真实注入(比 DefinePlugin 字面替换更稳;赋值/typeof 场景都能 handle)。
           new webpack.DefinePlugin({
             __DEV__: JSON.stringify(!isServer ? process.env.NODE_ENV !== 'production' : false),
             'process.env.JEST_WORKER_ID': JSON.stringify(undefined),
@@ -133,8 +130,8 @@ module.exports = function reactNativeWebPlugin(context) {
               include: [srcDir],
               type: 'asset/resource',
             },
-            // node_modules 里 ESM-shipped RN 库(@gorhom/bottom-sheet、@sbaiahmed1/react-native-blur、
-            // @react-navigation/native 等)用相对 import 不带后缀。webpack 5 严格 ESM 拒收;
+            // node_modules 里 ESM-shipped RN 库(@sbaiahmed1/react-native-blur、@react-navigation/native
+            // 等)用相对 import 不带后缀。webpack 5 严格 ESM 拒收;
             // 放宽 fullySpecified 让 webpack 按 resolve.extensions 兜底找文件。
             // 仅作用于 node_modules,不影响 srcDir(我们的代码走 babel-loader 上面那条规则)。
             {

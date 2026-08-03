@@ -9,10 +9,15 @@
 //
 // 替换后 Common/Share/Analytics 方法都是 jest.fn;share* 默认 resolve 成功。
 // 按需覆盖单次返回:
-//   (Share.shareText as jest.Mock).mockResolvedValueOnce(shareCancel(Platform.WECHAT_SESSION));
+//   (Share.shareText as jest.Mock).mockRejectedValueOnce(shareCancel(Platform.WECHAT_SESSION));
 
 import type { FC } from 'react';
-import { Platform, SUPPORTED_PLATFORMS, PLATFORM_DISPLAY_NAMES } from './types';
+import {
+  Platform,
+  SUPPORTED_PLATFORMS,
+  PLATFORM_DISPLAY_NAMES,
+  UmengError,
+} from './types';
 import type {
   ShareResult,
   PlatformInfo,
@@ -32,14 +37,12 @@ export const shareSuccess = (platform: Platform): ShareResult => ({
   code: 'success',
   platform,
 });
-export const shareCancel = (platform: Platform): ShareResult => ({
-  code: 'cancel',
-  platform,
-});
+export const shareCancel = (platform: Platform): UmengError =>
+  new UmengError('E_USER_CANCEL', 'User cancelled', { platform });
 export const shareFailed = (
   platform: Platform,
   message = 'mock failed'
-): ShareResult => ({ code: 'failed', platform, message });
+): UmengError => new UmengError('E_SHARE_FAILED', message, { platform });
 
 // ---- Common ----
 export const Common = {
@@ -48,10 +51,9 @@ export const Common = {
   ),
   init: jest.fn((): Promise<void> => Promise.resolve()),
   isInited: jest.fn((): Promise<boolean> => Promise.resolve(false)),
-  __resetForTests: jest.fn((): void => {}),
 };
 
-// ---- Share ----（默认 happy-path,消费者用 helper / mockResolvedValueOnce 覆盖）
+// ---- Share ----（默认 happy-path,消费者用 helper / mockRejectedValueOnce 覆盖）
 export const Share = {
   shareText: jest.fn(
     (o: ShareTextOptions): Promise<ShareResult> =>

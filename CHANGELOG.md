@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes / migration
+
+- 分享公共结果收敛为 success-only：`Share.openSheet` 与 `shareText` / `shareImage` / `shareLink` 仅成功时 resolve；取消、失败和未安装平台改为 reject `UmengError`。
+- peer 基线对齐 design 0.20：RNGH `>=3 <4`、Reanimated `^4.5.3`、Worklets `^0.11.3` 及其余 UI peers 均须由消费者安装；Community CLI 的 Babel 配置改用 `react-native-worklets/plugin` 且必须放最后。
+- `Common.preInit(config)` 改为纯 JS 配置校验、标准化与快照缓存，授权前零 native/vendor 调用；用户同意后调用无参 `Common.init()`，Share 在 init 前 reject `E_NOT_INITIALIZED`，Analytics 在 init 前同步 no-op。
+- Android 回调 Activity 改为宿主包名下默认 disabled、授权初始化成功后按平台动态启用；library 合并窄 FileProvider。撤回同意没有公共 revoke API，须受控禁用回调组件并完整重启进程。
+- iOS 重建单次 `initialize(config)` bootstrap、Share/Analytics init gate、TurboModule provider 和 AppDelegate/SceneDelegate 双路回调转发。simulator build/XCTest/native contract 已通过；真实微信/钉钉 URL Scheme 与 Universal Link/AASA 回跳仍须真机验证。
+
 ## [0.3.3](https://github.com/unif-design/react-native-umeng/compare/v0.3.2...v0.3.3) (2026-07-16)
 
 ## [0.3.2](https://github.com/unif-design/react-native-umeng/compare/v0.3.1...v0.3.2) (2026-06-08)

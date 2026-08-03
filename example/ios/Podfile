@@ -23,6 +23,14 @@ target 'ReactNativeUmengExample' do
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # XCTest bundle 用 app 做 test host / bundle loader,符号从 app 二进制解析
+  # (app 带 -ObjC,pod 里的 ObjC 类全在里面)。所以只继承 search paths:
+  # `:complete` 会把整张 pod 图第二次链进 test bundle,Swift pod 的
+  # swiftCompatibility shim 在非 Swift bundle 里找不到,直接 link 失败。
+  target 'ReactNativeUmengExampleTests' do
+    inherit! :search_paths
+  end
+
   post_install do |installer|
     react_native_post_install(
       installer,

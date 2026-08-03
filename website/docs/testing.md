@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: 测试（Mock）
-description: "在 Jest 中用官方 mock 替换 @unif/react-native-umeng：require('@unif/react-native-umeng/mock')，share* 默认 resolve success，Analytics.* 是同步 jest.fn，ShareSheetHost 渲染 null，类型 / 常量 / UmengError 保留真实实现；用 shareCancel / shareFailed + mockResolvedValueOnce 覆盖单次。"
+description: "在 Jest 中用官方 mock 替换 @unif/react-native-umeng：share* 默认 resolve success；shareCancel / shareFailed 返回 UmengError，须配 mockRejectedValueOnce；Analytics.* 是同步 jest.fn，ShareSheetHost 渲染 null。"
 ---
 
 # 测试（Mock）
@@ -46,19 +46,19 @@ jest.mock('@unif/react-native-umeng', () =>
 
 ## 覆盖单次返回:取消 / 失败 {#override}
 
-默认是成功。要测「取消」「失败」,mock 额外导出 `shareSuccess` / `shareCancel` / `shareFailed` 助手,配合 `mockResolvedValueOnce` 覆盖一次:
+默认是成功。`shareSuccess` 返回 `ShareResult`,配 `mockResolvedValueOnce`;`shareCancel` / `shareFailed` 返回 `UmengError`,配 `mockRejectedValueOnce`:
 
 ```ts
 import { Share, Platform } from '@unif/react-native-umeng';
 import { shareCancel, shareFailed } from '@unif/react-native-umeng/mock';
 
 // 模拟用户取消
-(Share.shareText as jest.Mock).mockResolvedValueOnce(
+(Share.shareText as jest.Mock).mockRejectedValueOnce(
   shareCancel(Platform.WECHAT_SESSION)
 );
 
 // 模拟分享失败
-(Share.openSheet as jest.Mock).mockResolvedValueOnce(
+(Share.openSheet as jest.Mock).mockRejectedValueOnce(
   shareFailed(Platform.DINGTALK, '网络错误')
 );
 ```
@@ -67,12 +67,12 @@ import { shareCancel, shareFailed } from '@unif/react-native-umeng/mock';
 
 ```ts
 shareSuccess(platform: Platform): ShareResult
-shareCancel(platform: Platform): ShareResult
-shareFailed(platform: Platform, message?: string): ShareResult
+shareCancel(platform: Platform): UmengError
+shareFailed(platform: Platform, message?: string): UmengError
 ```
 
-:::note mock 的 `shareCancel` / `shareFailed` 返回的是 ShareResult,不是抛错
-mock 助手返回普通 `ShareResult`(`code: 'cancel' | 'failed'`),用于让 `jest.fn` **resolve** 这个值。这与生产实现不同 —— 生产里 `Share.openSheet` 取消 / 失败是 **reject `UmengError`**(见[分享指南](./guides/sharing#reject-on-cancel))。若要测试 reject 分支,改用 `mockRejectedValueOnce(new UmengError('E_USER_CANCEL', '...'))`。
+:::note helper 只创建错误对象
+`shareCancel(...)` / `shareFailed(...)` 不会自行抛错;把其返回值交给 `mockRejectedValueOnce` 才能复现生产的 reject 语义。
 :::
 
 ---

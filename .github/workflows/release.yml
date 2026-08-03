@@ -1,12 +1,11 @@
 # 目标路径:.github/workflows/release.yml
-# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
+# 基于 unif-design/.github template；本仓经批准扩展发布契约 paths 与 Verify 门禁。
+# 这部分是 repo-specific 例外，回同步模板时必须保留或先上移等价能力。
 #
 # 占位符(sync-repo.sh 替换):
 #   react-native-umeng      → repo 名(如 react-native-design)
-#   下方 on.push.paths 里的 RELEASE_PATHS 标记由脚本按目标仓有无 *.podspec 注入:
-#   native 仓(有 *.podspec)含 src/ios/android/podspec,纯 JS 仓含 src/scripts。
-#   故意不含 package.json/yarn.lock —— 加 website workspace / 升依赖会连带改根 package.json+yarn.lock,
-#   纯 docs/website/依赖变更不该触发发版;要发依赖升级版走手动 workflow_dispatch。
+#   下方 on.push.paths 由本仓发布契约扩展：package.json、源码、Podspec 及会影响
+#   exports/codegen/files/Bob 产物的根构建配置必须触发；website/example-only 不触发。
 name: Release
 
 # 手动触发的发版工作流 —— 在 GitHub Actions 页面点 "Run workflow" 选版本类型即可。
@@ -32,13 +31,15 @@ on:
   push:
     branches: [main]
     paths:
-      # 只在库源码改动时触发;改 docs / website / 依赖锁 / example / CI 配置不触发发版。
-      # 不含 package.json/yarn.lock —— website workspace 登记 + 依赖升级都改它们,不该触发 release。
-      # release-it 看 conventional commits 决定要不要发 + bump,这层 paths 只是省 CI、不是行为兜底。
+      # release-it 看 conventional commits 决定 bump；paths 负责不漏掉发布契约变化。
+      - 'package.json'
       - 'src/**'
       - 'ios/**'
       - 'android/**'
       - '*.podspec'
+      - 'babel.config.js'
+      - 'tsconfig.build.json'
+      - 'tsconfig.json'
   workflow_dispatch:
     inputs:
       increment:
@@ -65,9 +66,9 @@ permissions: {}
 jobs:
   release:
     permissions:
-      contents: write     # 兜底;实际 push 走下面的 App token(GITHUB_TOKEN 进不了受保护 main)
-      id-token: write     # npm Trusted Publishing(OIDC)+ provenance attestations
-      actions: write      # 发版后 gh workflow run dispatch deploy-docs(workflow_dispatch 是 GITHUB_TOKEN 防递归的例外)
+      contents: write # 兜底;实际 push 走下面的 App token(GITHUB_TOKEN 进不了受保护 main)
+      id-token: write # npm Trusted Publishing(OIDC)+ provenance attestations
+      actions: write # 发版后 gh workflow run dispatch deploy-docs(workflow_dispatch 是 GITHUB_TOKEN 防递归的例外)
     # 兜底防自触发循环:push 上来的若是 release-it 自己推的 "chore: release" commit 直接 skip。
     # 主防线是该 commit 带 [skip ci](push 会被 Actions 跳过);这里是第二道,防 [skip ci] 失效。
     # workflow_dispatch 无 head_commit,前半条件 true 短路 → 手动发版照常,不受影响。
@@ -87,8 +88,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0                                # release-it 要全历史算 conventional-changelog
-          token: ${{ steps.app-token.outputs.token }}   # 用 App token,后续 git push 才能 bypass ruleset
+          fetch-depth: 0 # release-it 要全历史算 conventional-changelog
+          token: ${{ steps.app-token.outputs.token }} # 用 App token,后续 git push 才能 bypass ruleset
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -106,6 +107,20 @@ jobs:
           yarn lint
           yarn typecheck
           yarn test --maxWorkers=2
+          yarn verify:release-validation
+          yarn prepare
+          yarn verify:dependencies
+          yarn verify:package
+          yarn verify:consumers
+
+      - name: Verify publish contract and select release version
+        id: publish-contract
+        env:
+          INCREMENT: ${{ inputs.increment || 'auto' }}
+        run: |
+          yarn verify:publish-contract \
+            --increment "$INCREMENT" \
+            --github-output "$GITHUB_OUTPUT"
 
       # commit author 用 App bot 身份(release commit 显示 verified + 归属 unif-release-bot[bot])。
       # bot 的 numeric user id 用 app-slug 反查,拼成 GitHub no-reply 邮箱。
@@ -131,18 +146,13 @@ jobs:
       # npm CLI 在 GitHub Actions OIDC 环境下(id-token: write + 包配过 Trusted Publisher)
       # 自动用临时 token publish,不需要写 ~/.npmrc。
       # GITHUB_TOKEN 这里换成 App token —— release-it 的 git push(commit + tag)和建 GitHub Release 都走它。
-      # INCREMENT 空 → release-it 根据 conventional-changelog 插件推断 bump;
-      # 非空 → 走 workflow_dispatch 强制指定的 patch / minor / major。
+      # verifier 已按 auto / 手动 increment 校验发布契约并输出精确版本；
+      # release-it 必须消费同一个版本，不能在校验后重新推断或降级。
       - name: Release
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          INCREMENT: ${{ inputs.increment || 'auto' }}
-        run: |
-          if [ "$INCREMENT" != "auto" ]; then
-            npx release-it "$INCREMENT" --ci
-          else
-            npx release-it --ci
-          fi
+          RELEASE_VERSION: ${{ steps.publish-contract.outputs.version }}
+        run: yarn release-it "$RELEASE_VERSION" --ci
 
       # 发版成功后显式触发文档部署 —— dispatch 跑 main。
       # 不靠 deploy-docs 监听 release event:release 事件的 ref 是 tag(v*),而 GitHub Pages

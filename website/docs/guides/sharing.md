@@ -16,7 +16,7 @@ description: "用 @unif/react-native-umeng 分享到微信会话 / 钉钉：命�
 
 ## 命令式面板(推荐) {#open-sheet}
 
-`Share.openSheet(payload, options?)` 拉起 design 的 `BottomSheet` 分享面板,用户选平台后发起分享:
+`Share.openSheet(payload, options?)` 拉起 RN `Modal` + design 组件组成的分享面板,用户选平台后发起分享:
 
 ```tsx
 import { Share, UmengError } from '@unif/react-native-umeng';
@@ -46,9 +46,17 @@ async function onShareTap() {
 | `title` | `string` | `'分享至'` | 面板标题 |
 | `cancelText` | `string` | `'取消'` | 取消按钮文案 |
 | `subtitles` | `Partial<Record<Platform, string>>` | 内置 | 各平台副标题覆盖 |
-| `hideUninstalled` | `boolean` | `false` | `true` 隐藏未安装平台(默认置灰) |
+| `hideUninstalled` | `boolean` | `false` | `true` 完全隐藏未安装平台；`false` 时仍显示且可点击 |
+
+`hideUninstalled=false` 时，点击未安装的平台不会调用 native share；`openSheet`
+返回的 Promise 会 reject `UmengError`，code 为
+`E_PLATFORM_NOT_INSTALLED`。只有 `hideUninstalled=true` 才会完全隐藏未安装平台。
 
 > `<ShareSheetHost />` 必须先在 App 根挂一次,否则 `openSheet` 立即 reject。挂载方式见[快速上手](../getting-started/quick-start#mount-host)。
+
+面板打开前会先加载平台安装状态。该查询失败(包括尚未 `Common.init()`)时,Promise 直接 reject且不显示 Modal;承载本 session 的 owner Host 卸载也会以 `E_UNKNOWN` 结束 Promise,不会永久 pending。
+
+一次只能有一个 active session,重入会以 busy 错误 reject。进入 sharing 后,遮罩/返回键 dismiss 不再抢先取消；底层平台回调决定最终结算。controller 的递增 `sessionId` 会忽略旧 session 的迟到/重复 callback,防止它们误结算下一次分享。
 
 ---
 
@@ -136,7 +144,8 @@ try {
 | `E_PLATFORM_NOT_INSTALLED` | 目标微信 / 钉钉未安装 |
 | `E_PLATFORM_NOT_SUPPORTED` | 传了不在白名单的平台 |
 | `E_INVALID_OPTIONS` | 必填字段缺失(如 `shareLink` 缺 `title` / `url`) |
-| `E_UNKNOWN` | 未挂 Host、面板重入、或无法归类的错误 |
+| `E_NOT_INITIALIZED` | 尚未完成 `Common.init()` 就查询平台或发起分享 |
+| `E_UNKNOWN` | 未挂 Host、面板重入、owner Host 卸载、平台查询失败或无法归类的错误 |
 
 完整错误码与排障见[常见问题](../troubleshooting)。
 
@@ -154,14 +163,14 @@ try {
 ```
 
 ```tsx
-// ✅ Correct:App 根挂一次(且一次只能开一个面板,重入会 reject)
+// ✅ Correct:App 根挂一次并位于 ThemeProvider 内
 <ThemeProvider>
   <App />
   <ShareSheetHost />
 </ThemeProvider>
 ```
 
-挂载位置与 `GestureHandlerRootView` / `ThemeProvider` 嵌套关系见[快速上手](../getting-started/quick-start#mount-host)。
+Host 会在 RN `Modal` 内容内自行包 `GestureHandlerRootView`;App 外层 root 不能替代这个独立 native root 内的边界,也不是 Host 生效的硬前提。完整挂载关系见[快速上手](../getting-started/quick-start#mount-host)。
 
 ### 2. 把 umeng 的 `Platform` 当成 React Native 的 {#platform-confusion}
 

@@ -1,9 +1,37 @@
 #import "UmengAnalytics.h"
-#import <UMCommon/MobClick.h>
 
-@implementation UmengAnalytics
+#import "UmengBootstrap.h"
+#import "UmengSDKAdapters.h"
+
+@interface UmengAnalytics ()
+
+- (instancetype)initWithIsInitialized:(BOOL (^)(void))isInitialized adapter:(id<UmengAnalyticsSDKAdapter>)adapter;
+
+@end
+
+@implementation UmengAnalytics {
+  BOOL (^_isInitialized)(void);
+  id<UmengAnalyticsSDKAdapter> _adapter;
+}
 
 RCT_EXPORT_MODULE(UmengAnalytics)
+
+- (instancetype)init {
+  return [self
+      initWithIsInitialized:^BOOL {
+        return [[UmengBootstrap shared] isInited];
+      }
+                    adapter:[UmengProductionSDKAdapter new]];
+}
+
+- (instancetype)initWithIsInitialized:(BOOL (^)(void))isInitialized adapter:(id<UmengAnalyticsSDKAdapter>)adapter {
+  self = [super init];
+  if (self) {
+    _isInitialized = [isInitialized copy];
+    _adapter = adapter;
+  }
+  return self;
+}
 
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params {
@@ -11,30 +39,34 @@ RCT_EXPORT_MODULE(UmengAnalytics)
 }
 
 - (void)onEvent:(NSString *)eventId params:(NSDictionary *)params {
+  if (!_isInitialized()) {
+    return;
+  }
+
+  NSDictionary<NSString *, NSString *> *attributes = nil;
   if (params.count > 0) {
-    // MobClick event:attributes: 要求 value 是 NSString。JS 层 src/analytics.ts
-    // 已经 stringify(num→string),这里再兜底一次保证类型。
     NSMutableDictionary<NSString *, NSString *> *attrs = [NSMutableDictionary new];
     for (NSString *k in params) {
       id v = params[k];
       attrs[k] = [v isKindOfClass:[NSString class]] ? (NSString *)v : [NSString stringWithFormat:@"%@", v];
     }
-    [MobClick event:eventId attributes:attrs];
-  } else {
-    [MobClick event:eventId];
+    attributes = [attrs copy];
   }
+  [_adapter trackEvent:eventId attributes:attributes];
 }
 
 - (void)signIn:(NSString *)userId provider:(NSString *)provider {
-  if (provider.length > 0) {
-    [MobClick profileSignInWithPUID:userId provider:provider];
-  } else {
-    [MobClick profileSignInWithPUID:userId];
+  if (!_isInitialized()) {
+    return;
   }
+  [_adapter signInWithUserId:userId provider:provider.length > 0 ? provider : nil];
 }
 
 - (void)signOut {
-  [MobClick profileSignOff];
+  if (!_isInitialized()) {
+    return;
+  }
+  [_adapter signOut];
 }
 
 @end

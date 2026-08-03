@@ -72,7 +72,7 @@ Analytics.signOut();
 ---
 
 :::warning 采集需先 `Common.init()`
-`Analytics.*` 的数据上报依赖 `Common.init()` 已调过。若 `init` 未执行(用户未同意《隐私协议》),调用**不会崩溃**,但数据不会上报。两段式合规见[隐私合规(PIPL)](./privacy-pipl)。
+`Analytics.*` 的数据上报依赖 `Common.init()` 已完成。Android 与 iOS 在 init 前都会在 native adapter/vendor 之前同步 no-op，不缓存或补发该事件。两段式合规见[隐私合规(PIPL)](./privacy-pipl)。
 :::
 
 ## 相关
