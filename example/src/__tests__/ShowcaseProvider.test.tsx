@@ -100,37 +100,41 @@ async function enterInitialized(): Promise<void> {
   });
 }
 
+function restoreOfficialMockDefaults(): void {
+  currentContext = undefined;
+  mockedCommon.preInit.mockResolvedValue(undefined);
+  mockedCommon.init.mockResolvedValue(undefined);
+  mockedCommon.isInited.mockResolvedValue(true);
+  mockedShare.listPlatforms.mockImplementation(() =>
+    Promise.resolve(defaultPlatformItems.map((item) => ({ ...item })))
+  );
+  mockedShare.isInstalled.mockResolvedValue(true);
+  mockedShare.shareText.mockImplementation((options) =>
+    Promise.resolve(shareSuccess(options.platform))
+  );
+  mockedShare.shareImage.mockImplementation((options) =>
+    Promise.resolve(shareSuccess(options.platform))
+  );
+  mockedShare.shareLink.mockImplementation((options) =>
+    Promise.resolve(shareSuccess(options.platform))
+  );
+  mockedShare.openSheet.mockResolvedValue(
+    shareSuccess(Platform.WECHAT_SESSION)
+  );
+  mockedAnalytics.onEvent.mockImplementation(() => undefined);
+  mockedAnalytics.signIn.mockImplementation(() => undefined);
+  mockedAnalytics.signOut.mockImplementation(() => undefined);
+}
+
+beforeEach(() => {
+  restoreOfficialMockDefaults();
+});
+
+afterEach(() => {
+  jest.resetAllMocks();
+});
+
 describe('ShowcaseProvider setup flow', () => {
-  beforeEach(() => {
-    currentContext = undefined;
-    mockedCommon.preInit.mockResolvedValue(undefined);
-    mockedCommon.init.mockResolvedValue(undefined);
-    mockedCommon.isInited.mockResolvedValue(true);
-    mockedShare.listPlatforms.mockImplementation(() =>
-      Promise.resolve(defaultPlatformItems.map((item) => ({ ...item })))
-    );
-    mockedShare.isInstalled.mockResolvedValue(true);
-    mockedShare.shareText.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareImage.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareLink.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.openSheet.mockResolvedValue(
-      shareSuccess(Platform.WECHAT_SESSION)
-    );
-    mockedAnalytics.onEvent.mockImplementation(() => undefined);
-    mockedAnalytics.signIn.mockImplementation(() => undefined);
-    mockedAnalytics.signOut.mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   it('keeps invalid credentials editable and never touches Common', async () => {
     render(<Probe />, { wrapper: Harness });
 
@@ -315,36 +319,6 @@ describe('ShowcaseProvider setup flow', () => {
 });
 
 describe('ShowcaseProvider platform operations', () => {
-  beforeEach(() => {
-    currentContext = undefined;
-    mockedCommon.preInit.mockResolvedValue(undefined);
-    mockedCommon.init.mockResolvedValue(undefined);
-    mockedCommon.isInited.mockResolvedValue(true);
-    mockedShare.listPlatforms.mockImplementation(() =>
-      Promise.resolve(defaultPlatformItems.map((item) => ({ ...item })))
-    );
-    mockedShare.isInstalled.mockResolvedValue(true);
-    mockedShare.shareText.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareImage.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareLink.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.openSheet.mockResolvedValue(
-      shareSuccess(Platform.WECHAT_SESSION)
-    );
-    mockedAnalytics.onEvent.mockImplementation(() => undefined);
-    mockedAnalytics.signIn.mockImplementation(() => undefined);
-    mockedAnalytics.signOut.mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   it('returns from every Share action before initialization without touching Share', async () => {
     render(<Probe />, { wrapper: Harness });
     const sheetDraft: SheetDraft = {
@@ -447,36 +421,6 @@ describe('ShowcaseProvider platform operations', () => {
 });
 
 describe('ShowcaseProvider share operations', () => {
-  beforeEach(() => {
-    currentContext = undefined;
-    mockedCommon.preInit.mockResolvedValue(undefined);
-    mockedCommon.init.mockResolvedValue(undefined);
-    mockedCommon.isInited.mockResolvedValue(true);
-    mockedShare.listPlatforms.mockImplementation(() =>
-      Promise.resolve(defaultPlatformItems.map((item) => ({ ...item })))
-    );
-    mockedShare.isInstalled.mockResolvedValue(true);
-    mockedShare.shareText.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareImage.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareLink.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.openSheet.mockResolvedValue(
-      shareSuccess(Platform.WECHAT_SESSION)
-    );
-    mockedAnalytics.onEvent.mockImplementation(() => undefined);
-    mockedAnalytics.signIn.mockImplementation(() => undefined);
-    mockedAnalytics.signOut.mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   it.each([
     [
       'text',
@@ -759,36 +703,6 @@ describe('ShowcaseProvider share operations', () => {
 });
 
 describe('ShowcaseProvider Analytics operations', () => {
-  beforeEach(() => {
-    currentContext = undefined;
-    mockedCommon.preInit.mockResolvedValue(undefined);
-    mockedCommon.init.mockResolvedValue(undefined);
-    mockedCommon.isInited.mockResolvedValue(true);
-    mockedShare.listPlatforms.mockImplementation(() =>
-      Promise.resolve(defaultPlatformItems.map((item) => ({ ...item })))
-    );
-    mockedShare.isInstalled.mockResolvedValue(true);
-    mockedShare.shareText.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareImage.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.shareLink.mockImplementation((options) =>
-      Promise.resolve(shareSuccess(options.platform))
-    );
-    mockedShare.openSheet.mockResolvedValue(
-      shareSuccess(Platform.WECHAT_SESSION)
-    );
-    mockedAnalytics.onEvent.mockImplementation(() => undefined);
-    mockedAnalytics.signIn.mockImplementation(() => undefined);
-    mockedAnalytics.signOut.mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   it('calls synchronous Analytics methods and records only JS invocation facts', async () => {
     render(<Probe />, { wrapper: Harness });
     await enterInitialized();
