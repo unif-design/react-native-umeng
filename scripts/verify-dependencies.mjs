@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import {
+  assertReactNativeLockfileResolution,
   assertSharedDependencyRanges,
 } from './dependency-contract.mjs';
 
@@ -198,12 +199,14 @@ function assertPackagePeerCompatibility({ semver, packageName, manifest, install
   }
 }
 
-const [root, example, website] = await Promise.all([
+const [root, example, website, lockfile] = await Promise.all([
   readJson('package.json'),
   readJson('example/package.json'),
   readJson('website/package.json'),
+  readFile(resolve(rootDir, 'yarn.lock'), 'utf8'),
 ]);
 
+assertReactNativeLockfileResolution(lockfile);
 assertSharedDependencyRanges(root, 'peerDependencies', 'package.json');
 assertSharedDependencyRanges(root, 'devDependencies', 'package.json');
 assertSharedDependencyRanges(example, 'dependencies', 'example/package.json');

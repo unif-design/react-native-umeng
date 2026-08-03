@@ -6,6 +6,31 @@ export const sharedDependencyRanges = {
   'react-native-worklets': '^0.11.3',
 };
 
+export const requiredReactNativeLockResolution =
+  'react-native@npm:0.86.2';
+
+export function assertReactNativeLockfileResolution(lockfile) {
+  const packageDescriptors = [
+    ...lockfile.matchAll(/^"(react-native@npm:[^"]+)":$/gm),
+  ].map(([, descriptor]) => descriptor);
+  const packageResolutions = [
+    ...lockfile.matchAll(
+      /^  resolution: "(react-native@npm:[^"]+)"$/gm
+    ),
+  ].map(([, resolution]) => resolution);
+
+  assert.deepEqual(
+    packageDescriptors,
+    [requiredReactNativeLockResolution],
+    `yarn.lock must contain exactly one ${requiredReactNativeLockResolution} package key; found ${packageDescriptors.join(', ') || 'none'}`
+  );
+  assert.deepEqual(
+    packageResolutions,
+    [requiredReactNativeLockResolution],
+    `yarn.lock must contain exactly one ${requiredReactNativeLockResolution} package resolution; found ${packageResolutions.join(', ') || 'none'}`
+  );
+}
+
 export function assertSharedDependencyRanges(
   manifest,
   field,

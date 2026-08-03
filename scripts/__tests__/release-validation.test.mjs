@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import * as publishContract from '../verify-publish-contract.mjs';
 import {
@@ -210,6 +218,84 @@ test('workspace development graph matches the React Native 0.86.2 fixture', asyn
     website.devDependencies['@react-native/metro-config'],
     '0.86.2'
   );
+});
+
+test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', async () => {
+  const fixtureRoot = await mkdtemp(
+    join(tmpdir(), 'umeng-rn-lock-verification-')
+  );
+  const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+  const verifierPath = fileURLToPath(
+    new URL('../verify-dependencies.mjs', import.meta.url)
+  );
+
+  try {
+    await Promise.all([
+      mkdir(join(fixtureRoot, 'example'), { recursive: true }),
+      mkdir(join(fixtureRoot, 'website'), { recursive: true }),
+    ]);
+    await Promise.all(
+      ['package.json', 'example/package.json', 'website/package.json'].map(
+        async (relativePath) =>
+          writeFile(
+            join(fixtureRoot, relativePath),
+            await readFile(join(repositoryRoot, relativePath), 'utf8')
+          )
+      )
+    );
+    await symlink(
+      join(repositoryRoot, 'node_modules'),
+      join(fixtureRoot, 'node_modules'),
+      'dir'
+    );
+
+    const lockfile = await readFile(
+      join(repositoryRoot, 'yarn.lock'),
+      'utf8'
+    );
+    const reactNativePackageStanza =
+      /^"react-native@npm:0\.86\.2":\n  version: 0\.86\.2\n  resolution: "react-native@npm:0\.86\.2"/m;
+    assert.match(lockfile, reactNativePackageStanza);
+
+    const lockfileWithUnrelated085 = `${lockfile}
+"unrelated-tool@npm:0.85.3":
+  version: 0.85.3
+  resolution: "unrelated-tool@npm:0.85.3"
+`;
+    const runVerifier = () =>
+      spawnSync(process.execPath, [verifierPath], {
+        cwd: fixtureRoot,
+        encoding: 'utf8',
+      });
+
+    await writeFile(
+      join(fixtureRoot, 'yarn.lock'),
+      lockfileWithUnrelated085
+    );
+    const unrelatedResult = runVerifier();
+    assert.equal(
+      unrelatedResult.status,
+      0,
+      `unrelated 0.85.3 packages must remain valid:\n${unrelatedResult.stderr}`
+    );
+
+    const mutatedLockfile = lockfileWithUnrelated085.replace(
+      reactNativePackageStanza,
+      '"react-native@npm:0.85.3":\n  version: 0.85.3\n  resolution: "react-native@npm:0.85.3"'
+    );
+    await writeFile(join(fixtureRoot, 'yarn.lock'), mutatedLockfile);
+
+    const reactNativeResult = runVerifier();
+    const verifierOutput = `${reactNativeResult.stderr}\n${reactNativeResult.stdout}`;
+    assert.notEqual(
+      reactNativeResult.status,
+      0,
+      'the dependency verifier must reject an RN 0.85 package resolution'
+    );
+    assert.match(verifierOutput, /react-native@npm:0\.85\.3/);
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
 });
 
 test('versioned example Pod lock remains visible to Git maintenance', () => {
