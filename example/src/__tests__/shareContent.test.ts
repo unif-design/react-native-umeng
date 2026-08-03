@@ -177,6 +177,22 @@ describe('share content builders', () => {
           url: 'not-a-url',
         }),
     ],
+    [
+      'direct image thumb over HTTP',
+      () =>
+        buildDirectOptions('image', Platform.DINGTALK, {
+          ...validDraft,
+          thumb: 'http://host/thumb.png',
+        }),
+    ],
+    [
+      'direct link thumb without a host',
+      () =>
+        buildDirectOptions('link', Platform.WECHAT_SESSION, {
+          ...validDraft,
+          thumb: 'https:///',
+        }),
+    ],
   ])('rejects non-HTTPS or malformed URLs for %s', (_label, build) => {
     expect(build).toThrow(
       expect.objectContaining({

@@ -37,11 +37,18 @@ export function appendLog(
   { now, level, scope, message }: AppendLogInput
 ): readonly DemoLog[] {
   const idPrefix = `log-${now.getTime()}-`;
-  const sameInstantCount = logs.filter((log) =>
-    log.id.startsWith(idPrefix)
-  ).length;
+  const largestSameInstantSequence = logs.reduce((largest, log) => {
+    if (!log.id.startsWith(idPrefix)) {
+      return largest;
+    }
+
+    const sequence = Number(log.id.slice(idPrefix.length));
+    return Number.isSafeInteger(sequence)
+      ? Math.max(largest, sequence)
+      : largest;
+  }, 0);
   const next: DemoLog = {
-    id: `${idPrefix}${sameInstantCount + 1}`,
+    id: `${idPrefix}${largestSameInstantSequence + 1}`,
     timestamp: formatLocalTimestamp(now),
     level,
     scope,

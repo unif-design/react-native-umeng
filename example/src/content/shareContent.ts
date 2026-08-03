@@ -56,29 +56,37 @@ function optionalHttpsUrl(value: string): string | undefined {
   return value.trim().length > 0 ? requireHttpsUrl(value) : undefined;
 }
 
+type ImageContent = Omit<ShareImageOptions, 'platform'>;
+
+function buildImageContent(draft: ShareContentDraft): ImageContent {
+  const thumb = optionalHttpsUrl(draft.thumb);
+  return {
+    image: requireHttpsUrl(draft.image),
+    ...(thumb === undefined ? {} : { thumb }),
+  };
+}
+
+type LinkContent = Omit<ShareLinkOptions, 'platform'>;
+
+function buildLinkContent(draft: ShareContentDraft): LinkContent {
+  const description = optionalText(draft.description);
+  const thumb = optionalHttpsUrl(draft.thumb);
+  return {
+    title: draft.title,
+    url: requireHttpsUrl(draft.url),
+    ...(description === undefined ? {} : { description }),
+    ...(thumb === undefined ? {} : { thumb }),
+  };
+}
+
 export function buildSheetPayload(draft: SheetPayloadDraft): ShareSheetPayload {
   switch (draft.type) {
     case 'text':
       return { type: 'text', text: draft.text };
-    case 'image': {
-      const thumb = optionalHttpsUrl(draft.thumb);
-      return {
-        type: 'image',
-        image: requireHttpsUrl(draft.image),
-        ...(thumb === undefined ? {} : { thumb }),
-      };
-    }
-    case 'link': {
-      const description = optionalText(draft.description);
-      const thumb = optionalHttpsUrl(draft.thumb);
-      return {
-        type: 'link',
-        title: draft.title,
-        url: requireHttpsUrl(draft.url),
-        ...(description === undefined ? {} : { description }),
-        ...(thumb === undefined ? {} : { thumb }),
-      };
-    }
+    case 'image':
+      return { type: 'image', ...buildImageContent(draft) };
+    case 'link':
+      return { type: 'link', ...buildLinkContent(draft) };
   }
 }
 
@@ -110,24 +118,9 @@ export function buildDirectOptions(
   switch (type) {
     case 'text':
       return { platform, text: draft.text };
-    case 'image': {
-      const thumb = optionalHttpsUrl(draft.thumb);
-      return {
-        platform,
-        image: requireHttpsUrl(draft.image),
-        ...(thumb === undefined ? {} : { thumb }),
-      };
-    }
-    case 'link': {
-      const description = optionalText(draft.description);
-      const thumb = optionalHttpsUrl(draft.thumb);
-      return {
-        platform,
-        title: draft.title,
-        url: requireHttpsUrl(draft.url),
-        ...(description === undefined ? {} : { description }),
-        ...(thumb === undefined ? {} : { thumb }),
-      };
-    }
+    case 'image':
+      return { platform, ...buildImageContent(draft) };
+    case 'link':
+      return { platform, ...buildLinkContent(draft) };
   }
 }
