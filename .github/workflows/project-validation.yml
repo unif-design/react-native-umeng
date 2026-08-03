@@ -47,6 +47,7 @@ jobs:
             javascript:
               - 'src/**'
               - 'scripts/**'
+              - 'example/**'
               - 'package.json'
               - 'yarn.lock'
               - '.yarnrc.yml'

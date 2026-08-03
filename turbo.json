@@ -25,6 +25,8 @@
         "$TURBO_ROOT$/src/**",
         "$TURBO_ROOT$/example/package.json",
         "$TURBO_ROOT$/example/babel.config.js",
+        "$TURBO_ROOT$/example/jest.config.js",
+        "$TURBO_ROOT$/example/jest.setup.ts",
         "$TURBO_ROOT$/example/metro.config.js",
         "$TURBO_ROOT$/example/react-native.config.js",
         "$TURBO_ROOT$/example/index.js",

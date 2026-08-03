@@ -4,6 +4,7 @@ import {
   extname,
   isAbsolute,
   join,
+  matchesGlob,
   relative,
   resolve,
   sep,
@@ -40,6 +41,11 @@ const requiredInstructionRoutes = [
   'website/docs/**',
   'package.json',
   'scripts/verify-agent-instructions.mjs',
+];
+const requiredJavaScriptValidationInputs = [
+  'example/src/App.tsx',
+  'example/jest.config.js',
+  'example/jest.setup.ts',
 ];
 const markdownExtensions = new Set(['.md', '.mdx']);
 const markdownParser = unified().use(remarkParse);
@@ -452,6 +458,19 @@ export async function verifyAgentInstructions(
     if (!instructionRoutes.has(requiredRoute)) {
       failures.push(
         `project-validation instructions filter must include ${requiredRoute}`
+      );
+    }
+  }
+  const javascriptRoutes = pathFilterRoutes(
+    validationWorkflow,
+    'javascript'
+  );
+  for (const requiredInput of requiredJavaScriptValidationInputs) {
+    if (
+      !javascriptRoutes.some((route) => matchesGlob(requiredInput, route))
+    ) {
+      failures.push(
+        `project-validation javascript filter must cover ${requiredInput}`
       );
     }
   }

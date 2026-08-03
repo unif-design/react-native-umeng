@@ -594,6 +594,32 @@ test('website validation runs the cross-workspace dependency verifier', async ()
   assert.match(websiteJob ?? '', /yarn verify:dependencies/);
 });
 
+test('Turbo example test dry-run expands Jest harness inputs', () => {
+  const result = spawnSync('yarn', ['turbo', 'run', 'test', '--dry=json'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    env: { ...process.env, FORCE_COLOR: '0' },
+  });
+  assert.equal(
+    result.status,
+    0,
+    [result.stderr, result.stdout].filter(Boolean).join('\n')
+  );
+
+  const dryRun = JSON.parse(result.stdout);
+  const exampleTask = dryRun.tasks.find(
+    ({ taskId }) => taskId === '@unif/react-native-umeng-example#test'
+  );
+  assert.ok(exampleTask, 'Turbo dry-run must discover the example test task');
+
+  for (const harnessPath of ['jest.config.js', 'jest.setup.ts']) {
+    assert.ok(
+      Object.hasOwn(exampleTask.inputs, harnessPath),
+      `Turbo example test inputs must expand ${harnessPath}`
+    );
+  }
+});
+
 test('release workflow keeps the exact published-contract trigger paths', async () => {
   const workflow = await readFile(
     new URL('../../.github/workflows/release.yml', import.meta.url),
