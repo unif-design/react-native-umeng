@@ -1,7 +1,11 @@
 import { createContext, useContext } from 'react';
+import type { Platform } from '@unif/react-native-umeng';
 
+import type { ShareContentDraft } from '../content/shareContent';
+import type { OperationFeedback } from '../errors/classifyUmengError';
 import type { NavigationState } from '../navigation';
 import type { DemoLog } from './logs';
+import type { DirectShareType, PlatformState, SheetDraft } from './operations';
 import type { CredentialDraft, SetupState, SetupAction } from './setupState';
 
 export type SetupActions = {
@@ -15,15 +19,34 @@ export type SetupActions = {
   readonly retryInitialize: () => Promise<void>;
 };
 
+export type ShowcaseActions = SetupActions & {
+  readonly refreshPlatforms: () => Promise<void>;
+  readonly checkPlatform: (platform: Platform) => Promise<void>;
+  readonly openShareSheet: (draft: SheetDraft) => Promise<void>;
+  readonly shareDirect: (
+    type: DirectShareType,
+    platform: Platform,
+    draft: ShareContentDraft
+  ) => Promise<void>;
+  readonly trackEvent: (
+    eventId: string,
+    params?: Record<string, string | number>
+  ) => void;
+  readonly signIn: (userId: string, provider?: string) => void;
+  readonly signOut: () => void;
+};
+
 export type ShowcaseState = {
   readonly setup: SetupState;
   readonly navigation: NavigationState;
+  readonly platforms: PlatformState;
+  readonly feedback: OperationFeedback | null;
   readonly logs: readonly DemoLog[];
 };
 
 export type ShowcaseContextValue = {
   readonly state: ShowcaseState;
-  readonly actions: SetupActions;
+  readonly actions: ShowcaseActions;
 };
 
 export const ShowcaseContext = createContext<ShowcaseContextValue | null>(null);
