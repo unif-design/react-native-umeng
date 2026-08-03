@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1](https://github.com/unif-design/react-native-umeng/compare/v0.4.0...v0.4.1) (2026-08-03)
+
+### Bug Fixes
+
+* **docs:** sync Android CI evidence ([#76](https://github.com/unif-design/react-native-umeng/issues/76)) ([ab23e69](https://github.com/unif-design/react-native-umeng/commit/ab23e6995636b4e24525ed67bd76438e2452a709))
+
 # [0.4.0](https://github.com/unif-design/react-native-umeng/compare/v0.3.3...v0.4.0) (2026-08-03)
 
 ### Bug Fixes
