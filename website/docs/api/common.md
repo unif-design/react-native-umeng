@@ -9,7 +9,7 @@ description: "Common API 全量参考：preInit(config) / init() / isInited() �
 两段式初始化的公共契约:用户同意《隐私协议》前 JS 只保存 config 快照,授权后 `init()` 才允许进入 native。Android 与 iOS 都通过单一 private native `initialize(config)` 执行授权后的 vendor bootstrap。
 
 :::info 验证边界
-iOS bootstrap 已通过 simulator build、XCTest 与 native contract。Android 源码/static native contract 已核对，仓库已有状态机 JVM tests，但本轮未执行 Gradle/JVM，留待 Android SDK CI。真实第三方平台行为仍须真机验证。
+iOS bootstrap 已通过 simulator build、XCTest 与 native contract。Android CI 已通过 native contract、状态机 JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实第三方平台行为与 Android 真机 R8 运行仍须真机验证。
 :::
 
 ## 引用 {#import}
@@ -131,7 +131,7 @@ await Common.init();
 | `init()` | ✅ UL + 平台注册 + `UMConfigure.initWithAppkey` | ✅ vendor preInit + 平台注册 + FileProvider + init |
 | `isInited()` | ✅ | ✅ |
 
-> `wechatUniversalLink` 仅 iOS 生效（Android 无此概念）。表格描述当前实现；iOS simulator/XCTest 已有通过证据，Android Gradle/JVM 本轮未执行，真实平台回跳也尚未真机验收。
+> `wechatUniversalLink` 仅 iOS 生效（Android 无此概念）。表格描述当前实现；iOS simulator/XCTest 与 Android native contract/JVM/minified build 均已有 CI 通过证据，真实平台回跳仍尚未真机验收。
 
 ## 相关 {#related}
 

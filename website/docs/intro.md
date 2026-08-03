@@ -10,7 +10,7 @@ slug: /intro
 友盟（U-Share + U-App 移动统计）的 **React Native 新架构桥**:一次 `await Share.openSheet(payload)` 拉起分享面板,一行 `Analytics.onEvent(id)` 记录埋点,统计采集遵循 PIPL 两段式合规。
 
 :::info 当前验证边界
-iOS 的 `initialize(config)` 状态机、Share/Analytics 门禁、TurboModule 注册与宿主回调接线已通过 native contract、simulator build 和 XCTest。Android 源码/static native contract 已核对，仓库已有 JVM tests，但本轮未执行 Gradle/JVM，留待 Android SDK CI。真实微信 / 钉钉回跳、iOS Universal Link/AASA 与 minified release 仍须在对应环境和真机验证。
+iOS 的 `initialize(config)` 状态机、Share/Analytics 门禁、TurboModule 注册与宿主回调接线已通过 native contract、simulator build 和 XCTest。Android CI 已通过 native contract、JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实微信 / 钉钉回跳、iOS Universal Link / AASA 与 Android 真机 R8 运行仍须在对应环境验证。
 :::
 
 [![npm](https://img.shields.io/npm/v/@unif/react-native-umeng.svg?color=cb3837&logo=npm)](https://www.npmjs.com/package/@unif/react-native-umeng)
@@ -75,7 +75,7 @@ try {
 | 平台 | 支持 |
 | --- | --- |
 | iOS | ✅ native contract / simulator / XCTest；真实平台回跳待真机 |
-| Android | 源码/static contract 已核对；Gradle/JVM 与真实回跳待 CI/SDK |
+| Android | ✅ native contract / JVM tests / minified release build / merged manifest；真实回跳与真机 R8 运行待验收 |
 | Web / 模拟器 | 文档、JS 与 native 单测可运行；不能完成真分享 |
 
 :::info 仅支持新架构

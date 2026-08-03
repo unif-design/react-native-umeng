@@ -241,11 +241,11 @@ try {
 | API | iOS | Android |
 | --- | --- | --- |
 | `openSheet` | ✅ UI/controller；真分享待真机 | ✅ UI/controller；真分享待真机 |
-| `shareText` / `shareImage` / `shareLink` | ✅ init gate / first-settle XCTest | 源码已核对；仓库有 JVM callback tests，待 CI 执行 |
-| `isInstalled` | ✅ init gate XCTest | 源码已核对；仓库有 JVM tests，待 CI 执行 |
+| `shareText` / `shareImage` / `shareLink` | ✅ init gate / first-settle XCTest | ✅ native contract / JVM callback tests |
+| `isInstalled` | ✅ init gate XCTest | ✅ native contract / JVM tests |
 | `listPlatforms` | ✅ | ✅ |
 
-> iOS simulator/XCTest 已验证桥接、门禁和结算语义；Android Gradle/JVM 本轮未执行，留待具备 SDK 的 CI。两类自动化证据都不能替代微信 / 钉钉真实 App 的拉起与回包。
+> iOS simulator/XCTest 与 Android native contract/JVM tests 已验证桥接、门禁和结算语义；两类自动化证据都不能替代微信 / 钉钉真实 App 的拉起与回包。
 
 ## 相关 {#related}
 

@@ -189,6 +189,42 @@ test('release workflow keeps the exact published-contract trigger paths', async 
   );
 });
 
+test('published docs do not retain superseded Android CI evidence', async () => {
+  const documentPaths = [
+    '../../README.md',
+    '../../website/docs/intro.md',
+    '../../website/docs/api/common.md',
+    '../../website/docs/api/share.md',
+    '../../website/docs/getting-started/quick-start.md',
+    '../../website/docs/guides/privacy-pipl.md',
+    '../../website/docs/native-setup/android.md',
+  ];
+  const staleClaims = [
+    '本轮未执行 Android Gradle/JVM',
+    '本轮未执行 Gradle/JVM',
+    '本轮没有执行 Android Gradle/JVM',
+    'Android Gradle/JVM 本轮未执行',
+    '本轮 Gradle/JVM 留待 Android SDK CI',
+    'Gradle/JVM 与真实回跳待 CI/SDK',
+    'Android SDK CI 及 minified release 仍须',
+  ];
+
+  for (const relativePath of documentPaths) {
+    const content = await readFile(
+      new URL(relativePath, import.meta.url),
+      'utf8'
+    );
+
+    for (const staleClaim of staleClaims) {
+      assert.equal(
+        content.includes(staleClaim),
+        false,
+        `${relativePath}: ${staleClaim}`
+      );
+    }
+  }
+});
+
 test('explicit release increment selects an exact version for validation and release', () => {
   assert.deepEqual(
     parsePublishContractArgs([

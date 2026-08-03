@@ -7,7 +7,7 @@
 
 友盟 React Native 新架构桥：**U-Share**（微信会话 / 钉钉分享）+ **U-App** 移动统计。当前只验证 **React Native 0.85 New Architecture**（TurboModule）与 React 19。
 
-> iOS 的初始化状态机、Share/Analytics 门禁、TurboModule 注册、AppDelegate/SceneDelegate 转发和 example 配置已通过 native contract、simulator build 与 XCTest。Android 源码与 static native contract 已核对，仓库已有 bootstrap/callback JVM tests，但本轮未执行 Android Gradle/JVM。真实微信 / 钉钉拉起、回包、URL Scheme、Universal Link/AASA、Android SDK CI 及 minified release 仍须在对应环境验证。
+> iOS 的初始化状态机、Share/Analytics 门禁、TurboModule 注册、AppDelegate/SceneDelegate 转发和 example 配置已通过 native contract、simulator build 与 XCTest。Android CI 已通过 native contract、bootstrap/callback JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实微信 / 钉钉拉起与回包、iOS URL Scheme / Universal Link / AASA、Android 真机 R8 运行仍须在对应环境验证。
 
 ## 特性
 
@@ -114,7 +114,7 @@ iOS 启用微信时 `wechatAppId`、`wechatAppSecret`、绝对 HTTPS `wechatUniv
 | 平台 | 当前证据 | 仍需验证 |
 | --- | --- | --- |
 | iOS | native contract、simulator build、31/31 XCTest、三个 TurboModule provider | 真机微信 / 钉钉分享、URL Scheme、Universal Link/AASA |
-| Android | 源码/static native contract；仓库已有 JVM tests | Android SDK CI 中执行 Gradle/JVM、真实回跳、minified release |
+| Android | native contract、JVM tests、minified release build、merged manifest | 真机微信 / 钉钉回跳、真机 R8 运行 |
 | Web / 模拟器 | JS、文档站和 native 单测可运行 | 不能代替第三方 App 真分享 |
 
 ## License
