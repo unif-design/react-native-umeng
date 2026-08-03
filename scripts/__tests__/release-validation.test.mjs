@@ -9,10 +9,11 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { collectExampleContractFailures } from '../verify-example-contract.mjs';
 import * as publishContract from '../verify-publish-contract.mjs';
 import {
   equalManifestContractField,
@@ -35,6 +36,64 @@ import {
   mockJestSmokeCases,
 } from '../verify-consumers.mjs';
 import { finalizeTempVerification } from '../verification-utils.mjs';
+
+const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+const iosExampleContractPaths = [
+  'example/ios/ReactNativeUmengExample/Info.plist',
+  'example/ios/ReactNativeUmengExample/AppDelegate.swift',
+  'example/ios/ReactNativeUmengExample/SceneDelegateFixture.swift',
+];
+
+async function createIosExampleContractFixture(mutate) {
+  const fixtureRoot = await mkdtemp(
+    join(tmpdir(), 'umeng-ios-contract-fixture-')
+  );
+  let mutationCount = 0;
+
+  try {
+    for (const relativePath of iosExampleContractPaths) {
+      const source = await readFile(join(repositoryRoot, relativePath), 'utf8');
+      const fixtureSource = mutate
+        ? mutate({ relativePath, source })
+        : source;
+      if (fixtureSource !== source) {
+        mutationCount += 1;
+      }
+
+      const fixturePath = join(fixtureRoot, relativePath);
+      await mkdir(dirname(fixturePath), { recursive: true });
+      await writeFile(fixturePath, fixtureSource);
+    }
+
+    if (mutate) {
+      assert.ok(mutationCount > 0, 'fixture mutation must change a source file');
+    }
+    return fixtureRoot;
+  } catch (error) {
+    await rm(fixtureRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function replaceOccurrence(source, search, replacement, occurrence = 1) {
+  let index = -1;
+  let searchFrom = 0;
+  for (let count = 0; count < occurrence; count += 1) {
+    index = source.indexOf(search, searchFrom);
+    assert.notEqual(
+      index,
+      -1,
+      `fixture mutation cannot find occurrence ${occurrence} of ${search}`
+    );
+    searchFrom = index + search.length;
+  }
+
+  return (
+    source.slice(0, index) +
+    replacement +
+    source.slice(index + search.length)
+  );
+}
 
 test('conditional export reorder is a contract mutation', () => {
   const before = {
@@ -331,7 +390,6 @@ test('versioned example Pod lock remains visible to Git maintenance', () => {
 });
 
 test('example native contract verifier is registered and executable', async () => {
-  const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
   const manifest = JSON.parse(
     await readFile(join(repositoryRoot, 'package.json'), 'utf8')
   );
@@ -353,6 +411,175 @@ test('example native contract verifier is registered and executable', async () =
     0,
     [result.stderr, result.stdout].filter(Boolean).join('\n')
   );
+});
+
+test('example iOS contract accepts a valid temporary fixture', async () => {
+  const fixtureRoot = await createIosExampleContractFixture();
+  try {
+    assert.deepEqual(
+      collectExampleContractFailures({
+        platform: 'ios',
+        repositoryRoot: fixtureRoot,
+      }),
+      []
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('example iOS contract rejects a prefixed scheme hidden in a duplicate URL type', async () => {
+  const fixtureRoot = await createIosExampleContractFixture(
+    ({ relativePath, source }) => {
+      if (
+        relativePath !==
+        'example/ios/ReactNativeUmengExample/Info.plist'
+      ) {
+        return source;
+      }
+
+      const dingTalkEntryStart = [
+        '\t\t<dict>',
+        '\t\t\t<key>CFBundleTypeRole</key>',
+        '\t\t\t<string>Editor</string>',
+        '\t\t\t<key>CFBundleURLName</key>',
+        '\t\t\t<string>dingtalk</string>',
+      ].join('\n');
+      const hiddenWechatEntry = [
+        '\t\t<dict>',
+        '\t\t\t<key>CFBundleTypeRole</key>',
+        '\t\t\t<string>Editor</string>',
+        '\t\t\t<key>CFBundleURLName</key>',
+        '\t\t\t<string>wechat</string>',
+        '\t\t\t<key>CFBundleURLSchemes</key>',
+        '\t\t\t<array>',
+        '\t\t\t\t<string>wxYOUR_HIDDEN_WECHAT_ID</string>',
+        '\t\t\t</array>',
+        '\t\t</dict>',
+      ].join('\n');
+
+      return replaceOccurrence(
+        source,
+        dingTalkEntryStart,
+        `${hiddenWechatEntry}\n${dingTalkEntryStart}`
+      );
+    }
+  );
+
+  try {
+    const failures = collectExampleContractFailures({
+      platform: 'ios',
+      repositoryRoot: fixtureRoot,
+    });
+    assert.match(
+      failures.join('\n'),
+      /WeChat URL scheme placeholder must not have a wx prefix/
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('example iOS contract rejects callback argument mutations', async (t) => {
+  const appDelegatePath =
+    'example/ios/ReactNativeUmengExample/AppDelegate.swift';
+  const sceneDelegatePath =
+    'example/ios/ReactNativeUmengExample/SceneDelegateFixture.swift';
+  const mutations = [
+    {
+      name: 'AppDelegate URL uses callback URL and options',
+      path: appDelegatePath,
+      search:
+        'UmengBootstrap.shared().handleOpen(url, options: options)',
+      replacement:
+        'UmengBootstrap.shared().handleOpen(URL(string: "https://invalid.example")!, options: [:])',
+      expectedFailure: /AppDelegate\.swift URL callback.*Umeng arguments/,
+    },
+    {
+      name: 'AppDelegate URL uses callback application',
+      path: appDelegatePath,
+      search: ['      application,', '      open: url,'].join('\n'),
+      replacement: [
+        '      UIApplication.shared,',
+        '      open: url,',
+      ].join('\n'),
+      expectedFailure: /AppDelegate\.swift URL callback.*RCTLinking arguments/,
+    },
+    {
+      name: 'AppDelegate Universal Link uses callback activity',
+      path: appDelegatePath,
+      search:
+        'UmengBootstrap.shared().handleUniversalLink(userActivity)',
+      replacement:
+        'UmengBootstrap.shared().handleUniversalLink(NSUserActivity(activityType: "invalid"))',
+      expectedFailure:
+        /AppDelegate\.swift Universal Link callback.*Umeng arguments/,
+    },
+    {
+      name: 'Scene URL derives options from its current context',
+      path: sceneDelegatePath,
+      search: 'let options = applicationOptions(for: context)',
+      replacement:
+        'let options: [UIApplication.OpenURLOptionsKey: Any] = [:]',
+      expectedFailure: /SceneDelegateFixture\.swift URL callback.*context/,
+    },
+    {
+      name: 'Scene Universal Link forwards its current activity',
+      path: sceneDelegatePath,
+      search: 'continue: userActivity',
+      replacement:
+        'continue: NSUserActivity(activityType: "invalid")',
+      expectedFailure:
+        /SceneDelegateFixture\.swift Universal Link callback.*RCTLinking arguments/,
+    },
+    {
+      name: 'Scene connection URL forwards its current context URL',
+      path: sceneDelegatePath,
+      search: 'open: context.url',
+      replacement:
+        'open: URL(string: "https://invalid.example")!',
+      occurrence: 2,
+      expectedFailure:
+        /SceneDelegateFixture\.swift connection callback.*RCTLinking arguments/,
+    },
+    {
+      name: 'Scene connection Universal Link forwards its current activity',
+      path: sceneDelegatePath,
+      search:
+        'UmengBootstrap.shared().handleUniversalLink(userActivity)',
+      replacement:
+        'UmengBootstrap.shared().handleUniversalLink(NSUserActivity(activityType: "invalid"))',
+      occurrence: 2,
+      expectedFailure:
+        /SceneDelegateFixture\.swift connection callback.*Umeng arguments/,
+    },
+  ];
+
+  for (const mutation of mutations) {
+    await t.test(mutation.name, async () => {
+      const fixtureRoot = await createIosExampleContractFixture(
+        ({ relativePath, source }) =>
+          relativePath === mutation.path
+            ? replaceOccurrence(
+                source,
+                mutation.search,
+                mutation.replacement,
+                mutation.occurrence
+              )
+            : source
+      );
+
+      try {
+        const failures = collectExampleContractFailures({
+          platform: 'ios',
+          repositoryRoot: fixtureRoot,
+        });
+        assert.match(failures.join('\n'), mutation.expectedFailure);
+      } finally {
+        await rm(fixtureRoot, { recursive: true, force: true });
+      }
+    });
+  }
 });
 
 test('website validation runs the cross-workspace dependency verifier', async () => {

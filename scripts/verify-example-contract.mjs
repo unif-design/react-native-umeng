@@ -204,10 +204,38 @@ function matches(source, pattern) {
   return [...source.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))];
 }
 
+function normalizeSwift(source) {
+  return stripComments(source).replace(/\s+/g, ' ').trim();
+}
+
+function swiftInvocations(source, pattern) {
+  const invocations = [];
+  for (const match of matches(source, pattern)) {
+    const openingParenthesis = match.index + match[0].lastIndexOf('(');
+    const closingParenthesis = findClosingDelimiter(
+      source,
+      openingParenthesis,
+      '(',
+      ')'
+    );
+    invocations.push({
+      arguments:
+        closingParenthesis === -1
+          ? undefined
+          : normalizeSwift(
+              source.slice(openingParenthesis + 1, closingParenthesis)
+            ),
+      handler: match[1],
+      index: match.index,
+    });
+  }
+  return invocations;
+}
+
 function expectHandlerPairs({
   body,
   combination,
-  expectedHandlers,
+  expectedPairs,
   failures,
   label,
 }) {
@@ -224,12 +252,13 @@ function expectHandlerPairs({
       ? /\breturn\s+umengHandled\s*\|\|\s*reactHandled\b/
       : /_\s*=\s*umengHandled\s*\|\|\s*reactHandled\b/;
 
-  const assignedUmeng = matches(uncommented, assignedUmengPattern);
+  const assignedUmeng = swiftInvocations(uncommented, assignedUmengPattern);
   const rawUmeng = matches(uncommented, rawUmengPattern);
-  const assignedReact = matches(uncommented, assignedReactPattern);
+  const assignedReact = swiftInvocations(uncommented, assignedReactPattern);
   const rawReact = matches(uncommented, rawReactPattern);
   const combinations = matches(uncommented, combinationPattern);
-  const actualHandlers = assignedUmeng.map((match) => match[1]);
+  const actualHandlers = assignedUmeng.map(({ handler }) => handler);
+  const expectedHandlers = expectedPairs.map(({ handler }) => handler);
 
   if (
     actualHandlers.length !== expectedHandlers.length ||
@@ -258,20 +287,48 @@ function expectHandlerPairs({
   for (let index = 0; index < assignedUmeng.length; index += 1) {
     const segmentEnd = assignedUmeng[index + 1]?.index ?? uncommented.length;
     const umengIndex = assignedUmeng[index].index;
-    const reactIndex = assignedReact.find(
+    const reactInvocation = assignedReact.find(
       (match) => match.index > umengIndex && match.index < segmentEnd
-    )?.index;
+    );
     const combinationIndex = combinations.find(
       (match) => match.index > umengIndex && match.index < segmentEnd
     )?.index;
 
     if (
-      reactIndex === undefined ||
+      reactInvocation === undefined ||
       combinationIndex === undefined ||
-      reactIndex > combinationIndex
+      reactInvocation.index > combinationIndex
     ) {
       failures.push(
         `${label}: handler pair ${index + 1} must evaluate Umeng and RCTLinking separately before ${combination}`
+      );
+      continue;
+    }
+
+    const expectedPair = expectedPairs[index];
+    if (assignedUmeng[index].arguments !== expectedPair.umengArguments) {
+      failures.push(
+        `${label}: handler pair ${index + 1} must bind Umeng arguments to ${expectedPair.umengArguments}`
+      );
+    }
+    if (reactInvocation.arguments !== expectedPair.reactArguments) {
+      failures.push(
+        `${label}: handler pair ${index + 1} must bind RCTLinking arguments to ${expectedPair.reactArguments}`
+      );
+    }
+
+    const segmentStart =
+      index === 0
+        ? 0
+        : combinations[index - 1].index + combinations[index - 1][0].length;
+    const prelude = normalizeSwift(uncommented.slice(segmentStart, umengIndex));
+    if (
+      expectedPair.requiredPrelude?.some(
+        (requiredSource) => !prelude.includes(requiredSource)
+      )
+    ) {
+      failures.push(
+        `${label}: handler pair ${index + 1} must bind its current context before invoking Umeng`
       );
     }
   }
@@ -302,14 +359,17 @@ function verifyIos({ failures, source }) {
     const urlTypes = Array.isArray(plist.CFBundleURLTypes)
       ? plist.CFBundleURLTypes
       : [];
-    const schemesFor = (name) => {
-      const entry = urlTypes.find(
-        (candidate) => candidate?.CFBundleURLName === name
-      );
-      return Array.isArray(entry?.CFBundleURLSchemes)
-        ? entry.CFBundleURLSchemes
+    const entrySchemes = (entry) =>
+      Array.isArray(entry?.CFBundleURLSchemes)
+        ? entry.CFBundleURLSchemes.filter(
+            (scheme) => typeof scheme === 'string'
+          )
         : [];
-    };
+    const allUrlSchemes = urlTypes.flatMap(entrySchemes);
+    const schemesFor = (name) =>
+      urlTypes
+        .filter((entry) => entry?.CFBundleURLName === name)
+        .flatMap(entrySchemes);
     const wechatSchemes = schemesFor('wechat');
     const dingTalkSchemes = schemesFor('dingtalk');
 
@@ -318,7 +378,7 @@ function verifyIos({ failures, source }) {
         `${infoPlistPath}: WeChat URL scheme must use raw placeholder YOUR_WECHAT_APP_ID`
       );
     }
-    if (wechatSchemes.some((scheme) => /^wxYOUR/i.test(scheme))) {
+    if (allUrlSchemes.some((scheme) => /^wxYOUR/i.test(scheme))) {
       failures.push(
         `${infoPlistPath}: WeChat URL scheme placeholder must not have a wx prefix`
       );
@@ -328,7 +388,7 @@ function verifyIos({ failures, source }) {
         `${infoPlistPath}: DingTalk URL scheme must use raw placeholder YOUR_DINGTALK_APP_KEY_OR_CLIENT_ID`
       );
     }
-    if (dingTalkSchemes.some((scheme) => /^ding(?:oa)?YOUR/i.test(scheme))) {
+    if (allUrlSchemes.some((scheme) => /^ding(?:oa)?YOUR/i.test(scheme))) {
       failures.push(
         `${infoPlistPath}: DingTalk URL scheme placeholder must not have a vendor prefix`
       );
@@ -341,14 +401,23 @@ function verifyIos({ failures, source }) {
   const applicationFunctions = swiftFunctions(appDelegate, 'application');
   const appOpen = findSingleFunction(
     applicationFunctions,
-    (signature) => /\bopen\s+url:\s*URL\b/.test(signature),
+    (signature) =>
+      /\b_\s+application:\s*UIApplication\b/.test(signature) &&
+      /\bopen\s+url:\s*URL\b/.test(signature) &&
+      /\boptions:\s*\[UIApplication\.OpenURLOptionsKey:\s*Any\]\s*=\s*\[:\]/.test(
+        signature
+      ),
     `${appDelegatePath} URL callback`,
     failures
   );
   const appUniversalLink = findSingleFunction(
     applicationFunctions,
     (signature) =>
-      /\bcontinue\s+userActivity:\s*NSUserActivity\b/.test(signature),
+      /\b_\s+application:\s*UIApplication\b/.test(signature) &&
+      /\bcontinue\s+userActivity:\s*NSUserActivity\b/.test(signature) &&
+      /\brestorationHandler:\s*@escaping\s*\(\[UIUserActivityRestoring\]\?\)\s*->\s*Void/.test(
+        signature
+      ),
     `${appDelegatePath} Universal Link callback`,
     failures
   );
@@ -357,7 +426,13 @@ function verifyIos({ failures, source }) {
     expectHandlerPairs({
       body: appOpen.body,
       combination: 'return',
-      expectedHandlers: ['handleOpen'],
+      expectedPairs: [
+        {
+          handler: 'handleOpen',
+          reactArguments: 'application, open: url, options: options',
+          umengArguments: 'url, options: options',
+        },
+      ],
       failures,
       label: `${appDelegatePath} URL callback`,
     });
@@ -366,7 +441,14 @@ function verifyIos({ failures, source }) {
     expectHandlerPairs({
       body: appUniversalLink.body,
       combination: 'return',
-      expectedHandlers: ['handleUniversalLink'],
+      expectedPairs: [
+        {
+          handler: 'handleUniversalLink',
+          reactArguments:
+            'application, continue: userActivity, restorationHandler: restorationHandler',
+          umengArguments: 'userActivity',
+        },
+      ],
       failures,
       label: `${appDelegatePath} Universal Link callback`,
     });
@@ -378,20 +460,30 @@ function verifyIos({ failures, source }) {
   const sceneFunctions = swiftFunctions(sceneDelegate, 'scene');
   const sceneOpen = findSingleFunction(
     sceneFunctions,
-    (signature) => /\bopenURLContexts\s+URLContexts:/.test(signature),
+    (signature) =>
+      /\b_\s+scene:\s*UIScene\b/.test(signature) &&
+      /\bopenURLContexts\s+URLContexts:\s*Set<UIOpenURLContext>/.test(
+        signature
+      ),
     `${sceneDelegatePath} URL callback`,
     failures
   );
   const sceneUniversalLink = findSingleFunction(
     sceneFunctions,
     (signature) =>
+      /\b_\s+scene:\s*UIScene\b/.test(signature) &&
       /\bcontinue\s+userActivity:\s*NSUserActivity\b/.test(signature),
     `${sceneDelegatePath} Universal Link callback`,
     failures
   );
   const sceneConnection = findSingleFunction(
     sceneFunctions,
-    (signature) => /\bwillConnectTo\s+session:/.test(signature),
+    (signature) =>
+      /\b_\s+scene:\s*UIScene\b/.test(signature) &&
+      /\bwillConnectTo\s+session:\s*UISceneSession\b/.test(signature) &&
+      /\boptions\s+connectionOptions:\s*UIScene\.ConnectionOptions\b/.test(
+        signature
+      ),
     `${sceneDelegatePath} connection callback`,
     failures
   );
@@ -400,7 +492,18 @@ function verifyIos({ failures, source }) {
     expectHandlerPairs({
       body: sceneOpen.body,
       combination: 'discard',
-      expectedHandlers: ['handleOpen'],
+      expectedPairs: [
+        {
+          handler: 'handleOpen',
+          reactArguments:
+            'UIApplication.shared, open: context.url, options: options',
+          requiredPrelude: [
+            'for context in URLContexts {',
+            'let options = applicationOptions(for: context)',
+          ],
+          umengArguments: 'context.url, options: options',
+        },
+      ],
       failures,
       label: `${sceneDelegatePath} URL callback`,
     });
@@ -409,7 +512,14 @@ function verifyIos({ failures, source }) {
     expectHandlerPairs({
       body: sceneUniversalLink.body,
       combination: 'discard',
-      expectedHandlers: ['handleUniversalLink'],
+      expectedPairs: [
+        {
+          handler: 'handleUniversalLink',
+          reactArguments:
+            'UIApplication.shared, continue: userActivity, restorationHandler: { _ in }',
+          umengArguments: 'userActivity',
+        },
+      ],
       failures,
       label: `${sceneDelegatePath} Universal Link callback`,
     });
@@ -418,7 +528,27 @@ function verifyIos({ failures, source }) {
     expectHandlerPairs({
       body: sceneConnection.body,
       combination: 'discard',
-      expectedHandlers: ['handleOpen', 'handleUniversalLink'],
+      expectedPairs: [
+        {
+          handler: 'handleOpen',
+          reactArguments:
+            'UIApplication.shared, open: context.url, options: options',
+          requiredPrelude: [
+            'for context in connectionOptions.urlContexts {',
+            'let options = applicationOptions(for: context)',
+          ],
+          umengArguments: 'context.url, options: options',
+        },
+        {
+          handler: 'handleUniversalLink',
+          reactArguments:
+            'UIApplication.shared, continue: userActivity, restorationHandler: { _ in }',
+          requiredPrelude: [
+            'for userActivity in connectionOptions.userActivities {',
+          ],
+          umengArguments: 'userActivity',
+        },
+      ],
       failures,
       label: `${sceneDelegatePath} connection callback`,
     });
