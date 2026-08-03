@@ -1,5 +1,17 @@
 # Changelog
 
+# [0.4.0](https://github.com/unif-design/react-native-umeng/compare/v0.3.3...v0.4.0) (2026-08-03)
+
+### Bug Fixes
+
+* complete repository-wide contract remediation ([#66](https://github.com/unif-design/react-native-umeng/issues/66)) ([79f351a](https://github.com/unif-design/react-native-umeng/commit/79f351ae87f969c4fdfe1becc2430d69f4799c7a))
+
+### Features
+
+* **ci:** align release trigger paths ([#73](https://github.com/unif-design/react-native-umeng/issues/73)) ([20bbe14](https://github.com/unif-design/react-native-umeng/commit/20bbe146ac857dc38ce76089129673d25bcd63a1))
+* **ci:** enforce exact release trigger allowlist ([#75](https://github.com/unif-design/react-native-umeng/issues/75)) ([0141039](https://github.com/unif-design/react-native-umeng/commit/014103989557e5aa472ed627124b453ea7dd82d1))
+* **ci:** enforce squash release contract ([#72](https://github.com/unif-design/react-native-umeng/issues/72)) ([80e6252](https://github.com/unif-design/react-native-umeng/commit/80e62524bc195fa75b407ac41d56eb8d406b58f4))
+
 ## Unreleased
 
 ### Breaking changes / migration
