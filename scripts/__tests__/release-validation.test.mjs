@@ -330,6 +330,31 @@ test('versioned example Pod lock remains visible to Git maintenance', () => {
   );
 });
 
+test('example native contract verifier is registered and executable', async () => {
+  const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+  const manifest = JSON.parse(
+    await readFile(join(repositoryRoot, 'package.json'), 'utf8')
+  );
+  assert.equal(
+    manifest.scripts['verify:example-contract'],
+    'node scripts/verify-example-contract.mjs'
+  );
+
+  const verifierPath = join(
+    repositoryRoot,
+    'scripts/verify-example-contract.mjs'
+  );
+  const result = spawnSync(process.execPath, [verifierPath], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(
+    result.status,
+    0,
+    [result.stderr, result.stdout].filter(Boolean).join('\n')
+  );
+});
+
 test('website validation runs the cross-workspace dependency verifier', async () => {
   const workflow = await readFile(
     new URL('../../.github/workflows/project-validation.yml', import.meta.url),

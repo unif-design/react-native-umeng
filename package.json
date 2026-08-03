@@ -44,6 +44,7 @@
     "test": "jest",
     "verify:dependencies": "node scripts/verify-dependencies.mjs",
     "verify:agent-instructions": "node scripts/verify-agent-instructions.mjs",
+    "verify:example-contract": "node scripts/verify-example-contract.mjs",
     "verify:release-validation": "node --test scripts/__tests__/*.test.mjs",
     "verify:package": "node scripts/verify-package.mjs",
     "verify:consumers": "node scripts/verify-consumers.mjs",

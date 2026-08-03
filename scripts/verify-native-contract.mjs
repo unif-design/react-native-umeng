@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
+import { collectExampleContractFailures } from './verify-example-contract.mjs';
+
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const requestedPlatform = process.argv[2];
 
@@ -167,6 +169,13 @@ if (platform === 'all' || platform === 'ios') {
     'ReactNativeUmeng.podspec: source tag must use v#{s.version}'
   );
 }
+
+failures.push(
+  ...collectExampleContractFailures({
+    platform,
+    repositoryRoot,
+  })
+);
 
 if (failures.length > 0) {
   console.error(`Native contract verification failed (${failures.length}):`);

@@ -23,13 +23,5 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
-      <activity
-        android:name=".wxapi.WXEntryActivity"
-        android:enabled="false"
-        android:exported="true" />
-      <activity
-        android:name=".ddshare.DDShareActivity"
-        android:enabled="false"
-        android:exported="true" />
     </application>
 </manifest>
