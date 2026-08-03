@@ -161,7 +161,7 @@ test('website validation runs the cross-workspace dependency verifier', async ()
   assert.match(websiteJob ?? '', /yarn verify:dependencies/);
 });
 
-test('release workflow runs when release-validation scripts change', async () => {
+test('release workflow keeps the exact published-contract trigger paths', async () => {
   const workflow = await readFile(
     new URL('../../.github/workflows/release.yml', import.meta.url),
     'utf8'
@@ -171,7 +171,22 @@ test('release workflow runs when release-validation scripts change', async () =>
     ?.split(/^  workflow_dispatch:/m)[0];
 
   assert.match(pushTrigger ?? '', /branches:\s*\[main\]/);
-  assert.match(pushTrigger ?? '', /^\s{6}- 'scripts\/\*\*'$/m);
+  assert.deepEqual(
+    [...(pushTrigger ?? '').matchAll(/^\s{6}- '([^']+)'$/gm)].map(
+      ([, relativePath]) => relativePath
+    ),
+    [
+      'package.json',
+      'src/**',
+      'scripts/**',
+      'ios/**',
+      'android/**',
+      '*.podspec',
+      'babel.config.js',
+      'tsconfig.build.json',
+      'tsconfig.json',
+    ]
+  );
 });
 
 test('explicit release increment selects an exact version for validation and release', () => {
