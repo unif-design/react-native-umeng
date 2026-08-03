@@ -49,6 +49,14 @@ const requiredExampleReactNativeDevelopmentGraph = {
   '@react-native/typescript-config': '0.86.2',
   'react-test-renderer': '19.2.3',
 };
+const requiredWebsiteReactNativeRuntimeGraph = {
+  'react': '19.2.3',
+  'react-dom': '19.2.3',
+  'react-native': '0.86.2',
+};
+const requiredWebsiteReactNativeDevelopmentGraph = {
+  '@react-native/metro-config': '0.86.2',
+};
 const lockedPackageContracts = {
   '@unif/react-native-design': {
     version: '0.20.0',
@@ -231,6 +239,18 @@ assertExactDependencies(
   'devDependencies',
   'example/package.json',
   requiredExampleReactNativeDevelopmentGraph,
+);
+assertExactDependencies(
+  website,
+  'dependencies',
+  'website/package.json',
+  requiredWebsiteReactNativeRuntimeGraph,
+);
+assertExactDependencies(
+  website,
+  'devDependencies',
+  'website/package.json',
+  requiredWebsiteReactNativeDevelopmentGraph,
 );
 assert.equal(root.peerDependencies['react-native-gesture-handler'], '>=3.0.0 <4.0.0');
 assert.deepEqual(

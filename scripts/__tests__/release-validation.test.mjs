@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -149,9 +150,13 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
   );
 });
 
-test('root and example development graph matches the React Native 0.86.2 fixture', async () => {
-  const [root, example] = await Promise.all(
-    ['../../package.json', '../../example/package.json'].map(
+test('workspace development graph matches the React Native 0.86.2 fixture', async () => {
+  const [root, example, website] = await Promise.all(
+    [
+      '../../package.json',
+      '../../example/package.json',
+      '../../website/package.json',
+    ].map(
       async (relativePath) =>
         JSON.parse(
           await readFile(new URL(relativePath, import.meta.url), 'utf8')
@@ -197,6 +202,46 @@ test('root and example development graph matches the React Native 0.86.2 fixture
     '20.1.0'
   );
   assert.equal(example.devDependencies['react-test-renderer'], '19.2.3');
+
+  assert.equal(website.dependencies.react, '19.2.3');
+  assert.equal(website.dependencies['react-dom'], '19.2.3');
+  assert.equal(website.dependencies['react-native'], '0.86.2');
+  assert.equal(
+    website.devDependencies['@react-native/metro-config'],
+    '0.86.2'
+  );
+});
+
+test('versioned example Pod lock remains visible to Git maintenance', () => {
+  const repositoryRoot = new URL('../../', import.meta.url);
+  const lockfile = 'example/ios/Podfile.lock';
+  const tracked = spawnSync(
+    'git',
+    ['ls-files', '--error-unmatch', lockfile],
+    {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    }
+  );
+  assert.equal(
+    tracked.status,
+    0,
+    `Pod lock must remain tracked: ${tracked.stderr}`
+  );
+
+  const ignored = spawnSync(
+    'git',
+    ['check-ignore', '--no-index', '-v', lockfile],
+    {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    }
+  );
+  assert.equal(
+    ignored.status,
+    1,
+    `tracked Pod lock must not match an ignore rule: ${ignored.stdout}`
+  );
 });
 
 test('website validation runs the cross-workspace dependency verifier', async () => {
