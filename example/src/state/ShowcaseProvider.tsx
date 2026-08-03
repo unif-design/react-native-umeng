@@ -57,6 +57,9 @@ import {
   ShowcaseContext,
   type ShowcaseActions,
   type ShowcaseContextValue,
+  type ShowcaseOperationResult,
+  type ShowcaseResults,
+  type ShowcaseResultScope,
 } from './useShowcase';
 
 const SETUP_ROUTE: RouteId = 'setup';
@@ -64,10 +67,29 @@ const HOME_ROUTE: RouteId = 'home';
 
 type AnalyticsMethod = 'onEvent' | 'signIn' | 'signOut';
 
+type PlatformQueryResult =
+  | {
+      readonly kind: 'success';
+      readonly installed: boolean;
+    }
+  | {
+      readonly kind: 'feedback';
+      readonly feedback: OperationFeedback;
+    }
+  | {
+      readonly kind: 'stale';
+    };
+
 const ANALYTICS_SUCCESS_LOG: Readonly<Record<AnalyticsMethod, string>> = {
   onEvent: 'JS 已调用 Analytics.onEvent',
   signIn: 'JS 已调用 Analytics.signIn',
   signOut: 'JS 已调用 Analytics.signOut',
+};
+
+const INITIAL_RESULTS: ShowcaseResults = {
+  sheet: null,
+  direct: null,
+  analytics: null,
 };
 
 function runtimeOS(): SetupOS {
@@ -132,10 +154,15 @@ export function ShowcaseProvider({
     createInitialPlatformState
   );
   const platformsRef = useRef(platforms);
+  const platformRequestSequenceRef = useRef(0);
+  const operationRequestSequenceRef = useRef(0);
+  const latestOperationRequestIdsRef = useRef<
+    Partial<Record<ShowcaseResultScope, number>>
+  >({});
   const [navigation, dispatchNavigation] = useReducer(navigationReducer, {
     stack: [SETUP_ROUTE],
   });
-  const [feedback, setFeedback] = useState<OperationFeedback | null>(null);
+  const [results, setResults] = useState<ShowcaseResults>(INITIAL_RESULTS);
   const [logs, setLogs] = useState<readonly DemoLog[]>([]);
 
   const dispatchSetup = useCallback((action: SetupAction): void => {
@@ -147,6 +174,44 @@ export function ShowcaseProvider({
     platformsRef.current = platformReducer(platformsRef.current, action);
     rawDispatchPlatform(action);
   }, []);
+
+  const nextPlatformRequestId = useCallback((): number => {
+    platformRequestSequenceRef.current += 1;
+    return platformRequestSequenceRef.current;
+  }, []);
+
+  const beginOperation = useCallback((scope: ShowcaseResultScope): number => {
+    operationRequestSequenceRef.current += 1;
+    const requestId = operationRequestSequenceRef.current;
+    latestOperationRequestIdsRef.current[scope] = requestId;
+    setResults((current) =>
+      current[scope] === null
+        ? current
+        : {
+            ...current,
+            [scope]: null,
+          }
+    );
+    return requestId;
+  }, []);
+
+  const finishOperation = useCallback(
+    (
+      scope: ShowcaseResultScope,
+      requestId: number,
+      result: ShowcaseOperationResult
+    ): boolean => {
+      if (latestOperationRequestIdsRef.current[scope] !== requestId) {
+        return false;
+      }
+      setResults((current) => ({
+        ...current,
+        [scope]: result,
+      }));
+      return true;
+    },
+    []
+  );
 
   const appendSafeLog = useCallback(
     (scope: DemoLogScope, level: DemoLogLevel, message: string): void => {
@@ -253,34 +318,48 @@ export function ShowcaseProvider({
       return;
     }
 
-    setFeedback(null);
-    dispatchPlatform({ type: 'refreshStarted' });
+    const requestId = nextPlatformRequestId();
+    dispatchPlatform({ type: 'refreshStarted', requestId });
     try {
       const items = await Share.listPlatforms();
-      dispatchPlatform({ type: 'refreshSucceeded', items });
+      if (platformsRef.current.activeRefreshRequestId !== requestId) {
+        return;
+      }
+      dispatchPlatform({ type: 'refreshSucceeded', requestId, items });
       appendSafeLog('platform', 'info', '平台列表已刷新');
     } catch (error) {
+      if (platformsRef.current.activeRefreshRequestId !== requestId) {
+        return;
+      }
       const operationFeedback = classifyUmengError(error, 'platform');
       dispatchPlatform({
         type: 'refreshFailed',
+        requestId,
         feedback: operationFeedback,
       });
-      setFeedback(operationFeedback);
       appendSafeLog(
         'platform',
         feedbackLogLevel(operationFeedback),
         `平台列表刷新失败（${operationFeedback.code}）`
       );
     }
-  }, [appendSafeLog, dispatchPlatform]);
+  }, [appendSafeLog, dispatchPlatform, nextPlatformRequestId]);
 
   const queryPlatform = useCallback(
-    async (platform: Platform): Promise<boolean | null> => {
-      setFeedback(null);
-      dispatchPlatform({ type: 'checkStarted', platform });
+    async (platform: Platform): Promise<PlatformQueryResult> => {
+      const requestId = nextPlatformRequestId();
+      dispatchPlatform({ type: 'checkStarted', requestId, platform });
       try {
         const installed = await Share.isInstalled(platform);
-        dispatchPlatform({ type: 'checkSucceeded', platform, installed });
+        if (platformsRef.current.latestRequestIds[platform] !== requestId) {
+          return { kind: 'stale' };
+        }
+        dispatchPlatform({
+          type: 'checkSucceeded',
+          requestId,
+          platform,
+          installed,
+        });
         appendSafeLog(
           'platform',
           'info',
@@ -288,24 +367,27 @@ export function ShowcaseProvider({
             installed ? 'installed' : 'not-installed'
           }`
         );
-        return installed;
+        return { kind: 'success', installed };
       } catch (error) {
+        if (platformsRef.current.latestRequestIds[platform] !== requestId) {
+          return { kind: 'stale' };
+        }
         const operationFeedback = classifyUmengError(error, 'platform');
         dispatchPlatform({
           type: 'checkFailed',
+          requestId,
           platform,
           feedback: operationFeedback,
         });
-        setFeedback(operationFeedback);
         appendSafeLog(
           'platform',
           feedbackLogLevel(operationFeedback),
           `平台检测失败（${operationFeedback.code}）`
         );
-        return null;
+        return { kind: 'feedback', feedback: operationFeedback };
       }
     },
-    [appendSafeLog, dispatchPlatform]
+    [appendSafeLog, dispatchPlatform, nextPlatformRequestId]
   );
 
   const checkPlatform = useCallback<ShowcaseActions['checkPlatform']>(
@@ -377,15 +459,26 @@ export function ShowcaseProvider({
   }, [executeInitialize]);
 
   const recordShareFeedback = useCallback(
-    (operationFeedback: OperationFeedback): void => {
-      setFeedback(operationFeedback);
+    (
+      scope: Extract<ShowcaseResultScope, 'sheet' | 'direct'>,
+      requestId: number,
+      operationFeedback: OperationFeedback
+    ): void => {
+      if (
+        !finishOperation(scope, requestId, {
+          kind: 'feedback',
+          feedback: operationFeedback,
+        })
+      ) {
+        return;
+      }
       appendSafeLog(
         'share',
         feedbackLogLevel(operationFeedback),
         `分享操作结束（${operationFeedback.code}）`
       );
     },
-    [appendSafeLog]
+    [appendSafeLog, finishOperation]
   );
 
   const shareDirect = useCallback<ShowcaseActions['shareDirect']>(
@@ -394,30 +487,68 @@ export function ShowcaseProvider({
         return;
       }
 
+      const operationRequestId = beginOperation('direct');
       const knownPlatform = platformsRef.current.items.find(
         (item) => item.platform === platform
       );
-      const installed =
-        knownPlatform === undefined || knownPlatform.freshness === 'stale'
-          ? await queryPlatform(platform)
-          : knownPlatform.installed;
-      if (installed === null) {
-        return;
+      let installed: boolean;
+      if (knownPlatform === undefined || knownPlatform.freshness === 'stale') {
+        const queryResult = await queryPlatform(platform);
+        if (
+          latestOperationRequestIdsRef.current.direct !== operationRequestId
+        ) {
+          return;
+        }
+        if (queryResult.kind === 'stale') {
+          return;
+        }
+        if (queryResult.kind === 'feedback') {
+          recordShareFeedback(
+            'direct',
+            operationRequestId,
+            queryResult.feedback
+          );
+          return;
+        }
+        installed = queryResult.installed;
+      } else {
+        installed = knownPlatform.installed;
       }
       if (!installed) {
-        recordShareFeedback(platformNotInstalledFeedback());
+        recordShareFeedback(
+          'direct',
+          operationRequestId,
+          platformNotInstalledFeedback()
+        );
         return;
       }
 
-      setFeedback(null);
       try {
         const result = await invokeDirectShare(type, platform, draft);
-        appendSafeLog('share', 'info', `success@${result.platform}`);
+        const message = `success@${result.platform}`;
+        if (
+          finishOperation('direct', operationRequestId, {
+            kind: 'success',
+            message,
+          })
+        ) {
+          appendSafeLog('share', 'info', message);
+        }
       } catch (error) {
-        recordShareFeedback(classifyUmengError(error, 'share'));
+        recordShareFeedback(
+          'direct',
+          operationRequestId,
+          classifyUmengError(error, 'share')
+        );
       }
     },
-    [appendSafeLog, queryPlatform, recordShareFeedback]
+    [
+      appendSafeLog,
+      beginOperation,
+      finishOperation,
+      queryPlatform,
+      recordShareFeedback,
+    ]
   );
 
   const openShareSheet = useCallback<ShowcaseActions['openShareSheet']>(
@@ -426,18 +557,30 @@ export function ShowcaseProvider({
         return;
       }
 
-      setFeedback(null);
+      const operationRequestId = beginOperation('sheet');
       try {
         const result = await Share.openSheet(
           buildSheetPayload(draft),
           buildShareSheetOptions(draft)
         );
-        appendSafeLog('share', 'info', `success@${result.platform}`);
+        const message = `success@${result.platform}`;
+        if (
+          finishOperation('sheet', operationRequestId, {
+            kind: 'success',
+            message,
+          })
+        ) {
+          appendSafeLog('share', 'info', message);
+        }
       } catch (error) {
-        recordShareFeedback(classifyUmengError(error, 'share'));
+        recordShareFeedback(
+          'sheet',
+          operationRequestId,
+          classifyUmengError(error, 'share')
+        );
       }
     },
-    [appendSafeLog, recordShareFeedback]
+    [appendSafeLog, beginOperation, finishOperation, recordShareFeedback]
   );
 
   const runAnalytics = useCallback(
@@ -446,21 +589,35 @@ export function ShowcaseProvider({
         return;
       }
 
+      const operationRequestId = beginOperation('analytics');
       try {
         invoke();
-        setFeedback(null);
-        appendSafeLog('analytics', 'info', ANALYTICS_SUCCESS_LOG[method]);
+        const message = ANALYTICS_SUCCESS_LOG[method];
+        if (
+          finishOperation('analytics', operationRequestId, {
+            kind: 'success',
+            message,
+          })
+        ) {
+          appendSafeLog('analytics', 'info', message);
+        }
       } catch (error) {
         const operationFeedback = classifyUmengError(error, 'analytics');
-        setFeedback(operationFeedback);
-        appendSafeLog(
-          'analytics',
-          feedbackLogLevel(operationFeedback),
-          `Analytics.${method} 调用失败（${operationFeedback.code}）`
-        );
+        if (
+          finishOperation('analytics', operationRequestId, {
+            kind: 'feedback',
+            feedback: operationFeedback,
+          })
+        ) {
+          appendSafeLog(
+            'analytics',
+            feedbackLogLevel(operationFeedback),
+            `Analytics.${method} 调用失败（${operationFeedback.code}）`
+          );
+        }
       }
     },
-    [appendSafeLog]
+    [appendSafeLog, beginOperation, finishOperation]
   );
 
   const trackEvent = useCallback<ShowcaseActions['trackEvent']>(
@@ -525,10 +682,10 @@ export function ShowcaseProvider({
   );
   const value = useMemo<ShowcaseContextValue>(
     () => ({
-      state: { setup, navigation, platforms, feedback, logs },
+      state: { setup, navigation, platforms, results, logs },
       actions,
     }),
-    [actions, feedback, logs, navigation, platforms, setup]
+    [actions, logs, navigation, platforms, results, setup]
   );
 
   return (

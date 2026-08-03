@@ -64,6 +64,27 @@ const defaultPlatformItems: readonly PlatformInfo[] = [
 
 let currentContext: ShowcaseContextValue | undefined;
 
+type Deferred<T> = {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+  readonly reject: (reason: unknown) => void;
+};
+
+function createDeferred<T>(): Deferred<T> {
+  let resolvePromise!: (value: T) => void;
+  let rejectPromise!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+
+  return {
+    promise,
+    resolve: resolvePromise,
+    reject: rejectPromise,
+  };
+}
+
 function Probe(): null {
   currentContext = useShowcase();
   return null;
@@ -403,7 +424,6 @@ describe('ShowcaseProvider platform operations', () => {
       },
     ]);
     expect(current().state.platforms.feedback?.code).toBe('E_UNKNOWN');
-    expect(current().state.feedback?.code).toBe('E_UNKNOWN');
     expect(JSON.stringify(current().state.logs)).not.toContain(nativeDetail);
   });
 
@@ -463,6 +483,138 @@ describe('ShowcaseProvider platform operations', () => {
     ]);
     expect(current().state.platforms.feedback?.code).toBe('E_UNKNOWN');
     expect(JSON.stringify(current().state.logs)).not.toContain(nativeDetail);
+  });
+
+  it('ignores an older refresh success that completes after a newer refresh', async () => {
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+    const older = createDeferred<PlatformInfo[]>();
+    const newer = createDeferred<PlatformInfo[]>();
+    mockedShare.listPlatforms
+      .mockImplementationOnce(() => older.promise)
+      .mockImplementationOnce(() => newer.promise);
+
+    let olderRequest!: Promise<void>;
+    let newerRequest!: Promise<void>;
+    act(() => {
+      olderRequest = current().actions.refreshPlatforms();
+      newerRequest = current().actions.refreshPlatforms();
+    });
+    await act(async () => {
+      newer.resolve([
+        {
+          platform: Platform.WECHAT_SESSION,
+          installed: false,
+          displayName: '微信',
+        },
+      ]);
+      await newerRequest;
+    });
+    await act(async () => {
+      older.resolve([
+        {
+          platform: Platform.WECHAT_SESSION,
+          installed: true,
+          displayName: '微信',
+        },
+      ]);
+      await olderRequest;
+    });
+
+    expect(current().state.platforms.items).toEqual([
+      {
+        platform: Platform.WECHAT_SESSION,
+        installed: false,
+        displayName: '微信',
+        freshness: 'fresh',
+      },
+    ]);
+  });
+
+  it('ignores an older platform-query error that completes after a newer success', async () => {
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+    const older = createDeferred<boolean>();
+    const newer = createDeferred<boolean>();
+    mockedShare.isInstalled
+      .mockImplementationOnce(() => older.promise)
+      .mockImplementationOnce(() => newer.promise);
+
+    let olderRequest!: Promise<void>;
+    let newerRequest!: Promise<void>;
+    act(() => {
+      olderRequest = current().actions.checkPlatform(Platform.WECHAT_SESSION);
+      newerRequest = current().actions.checkPlatform(Platform.WECHAT_SESSION);
+    });
+    await act(async () => {
+      newer.resolve(false);
+      await newerRequest;
+    });
+    await act(async () => {
+      older.reject(new UmengError('E_UNKNOWN', 'older native detail'));
+      await olderRequest;
+    });
+
+    expect(
+      current().state.platforms.items.find(
+        (item) => item.platform === Platform.WECHAT_SESSION
+      )
+    ).toEqual({
+      platform: Platform.WECHAT_SESSION,
+      installed: false,
+      displayName: '微信',
+      freshness: 'fresh',
+    });
+    expect(current().state.platforms.feedback).toBeNull();
+    expect(JSON.stringify(current().state.logs)).not.toContain(
+      'older native detail'
+    );
+  });
+
+  it('does not let an older implicit direct-share query resume after a newer result', async () => {
+    mockedShare.listPlatforms.mockResolvedValueOnce([]);
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+    const older = createDeferred<boolean>();
+    const newer = createDeferred<boolean>();
+    mockedShare.isInstalled
+      .mockImplementationOnce(() => older.promise)
+      .mockImplementationOnce(() => newer.promise);
+
+    let olderRequest!: Promise<void>;
+    let newerRequest!: Promise<void>;
+    act(() => {
+      olderRequest = current().actions.shareDirect(
+        'text',
+        Platform.WECHAT_SESSION,
+        validDraft
+      );
+      newerRequest = current().actions.shareDirect(
+        'text',
+        Platform.WECHAT_SESSION,
+        validDraft
+      );
+    });
+    await act(async () => {
+      newer.resolve(false);
+      await newerRequest;
+    });
+    await act(async () => {
+      older.resolve(true);
+      await olderRequest;
+    });
+
+    expect(mockedShare.shareText).not.toHaveBeenCalled();
+    expect(
+      current().state.platforms.items.find(
+        (item) => item.platform === Platform.WECHAT_SESSION
+      )
+    ).toEqual({
+      platform: Platform.WECHAT_SESSION,
+      installed: false,
+      displayName: '微信',
+      freshness: 'fresh',
+    });
   });
 });
 
@@ -542,7 +694,10 @@ describe('ShowcaseProvider share operations', () => {
 
       expect(mockedShare[method]).toHaveBeenCalledWith(expectedOptions);
       expect(mockedShare.isInstalled).not.toHaveBeenCalled();
-      expect(current().state.feedback).toBeNull();
+      expect(current().state.results.direct).toEqual({
+        kind: 'success',
+        message: `success@${platform}`,
+      });
       expect(current().state.logs[0]?.message).toBe(`success@${platform}`);
       const serializedLogs = JSON.stringify(current().state.logs);
       for (const value of Object.values(validDraft)) {
@@ -577,9 +732,12 @@ describe('ShowcaseProvider share operations', () => {
 
     expect(mockedShare.isInstalled).not.toHaveBeenCalled();
     expect(mockedShare.shareText).not.toHaveBeenCalled();
-    expect(current().state.feedback).toMatchObject({
-      tone: 'warning',
-      code: 'E_PLATFORM_NOT_INSTALLED',
+    expect(current().state.results.direct).toEqual({
+      kind: 'feedback',
+      feedback: expect.objectContaining({
+        tone: 'warning',
+        code: 'E_PLATFORM_NOT_INSTALLED',
+      }),
     });
   });
 
@@ -685,7 +843,10 @@ describe('ShowcaseProvider share operations', () => {
       displayName: '微信',
       freshness: 'stale',
     });
-    expect(current().state.feedback?.code).toBe('E_UNKNOWN');
+    expect(current().state.results.direct).toEqual({
+      kind: 'feedback',
+      feedback: expect.objectContaining({ code: 'E_UNKNOWN' }),
+    });
     expect(JSON.stringify(current().state.logs)).not.toContain(nativeDetail);
   });
 
@@ -710,7 +871,10 @@ describe('ShowcaseProvider share operations', () => {
     expect(mockedShare.shareLink).not.toHaveBeenCalled();
     expect(current().state.platforms.items).toEqual([]);
     expect(current().state.platforms.feedback?.code).toBe('E_UNKNOWN');
-    expect(current().state.feedback?.code).toBe('E_UNKNOWN');
+    expect(current().state.results.direct).toEqual({
+      kind: 'feedback',
+      feedback: expect.objectContaining({ code: 'E_UNKNOWN' }),
+    });
     const serializedLogs = JSON.stringify(current().state.logs);
     expect(serializedLogs).not.toContain(nativeDetail);
     for (const value of Object.values(validDraft)) {
@@ -792,9 +956,12 @@ describe('ShowcaseProvider share operations', () => {
       );
     });
 
-    expect(current().state.feedback).toMatchObject({
-      tone: 'neutral',
-      code: 'E_USER_CANCEL',
+    expect(current().state.results.direct).toEqual({
+      kind: 'feedback',
+      feedback: expect.objectContaining({
+        tone: 'neutral',
+        code: 'E_USER_CANCEL',
+      }),
     });
     const serializedLogs = JSON.stringify(current().state.logs);
     for (const value of Object.values(validDraft)) {
@@ -819,11 +986,49 @@ describe('ShowcaseProvider share operations', () => {
       );
     });
 
-    expect(current().state.feedback).toMatchObject({
-      tone: 'error',
-      code: 'E_SHARE_FAILED',
+    expect(current().state.results.direct).toEqual({
+      kind: 'feedback',
+      feedback: expect.objectContaining({
+        tone: 'error',
+        code: 'E_SHARE_FAILED',
+      }),
     });
     expect(JSON.stringify(current().state.logs)).not.toContain(nativeDetail);
+  });
+
+  it('stores sheet and direct-share outcomes independently', async () => {
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+    const draft: SheetDraft = {
+      type: 'text',
+      ...validDraft,
+      options: sheetOptions,
+    };
+
+    await act(async () => {
+      await current().actions.openShareSheet(draft);
+    });
+    const sheetResult = current().state.results.sheet;
+    mockedShare.shareText.mockRejectedValueOnce(
+      shareFailed(Platform.WECHAT_SESSION, 'private native detail')
+    );
+    await act(async () => {
+      await current().actions.shareDirect(
+        'text',
+        Platform.WECHAT_SESSION,
+        validDraft
+      );
+    });
+
+    expect(sheetResult).toEqual({
+      kind: 'success',
+      message: `success@${Platform.WECHAT_SESSION}`,
+    });
+    expect(current().state.results.sheet).toBe(sheetResult);
+    expect(current().state.results.direct).toEqual({
+      kind: 'feedback',
+      feedback: expect.objectContaining({ code: 'E_SHARE_FAILED' }),
+    });
   });
 });
 
@@ -921,14 +1126,45 @@ describe('ShowcaseProvider Analytics operations', () => {
         invoke();
       });
 
-      expect(current().state.feedback).toEqual(
-        expect.objectContaining({
+      expect(current().state.results.analytics).toEqual({
+        kind: 'feedback',
+        feedback: expect.objectContaining({
           code: _method === 'signOut' ? 'E_UNKNOWN' : 'E_INVALID_OPTIONS',
-        })
-      );
+        }),
+      });
       const serializedLogs = JSON.stringify(current().state.logs);
       expect(serializedLogs).not.toContain(successMessage);
       expect(serializedLogs).not.toContain(nativeDetail);
     }
   );
+
+  it('keeps an Analytics failure after another page succeeds', async () => {
+    mockedAnalytics.onEvent.mockImplementationOnce(() => {
+      throw new UmengError('E_INVALID_OPTIONS', 'private analytics detail');
+    });
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+
+    act(() => {
+      current().actions.trackEvent('private-event-id');
+    });
+    const analyticsResult = current().state.results.analytics;
+    await act(async () => {
+      await current().actions.openShareSheet({
+        type: 'text',
+        ...validDraft,
+        options: sheetOptions,
+      });
+    });
+
+    expect(analyticsResult).toEqual({
+      kind: 'feedback',
+      feedback: expect.objectContaining({ code: 'E_INVALID_OPTIONS' }),
+    });
+    expect(current().state.results.analytics).toBe(analyticsResult);
+    expect(current().state.results.sheet).toEqual({
+      kind: 'success',
+      message: `success@${Platform.WECHAT_SESSION}`,
+    });
+  });
 });

@@ -9,7 +9,7 @@ import {
   useThemedStyles,
   type ColorTokens,
 } from '@unif/react-native-design';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 
 import {
@@ -58,13 +58,7 @@ export function SheetScreen() {
     useState<SheetDraft['options']>(DEFAULT_OPTIONS);
   const [previewResolutions, setPreviewResolutions] =
     useState<PreviewResolutionByKey>({});
-  const latestSuccess = useMemo(
-    () =>
-      state.logs.find(
-        (log) => log.scope === 'share' && log.message.startsWith('success@')
-      )?.message ?? null,
-    [state.logs]
-  );
+  const result = state.results.sheet;
 
   const updateContent = (
     field: keyof ShareContentDraft,
@@ -164,8 +158,8 @@ export function SheetScreen() {
         }}
       />
       <OperationFeedback
-        feedback={state.feedback}
-        successMessage={state.feedback == null ? latestSuccess : null}
+        feedback={result?.kind === 'feedback' ? result.feedback : null}
+        successMessage={result?.kind === 'success' ? result.message : null}
       />
     </ShowcaseScaffold>
   );

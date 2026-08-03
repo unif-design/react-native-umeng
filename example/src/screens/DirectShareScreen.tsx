@@ -7,7 +7,7 @@ import {
   type IconName,
 } from '@unif/react-native-design';
 import { Platform } from '@unif/react-native-umeng';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { OperationFeedback } from '../components/OperationFeedback';
@@ -101,13 +101,7 @@ export function DirectShareScreen() {
   });
   const [previewResolutions, setPreviewResolutions] =
     useState<PreviewResolutionByKey>({});
-  const latestSuccess = useMemo(
-    () =>
-      state.logs.find(
-        (log) => log.scope === 'share' && log.message.startsWith('success@')
-      )?.message ?? null,
-    [state.logs]
-  );
+  const result = state.results.direct;
   const updatePreviewResolution = useCallback(
     (key: string, resolution: PreviewResolution): void => {
       setPreviewResolutions((current) =>
@@ -205,8 +199,8 @@ export function DirectShareScreen() {
         </View>
       </Card>
       <OperationFeedback
-        feedback={state.feedback}
-        successMessage={state.feedback == null ? latestSuccess : null}
+        feedback={result?.kind === 'feedback' ? result.feedback : null}
+        successMessage={result?.kind === 'success' ? result.message : null}
       />
     </ShowcaseScaffold>
   );

@@ -39,11 +39,27 @@ export type ShowcaseActions = SetupActions & {
   readonly signOut: () => void;
 };
 
+export type ShowcaseResultScope = 'sheet' | 'direct' | 'analytics';
+
+export type ShowcaseOperationResult =
+  | {
+      readonly kind: 'success';
+      readonly message: string;
+    }
+  | {
+      readonly kind: 'feedback';
+      readonly feedback: OperationFeedback;
+    };
+
+export type ShowcaseResults = Readonly<
+  Record<ShowcaseResultScope, ShowcaseOperationResult | null>
+>;
+
 export type ShowcaseState = {
   readonly setup: SetupState;
   readonly navigation: NavigationState;
   readonly platforms: PlatformState;
-  readonly feedback: OperationFeedback | null;
+  readonly results: ShowcaseResults;
   readonly logs: readonly DemoLog[];
 };
 

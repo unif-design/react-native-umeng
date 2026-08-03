@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
+
 import { isDirectExecution } from './verification-utils.mjs';
 
 const defaultRepositoryRoot = resolve(
@@ -14,6 +17,190 @@ const androidDependencies = [
   'com.umeng.umsdk:share-dingding:7.3.7',
   'com.alibaba.android:ddsharesdk:1.2.2',
 ];
+const markdownParser = unified().use(remarkParse);
+const consumerGuideLinks = [
+  './src/',
+  './package.json',
+  '../package.json',
+  './ios/ReactNativeUmengExample/Info.plist',
+  './ios/ReactNativeUmengExample/AppDelegate.swift',
+  './ios/ReactNativeUmengExample/SceneDelegateFixture.swift',
+  './ios/ReactNativeUmengExample/ReactNativeUmengExample.entitlements',
+  '../website/docs/native-setup/ios.md',
+  './android/app/src/main/java/unif/reactnativeumeng/example/wxapi/WXEntryActivity.kt',
+  './android/app/src/main/java/unif/reactnativeumeng/example/ddshare/DDShareActivity.kt',
+  './android/app/build.gradle',
+  './android/gradle.properties',
+  '../website/docs/native-setup/android.md',
+];
+
+function markdownText(node) {
+  if (typeof node.value === 'string') {
+    return node.value;
+  }
+  return Array.isArray(node.children)
+    ? node.children.map(markdownText).join('')
+    : '';
+}
+
+function visitMarkdown(node, callback) {
+  callback(node);
+  if (Array.isArray(node.children)) {
+    for (const child of node.children) {
+      visitMarkdown(child, callback);
+    }
+  }
+}
+
+function consumerGuideNodes(markdown) {
+  const tree = markdownParser.parse(markdown);
+  const start = tree.children.findIndex(
+    (node) =>
+      node.type === 'heading' &&
+      node.depth === 2 &&
+      /复制到独立消费者 App/.test(markdownText(node))
+  );
+  if (start === -1) {
+    return null;
+  }
+
+  const nodes = [];
+  for (const node of tree.children.slice(start + 1)) {
+    if (node.type === 'heading' && node.depth <= 2) {
+      break;
+    }
+    nodes.push(node);
+  }
+  return nodes;
+}
+
+function verifyConsumerGuide({ failures, source }) {
+  const readmePath = 'example/README.md';
+  const nodes = consumerGuideNodes(source(readmePath));
+  if (nodes === null) {
+    failures.push(
+      `${readmePath}: independent consumer copy guide section is missing`
+    );
+    return;
+  }
+
+  const prose = nodes.map(markdownText).join('\n');
+  const codeBlocks = nodes
+    .filter((node) => node.type === 'code')
+    .map((node) => node.value);
+  const links = new Set();
+  for (const node of nodes) {
+    visitMarkdown(node, (candidate) => {
+      if (candidate.type === 'link' && typeof candidate.url === 'string') {
+        links.add(candidate.url);
+      }
+    });
+  }
+
+  let rootManifest;
+  try {
+    rootManifest = JSON.parse(source('package.json'));
+  } catch {
+    failures.push('package.json: cannot derive consumer peer dependencies');
+    rootManifest = { peerDependencies: {} };
+  }
+
+  const installBlock = codeBlocks.find(
+    (block) =>
+      /\byarn add\b/.test(block) &&
+      block.includes('@unif/react-native-umeng')
+  );
+  if (installBlock === undefined) {
+    failures.push(
+      `${readmePath}: consumer yarn add command must install the public @unif/react-native-umeng package`
+    );
+  } else {
+    if (installBlock.includes('workspace:*')) {
+      failures.push(
+        `${readmePath}: consumer yarn add command must not use workspace:*`
+      );
+    }
+    for (const [name, range] of Object.entries(
+      rootManifest.peerDependencies ?? {}
+    )) {
+      if (name === 'react' || name === 'react-native') {
+        continue;
+      }
+      if (!installBlock.includes(`${name}@${range}`)) {
+        failures.push(
+          `${readmePath}: consumer yarn add command is missing peer ${name}@${range}`
+        );
+      }
+    }
+  }
+
+  if (
+    !codeBlocks.some(
+      (block) =>
+        /\bcp\s+-R\b/.test(block) &&
+        block.includes('/example/src/.') &&
+        block.includes('src/umeng-showcase/')
+    )
+  ) {
+    failures.push(
+      `${readmePath}: copy command must copy only example/src/. to src/umeng-showcase/`
+    );
+  }
+
+  const requiredProse = [
+    ['workspace:* is repository-only', /workspace:\*[\s\S]*仅用于本仓/],
+    [
+      'host provides React and React Native',
+      /React 与 React Native 由消费者宿主提供/,
+    ],
+    [
+      'monorepo manifests must not be copied',
+      /不要复制[\s\S]*example\/package\.json[\s\S]*metro\.config\.js[\s\S]*react-native\.config\.js/,
+    ],
+    [
+      'Worklets Babel plugin must be last',
+      /react-native-worklets\/plugin[\s\S]*(最后一项|末尾)/,
+    ],
+    ['Android callback package follows applicationId', /applicationId[\s\S]*\.wxapi[\s\S]*\.ddshare/],
+    ['library callback manifest must not be duplicated', /不要重复声明[\s\S]*callback Activity/],
+    ['AASA Associated Domain uses applinks host only', /applinks:[A-Za-z0-9.-]+[\s\S]*(不含|不要包含)[\s\S]*(scheme|path)/i],
+    ['AASA endpoint must not redirect', /apple-app-site-association[\s\S]*(不得|不能|不允许)重定向/],
+    ['AASA appID format', /TEAM_ID\.BUNDLE_ID/],
+    ['AASA path and domain align with Universal Link', /wechatUniversalLink[\s\S]*(path|路径)[\s\S]*(domain|域名|host)[\s\S]*(一致|对齐)/i],
+    ['real callbacks require devices and online domain', /真实[\s\S]*(回包|回调)[\s\S]*真机[\s\S]*线上域名/],
+  ];
+  for (const [label, pattern] of requiredProse) {
+    if (!pattern.test(prose)) {
+      failures.push(`${readmePath}: consumer guide is missing ${label}`);
+    }
+  }
+
+  for (const dependency of androidDependencies) {
+    if (!prose.includes(dependency)) {
+      failures.push(
+        `${readmePath}: consumer guide is missing Android dependency ${dependency}`
+      );
+    }
+  }
+  if (!prose.includes('android.enableJetifier=true')) {
+    failures.push(
+      `${readmePath}: consumer guide is missing android.enableJetifier=true`
+    );
+  }
+  if (!prose.includes('bundle exec pod install')) {
+    failures.push(
+      `${readmePath}: consumer guide is missing bundle exec pod install`
+    );
+  }
+
+  for (const link of consumerGuideLinks) {
+    if (!links.has(link)) {
+      failures.push(
+        `${readmePath}: consumer guide is missing link ${link}`
+      );
+    }
+  }
+}
 
 function decodeXmlText(value) {
   const entities = {
@@ -587,23 +774,80 @@ function verifyCallbackClass({
   }
 }
 
+function parseGradleStringProperty({
+  buildGradle,
+  failures,
+  path,
+  property,
+}) {
+  const pattern = new RegExp(
+    `^\\s*${property}\\s*(?:=\\s*)?(["'])([^"']+)\\1\\s*$`,
+    'gm'
+  );
+  const values = [...buildGradle.matchAll(pattern)].map((match) => match[2]);
+  if (values.length !== 1) {
+    failures.push(
+      `${path}: ${property} must be exactly one string literal`
+    );
+    return '';
+  }
+  return values[0];
+}
+
+function normalizeAndroidComponentName(name, { applicationId, namespace }) {
+  if (typeof name !== 'string') {
+    return name;
+  }
+
+  const expanded = name.replaceAll('${applicationId}', applicationId);
+  return expanded.startsWith('.') ? `${namespace}${expanded}` : expanded;
+}
+
 function verifyAndroid({ failures, source }) {
+  const buildGradlePath = 'example/android/app/build.gradle';
+  const buildGradle = stripComments(source(buildGradlePath));
+  const namespace = parseGradleStringProperty({
+    buildGradle,
+    failures,
+    path: buildGradlePath,
+    property: 'namespace',
+  });
+  const applicationId = parseGradleStringProperty({
+    buildGradle,
+    failures,
+    path: buildGradlePath,
+    property: 'applicationId',
+  });
   const manifestPath = 'example/android/app/src/main/AndroidManifest.xml';
   const manifest = source(manifestPath);
   const activityNames = parseXmlStartTags(manifest, 'activity').map(
     (attributes) => attributes['android:name']
   );
+  const normalizedActivityNames = activityNames.map((name) => ({
+    name,
+    normalized: normalizeAndroidComponentName(name, {
+      applicationId,
+      namespace,
+    }),
+  }));
 
-  if (!activityNames.includes('.MainActivity')) {
+  if (
+    !normalizedActivityNames.some(
+      ({ normalized }) => normalized === `${namespace}.MainActivity`
+    )
+  ) {
     failures.push(`${manifestPath}: MainActivity must remain declared`);
   }
   for (const duplicateName of [
-    '.wxapi.WXEntryActivity',
-    '.ddshare.DDShareActivity',
+    `${applicationId}.wxapi.WXEntryActivity`,
+    `${applicationId}.ddshare.DDShareActivity`,
   ]) {
-    if (activityNames.includes(duplicateName)) {
+    const duplicate = normalizedActivityNames.find(
+      ({ normalized }) => normalized === duplicateName
+    );
+    if (duplicate !== undefined) {
       failures.push(
-        `${manifestPath}: duplicate callback Activity ${duplicateName} must be removed`
+        `${manifestPath}: duplicate callback Activity ${duplicate.name} resolves to ${duplicateName} and must be removed`
       );
     }
   }
@@ -612,7 +856,7 @@ function verifyAndroid({ failures, source }) {
     className: 'WXEntryActivity',
     expectedBaseClass: 'WXCallbackActivity',
     expectedImport: 'com.umeng.socialize.weixin.view.WXCallbackActivity',
-    expectedPackage: 'unif.reactnativeumeng.example.wxapi',
+    expectedPackage: `${applicationId}.wxapi`,
     failures,
     path: 'example/android/app/src/main/java/unif/reactnativeumeng/example/wxapi/WXEntryActivity.kt',
     source,
@@ -621,14 +865,12 @@ function verifyAndroid({ failures, source }) {
     className: 'DDShareActivity',
     expectedBaseClass: 'DingCallBack',
     expectedImport: 'com.umeng.socialize.media.DingCallBack',
-    expectedPackage: 'unif.reactnativeumeng.example.ddshare',
+    expectedPackage: `${applicationId}.ddshare`,
     failures,
     path: 'example/android/app/src/main/java/unif/reactnativeumeng/example/ddshare/DDShareActivity.kt',
     source,
   });
 
-  const buildGradlePath = 'example/android/app/build.gradle';
-  const buildGradle = stripComments(source(buildGradlePath));
   const compileDependencies = new Set(
     [
       ...buildGradle.matchAll(
@@ -645,6 +887,28 @@ function verifyAndroid({ failures, source }) {
   }
 }
 
+function createSourceReader(repositoryRoot, failures) {
+  return (relativePath) => {
+    try {
+      return readFileSync(resolve(repositoryRoot, relativePath), 'utf8');
+    } catch {
+      failures.push(`${relativePath}: file is missing`);
+      return '';
+    }
+  };
+}
+
+export function collectExampleDocsContractFailures({
+  repositoryRoot = defaultRepositoryRoot,
+} = {}) {
+  const failures = [];
+  verifyConsumerGuide({
+    failures,
+    source: createSourceReader(repositoryRoot, failures),
+  });
+  return failures;
+}
+
 export function collectExampleContractFailures({
   platform = 'all',
   repositoryRoot = defaultRepositoryRoot,
@@ -654,20 +918,16 @@ export function collectExampleContractFailures({
   }
 
   const failures = [];
-  const source = (relativePath) => {
-    try {
-      return readFileSync(resolve(repositoryRoot, relativePath), 'utf8');
-    } catch {
-      failures.push(`${relativePath}: file is missing`);
-      return '';
-    }
-  };
+  const source = createSourceReader(repositoryRoot, failures);
 
   if (platform === 'all' || platform === 'android') {
     verifyAndroid({ failures, source });
   }
   if (platform === 'all' || platform === 'ios') {
     verifyIos({ failures, source });
+  }
+  if (platform === 'all') {
+    verifyConsumerGuide({ failures, source });
   }
 
   return failures;

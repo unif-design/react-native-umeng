@@ -7,7 +7,7 @@ import {
   useThemedStyles,
   type ColorTokens,
 } from '@unif/react-native-design';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 import { OperationFeedback } from '../components/OperationFeedback';
@@ -31,10 +31,7 @@ export function AnalyticsScreen() {
   const [eventId, setEventId] = useState('showcase_event');
   const [userId, setUserId] = useState('showcase-user');
   const [provider, setProvider] = useState('demo');
-  const latestSuccess = useMemo(
-    () => state.logs.find((log) => log.scope === 'analytics')?.message ?? null,
-    [state.logs]
-  );
+  const result = state.results.analytics;
 
   return (
     <ShowcaseScaffold title="Analytics" onBack={actions.back}>
@@ -101,8 +98,8 @@ export function AnalyticsScreen() {
         />
       </View>
       <OperationFeedback
-        feedback={state.feedback}
-        successMessage={state.feedback == null ? latestSuccess : null}
+        feedback={result?.kind === 'feedback' ? result.feedback : null}
+        successMessage={result?.kind === 'success' ? result.message : null}
       />
     </ShowcaseScaffold>
   );

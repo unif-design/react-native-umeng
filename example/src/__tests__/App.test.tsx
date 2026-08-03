@@ -389,3 +389,57 @@ it('Analytics 同步调用后日志最新在前、可清空且不展示敏感入
   fireEvent.press(screen.getByRole('button', { name: '清空日志' }));
   expect(await screen.findByText('暂无运行日志')).toBeOnTheScreen();
 });
+
+it('Analytics 失败后跨页成功，返回时仍展示原失败而不是日志推断的成功', async () => {
+  mockedAnalytics.onEvent.mockImplementationOnce(() => {
+    throw new Error('private analytics detail');
+  });
+  await renderInitializedApp();
+  fireEvent.press(screen.getByRole('button', { name: 'Analytics' }));
+  fireEvent.press(screen.getByRole('button', { name: '记录事件' }));
+  expect(
+    await screen.findByText('发生未识别错误，请稍后重试')
+  ).toBeOnTheScreen();
+
+  fireEvent.press(screen.getByRole('button', { name: '返回' }));
+  fireEvent.press(screen.getByRole('button', { name: '分享面板' }));
+  fireEvent.press(screen.getByRole('button', { name: '打开分享面板' }));
+  expect(
+    await screen.findByText(`success@${Platform.WECHAT_SESSION}`)
+  ).toBeOnTheScreen();
+
+  fireEvent.press(screen.getByRole('button', { name: '返回' }));
+  fireEvent.press(screen.getByRole('button', { name: 'Analytics' }));
+  expect(
+    await screen.findByText('发生未识别错误，请稍后重试')
+  ).toBeOnTheScreen();
+  expect(screen.queryByLabelText('操作成功')).not.toBeOnTheScreen();
+});
+
+it('直接分享失败不会污染分享面板已保存的最新结果', async () => {
+  await renderInitializedApp();
+  fireEvent.press(screen.getByRole('button', { name: '分享面板' }));
+  fireEvent.press(screen.getByRole('button', { name: '打开分享面板' }));
+  expect(
+    await screen.findByText(`success@${Platform.WECHAT_SESSION}`)
+  ).toBeOnTheScreen();
+
+  mockedShare.shareText.mockRejectedValueOnce(
+    new Error('private direct-share detail')
+  );
+  fireEvent.press(screen.getByRole('button', { name: '返回' }));
+  fireEvent.press(screen.getByRole('button', { name: '直接分享' }));
+  fireEvent.press(screen.getByRole('button', { name: '微信会话 · 文本' }));
+  expect(
+    await screen.findByText('发生未识别错误，请稍后重试')
+  ).toBeOnTheScreen();
+
+  fireEvent.press(screen.getByRole('button', { name: '返回' }));
+  fireEvent.press(screen.getByRole('button', { name: '分享面板' }));
+  expect(
+    await screen.findByText(`success@${Platform.WECHAT_SESSION}`)
+  ).toBeOnTheScreen();
+  expect(
+    screen.queryByText('发生未识别错误，请稍后重试')
+  ).not.toBeOnTheScreen();
+});

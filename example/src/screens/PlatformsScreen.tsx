@@ -64,7 +64,7 @@ export function PlatformsScreen() {
           actions.refreshPlatforms();
         }}
       />
-      <OperationFeedback feedback={platformState.feedback ?? state.feedback} />
+      <OperationFeedback feedback={platformState.feedback} />
       <View style={styles.list}>
         {SUPPORTED_PLATFORMS.map((platform: Platform) => {
           const item = platformState.items.find(
@@ -73,7 +73,7 @@ export function PlatformsScreen() {
           const displayName =
             item?.displayName ?? PLATFORM_DISPLAY_NAMES[platform];
           const presentation = installationPresentation(item?.installed);
-          const checking = platformState.checking === platform;
+          const checking = platformState.checking.includes(platform);
           const stale = item?.freshness === 'stale';
 
           return (

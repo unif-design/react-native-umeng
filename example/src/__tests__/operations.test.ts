@@ -32,9 +32,11 @@ describe('platformReducer', () => {
   it('stores a successful refresh in SUPPORTED_PLATFORMS order', () => {
     const loading = platformReducer(createInitialPlatformState(), {
       type: 'refreshStarted',
+      requestId: 1,
     });
     const refreshed = platformReducer(loading, {
       type: 'refreshSucceeded',
+      requestId: 1,
       items: [
         {
           platform: Platform.DINGTALK,
@@ -65,8 +67,14 @@ describe('platformReducer', () => {
         },
       ],
       refreshing: false,
-      checking: null,
+      checking: [],
       feedback: null,
+      activeRefreshRequestId: null,
+      latestRequestIds: {
+        [Platform.WECHAT_SESSION]: 1,
+        [Platform.DINGTALK]: 1,
+      },
+      feedbackRequestId: 1,
     });
   });
 
@@ -75,9 +83,13 @@ describe('platformReducer', () => {
       ...createInitialPlatformState(),
       items: previousItems,
     };
-    const loading = platformReducer(previous, { type: 'refreshStarted' });
+    const loading = platformReducer(previous, {
+      type: 'refreshStarted',
+      requestId: 1,
+    });
     const failed = platformReducer(loading, {
       type: 'refreshFailed',
+      requestId: 1,
       feedback: unknownFeedback,
     });
 
@@ -97,7 +109,7 @@ describe('platformReducer', () => {
     ]);
     expect(failed).toMatchObject({
       refreshing: false,
-      checking: null,
+      checking: [],
       feedback: unknownFeedback,
     });
   });
@@ -109,10 +121,12 @@ describe('platformReducer', () => {
     };
     const checking = platformReducer(previous, {
       type: 'checkStarted',
+      requestId: 1,
       platform: Platform.DINGTALK,
     });
     const checked = platformReducer(checking, {
       type: 'checkSucceeded',
+      requestId: 1,
       platform: Platform.DINGTALK,
       installed: false,
     });
@@ -135,7 +149,7 @@ describe('platformReducer', () => {
     expect(checked.items[1]).not.toBe(previousItems[1]);
     expect(checked).toMatchObject({
       refreshing: false,
-      checking: null,
+      checking: [],
       feedback: null,
     });
   });
@@ -144,10 +158,12 @@ describe('platformReducer', () => {
     const checked = platformReducer(
       platformReducer(createInitialPlatformState(), {
         type: 'checkStarted',
+        requestId: 1,
         platform: Platform.DINGTALK,
       }),
       {
         type: 'checkSucceeded',
+        requestId: 1,
         platform: Platform.DINGTALK,
         installed: true,
       }
@@ -171,13 +187,20 @@ describe('platformReducer', () => {
       freshness: 'stale',
     };
     const checked = platformReducer(
-      {
-        ...createInitialPlatformState(),
-        items: [staleWechat],
-        checking: Platform.DINGTALK,
-      },
+      platformReducer(
+        {
+          ...createInitialPlatformState(),
+          items: [staleWechat],
+        },
+        {
+          type: 'checkStarted',
+          requestId: 1,
+          platform: Platform.DINGTALK,
+        }
+      ),
       {
         type: 'checkSucceeded',
+        requestId: 1,
         platform: Platform.DINGTALK,
         installed: true,
       }
@@ -202,10 +225,12 @@ describe('platformReducer', () => {
     };
     const checking = platformReducer(previous, {
       type: 'checkStarted',
+      requestId: 1,
       platform: Platform.WECHAT_SESSION,
     });
     const failed = platformReducer(checking, {
       type: 'checkFailed',
+      requestId: 1,
       platform: Platform.WECHAT_SESSION,
       feedback: unknownFeedback,
     });
@@ -226,8 +251,111 @@ describe('platformReducer', () => {
     ]);
     expect(failed).toMatchObject({
       refreshing: false,
-      checking: null,
+      checking: [],
       feedback: unknownFeedback,
     });
+  });
+
+  it('returns the same state for stale refresh and check completions', () => {
+    const firstRefresh = platformReducer(createInitialPlatformState(), {
+      type: 'refreshStarted',
+      requestId: 1,
+    });
+    const secondRefresh = platformReducer(firstRefresh, {
+      type: 'refreshStarted',
+      requestId: 2,
+    });
+    const refreshed = platformReducer(secondRefresh, {
+      type: 'refreshSucceeded',
+      requestId: 2,
+      items: previousItems,
+    });
+    expect(
+      platformReducer(refreshed, {
+        type: 'refreshFailed',
+        requestId: 1,
+        feedback: unknownFeedback,
+      })
+    ).toBe(refreshed);
+
+    const firstCheck = platformReducer(refreshed, {
+      type: 'checkStarted',
+      requestId: 3,
+      platform: Platform.WECHAT_SESSION,
+    });
+    const secondCheck = platformReducer(firstCheck, {
+      type: 'checkStarted',
+      requestId: 4,
+      platform: Platform.WECHAT_SESSION,
+    });
+    const checked = platformReducer(secondCheck, {
+      type: 'checkSucceeded',
+      requestId: 4,
+      platform: Platform.WECHAT_SESSION,
+      installed: false,
+    });
+    expect(
+      platformReducer(checked, {
+        type: 'checkFailed',
+        requestId: 3,
+        platform: Platform.WECHAT_SESSION,
+        feedback: unknownFeedback,
+      })
+    ).toBe(checked);
+  });
+
+  it('preserves a newer per-platform query when an overlapping refresh completes', () => {
+    const refreshing = platformReducer(
+      {
+        ...createInitialPlatformState(),
+        items: previousItems,
+      },
+      {
+        type: 'refreshStarted',
+        requestId: 1,
+      }
+    );
+    const checking = platformReducer(refreshing, {
+      type: 'checkStarted',
+      requestId: 2,
+      platform: Platform.DINGTALK,
+    });
+    const checked = platformReducer(checking, {
+      type: 'checkSucceeded',
+      requestId: 2,
+      platform: Platform.DINGTALK,
+      installed: false,
+    });
+    const refreshed = platformReducer(checked, {
+      type: 'refreshSucceeded',
+      requestId: 1,
+      items: [
+        {
+          platform: Platform.WECHAT_SESSION,
+          installed: false,
+          displayName: '微信',
+        },
+        {
+          platform: Platform.DINGTALK,
+          installed: true,
+          displayName: '钉钉',
+        },
+      ],
+    });
+
+    expect(refreshed.items).toEqual([
+      {
+        platform: Platform.WECHAT_SESSION,
+        installed: false,
+        displayName: '微信',
+        freshness: 'fresh',
+      },
+      {
+        platform: Platform.DINGTALK,
+        installed: false,
+        displayName: '钉钉',
+        freshness: 'fresh',
+      },
+    ]);
   });
 });

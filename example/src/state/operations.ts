@@ -31,31 +31,39 @@ export type PlatformStatus = PlatformInfo & {
 export type PlatformState = {
   readonly items: readonly PlatformStatus[];
   readonly refreshing: boolean;
-  readonly checking: Platform | null;
+  readonly checking: readonly Platform[];
   readonly feedback: OperationFeedback | null;
+  readonly activeRefreshRequestId: number | null;
+  readonly latestRequestIds: Readonly<Partial<Record<Platform, number>>>;
+  readonly feedbackRequestId: number | null;
 };
 
 export type PlatformAction =
-  | { readonly type: 'refreshStarted' }
+  | { readonly type: 'refreshStarted'; readonly requestId: number }
   | {
       readonly type: 'refreshSucceeded';
+      readonly requestId: number;
       readonly items: readonly PlatformInfo[];
     }
   | {
       readonly type: 'refreshFailed';
+      readonly requestId: number;
       readonly feedback: OperationFeedback;
     }
   | {
       readonly type: 'checkStarted';
+      readonly requestId: number;
       readonly platform: Platform;
     }
   | {
       readonly type: 'checkSucceeded';
+      readonly requestId: number;
       readonly platform: Platform;
       readonly installed: boolean;
     }
   | {
       readonly type: 'checkFailed';
+      readonly requestId: number;
       readonly platform: Platform;
       readonly feedback: OperationFeedback;
     };
@@ -64,18 +72,12 @@ export function createInitialPlatformState(): PlatformState {
   return {
     items: [],
     refreshing: false,
-    checking: null,
+    checking: [],
     feedback: null,
+    activeRefreshRequestId: null,
+    latestRequestIds: {},
+    feedbackRequestId: null,
   };
-}
-
-function orderPlatformItems(
-  items: readonly PlatformInfo[]
-): readonly PlatformStatus[] {
-  return SUPPORTED_PLATFORMS.flatMap((platform) => {
-    const item = items.find((candidate) => candidate.platform === platform);
-    return item === undefined ? [] : [{ ...item, freshness: 'fresh' as const }];
-  });
 }
 
 function orderPlatformStatuses(
@@ -112,10 +114,14 @@ function updateCheckedPlatform(
 }
 
 function markAllPlatformsStale(
-  items: readonly PlatformStatus[]
+  items: readonly PlatformStatus[],
+  latestRequestIds: PlatformState['latestRequestIds'],
+  requestId: number
 ): readonly PlatformStatus[] {
   return items.map((item) =>
-    item.freshness === 'stale' ? item : { ...item, freshness: 'stale' }
+    latestRequestIds[item.platform] !== requestId || item.freshness === 'stale'
+      ? item
+      : { ...item, freshness: 'stale' }
   );
 }
 
@@ -128,6 +134,45 @@ function markPlatformStale(
       ? { ...item, freshness: 'stale' }
       : item
   );
+}
+
+function withRefreshRequest(
+  latestRequestIds: PlatformState['latestRequestIds'],
+  requestId: number
+): PlatformState['latestRequestIds'] {
+  return SUPPORTED_PLATFORMS.reduce<Partial<Record<Platform, number>>>(
+    (requests, platform) => ({
+      ...requests,
+      [platform]: requestId,
+    }),
+    { ...latestRequestIds }
+  );
+}
+
+function mergeRefreshItems(
+  currentItems: readonly PlatformStatus[],
+  refreshedItems: readonly PlatformInfo[],
+  latestRequestIds: PlatformState['latestRequestIds'],
+  requestId: number
+): readonly PlatformStatus[] {
+  return SUPPORTED_PLATFORMS.flatMap((platform) => {
+    if (latestRequestIds[platform] !== requestId) {
+      const current = currentItems.find((item) => item.platform === platform);
+      return current === undefined ? [] : [current];
+    }
+
+    const refreshed = refreshedItems.find((item) => item.platform === platform);
+    return refreshed === undefined
+      ? []
+      : [{ ...refreshed, freshness: 'fresh' as const }];
+  });
+}
+
+function removeCheckingPlatform(
+  checking: readonly Platform[],
+  platform: Platform
+): readonly Platform[] {
+  return checking.filter((candidate) => candidate !== platform);
 }
 
 function assertNever(_action: never): never {
@@ -143,31 +188,72 @@ export function platformReducer(
       return {
         ...state,
         refreshing: true,
-        checking: null,
+        checking: [],
         feedback: null,
+        activeRefreshRequestId: action.requestId,
+        latestRequestIds: withRefreshRequest(
+          state.latestRequestIds,
+          action.requestId
+        ),
+        feedbackRequestId: action.requestId,
       };
-    case 'refreshSucceeded':
-      return {
-        items: orderPlatformItems(action.items),
-        refreshing: false,
-        checking: null,
-        feedback: null,
-      };
-    case 'refreshFailed':
+    case 'refreshSucceeded': {
+      if (state.activeRefreshRequestId !== action.requestId) {
+        return state;
+      }
+
       return {
         ...state,
-        items: markAllPlatformsStale(state.items),
+        items: mergeRefreshItems(
+          state.items,
+          action.items,
+          state.latestRequestIds,
+          action.requestId
+        ),
         refreshing: false,
-        checking: null,
-        feedback: action.feedback,
+        feedback:
+          state.feedbackRequestId === action.requestId ? null : state.feedback,
+        activeRefreshRequestId: null,
       };
+    }
+    case 'refreshFailed': {
+      if (state.activeRefreshRequestId !== action.requestId) {
+        return state;
+      }
+
+      return {
+        ...state,
+        items: markAllPlatformsStale(
+          state.items,
+          state.latestRequestIds,
+          action.requestId
+        ),
+        refreshing: false,
+        feedback:
+          state.feedbackRequestId === action.requestId
+            ? action.feedback
+            : state.feedback,
+        activeRefreshRequestId: null,
+      };
+    }
     case 'checkStarted':
       return {
         ...state,
-        checking: action.platform,
+        checking: state.checking.includes(action.platform)
+          ? state.checking
+          : [...state.checking, action.platform],
         feedback: null,
+        latestRequestIds: {
+          ...state.latestRequestIds,
+          [action.platform]: action.requestId,
+        },
+        feedbackRequestId: action.requestId,
       };
-    case 'checkSucceeded':
+    case 'checkSucceeded': {
+      if (state.latestRequestIds[action.platform] !== action.requestId) {
+        return state;
+      }
+
       return {
         ...state,
         items: updateCheckedPlatform(
@@ -175,16 +261,26 @@ export function platformReducer(
           action.platform,
           action.installed
         ),
-        checking: null,
-        feedback: null,
+        checking: removeCheckingPlatform(state.checking, action.platform),
+        feedback:
+          state.feedbackRequestId === action.requestId ? null : state.feedback,
       };
-    case 'checkFailed':
+    }
+    case 'checkFailed': {
+      if (state.latestRequestIds[action.platform] !== action.requestId) {
+        return state;
+      }
+
       return {
         ...state,
         items: markPlatformStale(state.items, action.platform),
-        checking: null,
-        feedback: action.feedback,
+        checking: removeCheckingPlatform(state.checking, action.platform),
+        feedback:
+          state.feedbackRequestId === action.requestId
+            ? action.feedback
+            : state.feedback,
       };
+    }
     default:
       return assertNever(action);
   }
