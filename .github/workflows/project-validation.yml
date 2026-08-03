@@ -7,6 +7,11 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
   merge_group:
     types:
       - checks_requested
@@ -197,7 +202,14 @@ jobs:
         run: yarn verify:consumers
 
       - name: Verify publish contract
-        run: yarn verify:publish-contract
+        env:
+          SQUASH_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if [ -n "$SQUASH_TITLE" ]; then
+            yarn verify:publish-contract --squash-title "$SQUASH_TITLE"
+          else
+            yarn verify:publish-contract
+          fi
 
   android:
     needs: changes
