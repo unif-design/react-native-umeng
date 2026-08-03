@@ -189,40 +189,48 @@ test('release workflow keeps the exact published-contract trigger paths', async 
   );
 });
 
-test('published docs do not retain superseded Android CI evidence', async () => {
-  const documentPaths = [
+test('published docs retain current Android CI and device evidence', async () => {
+  const fullAutomationEvidencePaths = [
     '../../README.md',
     '../../website/docs/intro.md',
     '../../website/docs/api/common.md',
-    '../../website/docs/api/share.md',
     '../../website/docs/getting-started/quick-start.md',
     '../../website/docs/guides/privacy-pipl.md',
     '../../website/docs/native-setup/android.md',
   ];
-  const staleClaims = [
-    '本轮未执行 Android Gradle/JVM',
-    '本轮未执行 Gradle/JVM',
-    '本轮没有执行 Android Gradle/JVM',
-    'Android Gradle/JVM 本轮未执行',
-    '本轮 Gradle/JVM 留待 Android SDK CI',
-    'Gradle/JVM 与真实回跳待 CI/SDK',
-    'Android SDK CI 及 minified release 仍须',
-  ];
 
-  for (const relativePath of documentPaths) {
+  for (const relativePath of fullAutomationEvidencePaths) {
     const content = await readFile(
       new URL(relativePath, import.meta.url),
       'utf8'
     );
 
-    for (const staleClaim of staleClaims) {
-      assert.equal(
-        content.includes(staleClaim),
-        false,
-        `${relativePath}: ${staleClaim}`
-      );
-    }
+    assert.match(
+      content,
+      /Android CI 已通过[^。\n]*native contract[^。\n]*JVM[^。\n]*minif(?:y|ied)[^。\n]*merged manifest/,
+      `${relativePath}: 缺少当前 Android 自动化证据`
+    );
+    assert.match(
+      content,
+      /真实|真机/,
+      `${relativePath}: 缺少真实平台或真机验证边界`
+    );
   }
+
+  const shareDocs = await readFile(
+    new URL('../../website/docs/api/share.md', import.meta.url),
+    'utf8'
+  );
+  assert.match(
+    shareDocs,
+    /Android native contract\/JVM tests 已验证/,
+    'share docs: 缺少 Android 分享门禁证据'
+  );
+  assert.match(
+    shareDocs,
+    /真实 App/,
+    'share docs: 缺少真实 App 验证边界'
+  );
 });
 
 test('explicit release increment selects an exact version for validation and release', () => {
