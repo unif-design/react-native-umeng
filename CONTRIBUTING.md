@@ -82,6 +82,12 @@ SDK 时如实记录为 CI/有 SDK 环境待验证，不能把静态检查写成 
 - `test`：测试变更。
 - `chore` / `ci`：工具链或 CI 变更。
 
+本仓使用 squash merge，最终 release commit 的 subject 固定取 PR 标题。因此 PR 标题
+不仅要符合 Conventional Commits，还必须覆盖文件契约要求的发布级别：公共 API、
+native runtime 或 peer contract 变更要求 minor 时使用 `feat:` / `feat(scope):`；
+`fix:` 只代表 patch。Project Validation 会按最终 squash 标题在合并前拒绝级别不足的
+PR，修改标题后会重新运行门禁。
+
 发 PR 前：
 
 1. 运行与改动范围对应的完整本地门禁。

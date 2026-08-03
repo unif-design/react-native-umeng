@@ -75,6 +75,12 @@ const minorContractFiles = new Set([
 ]);
 const initializationContractFileSet = new Set(initializationContractFiles);
 const releaseIncrements = new Set(['auto', 'patch', 'minor', 'major']);
+const releaseLevelRanks = new Map([
+  ['none', 0],
+  ['patch', 1],
+  ['minor', 2],
+  ['major', 3],
+]);
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -176,6 +182,45 @@ export function minimumReleaseLevel({
   return 'patch';
 }
 
+export function squashTitleReleaseLevel(title) {
+  const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+  const match =
+    /^(?<type>[a-z][a-z0-9-]*)(?:\([^)]+\))?: (?<subject>\S(?:.*\S)?)$/.exec(
+      normalizedTitle
+    );
+
+  if (!match?.groups) {
+    throw new Error(`invalid squash title: ${JSON.stringify(title)}`);
+  }
+
+  // 本仓使用 Angular preset；它只把 feat subject 提升为 minor，其余合法 subject 为 patch。
+  return match.groups.type === 'feat' ? 'minor' : 'patch';
+}
+
+export function assertSquashTitleReleaseLevel({ title, minimumLevel }) {
+  const titleLevel = squashTitleReleaseLevel(title);
+  const titleRank = releaseLevelRanks.get(titleLevel);
+  const minimumRank = releaseLevelRanks.get(minimumLevel);
+
+  if (minimumRank === undefined) {
+    throw new Error(`unknown minimum release level: ${minimumLevel}`);
+  }
+
+  if (titleRank < minimumRank) {
+    throw new Error(
+      [
+        'Squash title release level is too low.',
+        `squash title: ${title}`,
+        `title level: ${titleLevel}`,
+        `minimum required: ${minimumLevel}`,
+        'Use a feat: PR title when the published contract requires a minor release.',
+      ].join('\n')
+    );
+  }
+
+  return titleLevel;
+}
+
 export function selectReleaseVersion({
   automaticVersion,
   increment,
@@ -204,6 +249,7 @@ export function selectReleaseVersion({
 export function parsePublishContractArgs(args) {
   let githubOutput;
   let increment = 'auto';
+  let squashTitle;
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -227,10 +273,23 @@ export function parsePublishContractArgs(args) {
       continue;
     }
 
+    if (argument === '--squash-title') {
+      if (!value) {
+        throw new Error('--squash-title requires a value');
+      }
+      squashTitle = value;
+      index += 1;
+      continue;
+    }
+
     throw new Error(`unknown argument: ${argument}`);
   }
 
-  return { githubOutput, increment };
+  return {
+    githubOutput,
+    increment,
+    ...(squashTitle === undefined ? {} : { squashTitle }),
+  };
 }
 
 function readAtTag(tag, relativePath) {
@@ -391,7 +450,7 @@ async function conventionalVersion(manifest) {
 }
 
 async function main() {
-  const { githubOutput, increment } = parsePublishContractArgs(
+  const { githubOutput, increment, squashTitle } = parsePublishContractArgs(
     process.argv.slice(2)
   );
   const latestTag = run('git', ['describe', '--tags', '--abbrev=0']);
@@ -491,6 +550,10 @@ async function main() {
     minimumLevel === 'none'
       ? tagVersion
       : semver.inc(tagVersion, minimumLevel);
+
+  if (squashTitle) {
+    assertSquashTitleReleaseLevel({ title: squashTitle, minimumLevel });
+  }
 
   if (
     hasContractChange &&

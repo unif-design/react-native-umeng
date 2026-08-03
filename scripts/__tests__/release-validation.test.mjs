@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import * as publishContract from '../verify-publish-contract.mjs';
 import {
   equalManifestContractField,
   isInitializationContractPath,
@@ -165,12 +166,15 @@ test('explicit release increment selects an exact version for validation and rel
     parsePublishContractArgs([
       '--increment',
       'minor',
+      '--squash-title',
+      'feat(ci): enforce squash release contract',
       '--github-output',
       '/tmp/github-output',
     ]),
     {
       githubOutput: '/tmp/github-output',
       increment: 'minor',
+      squashTitle: 'feat(ci): enforce squash release contract',
     }
   );
   assert.equal(
@@ -197,6 +201,62 @@ test('explicit release increment selects an exact version for validation and rel
         tagVersion: '1.2.3',
       }),
     /auto, patch, minor, major/
+  );
+});
+
+test('squash title classification matches the Angular release floor', () => {
+  assert.equal(
+    typeof publishContract.squashTitleReleaseLevel,
+    'function',
+    'squashTitleReleaseLevel must be exported'
+  );
+
+  assert.equal(
+    publishContract.squashTitleReleaseLevel('fix: close callback race'),
+    'patch'
+  );
+  assert.equal(
+    publishContract.squashTitleReleaseLevel('feat: enforce release floor'),
+    'minor'
+  );
+  assert.equal(
+    publishContract.squashTitleReleaseLevel(
+      'feat(ci): enforce release floor'
+    ),
+    'minor'
+  );
+  assert.throws(
+    () => publishContract.squashTitleReleaseLevel('release without a type'),
+    /invalid squash title/i
+  );
+});
+
+test('squash title cannot understate the file-based release floor', () => {
+  assert.equal(
+    typeof publishContract.assertSquashTitleReleaseLevel,
+    'function',
+    'assertSquashTitleReleaseLevel must be exported'
+  );
+
+  assert.throws(
+    () =>
+      publishContract.assertSquashTitleReleaseLevel({
+        title: 'fix: close callback race',
+        minimumLevel: 'minor',
+      }),
+    /squash title[\s\S]*patch[\s\S]*minor[\s\S]*feat:/i
+  );
+  assert.doesNotThrow(() =>
+    publishContract.assertSquashTitleReleaseLevel({
+      title: 'feat(ci): enforce release floor',
+      minimumLevel: 'minor',
+    })
+  );
+  assert.doesNotThrow(() =>
+    publishContract.assertSquashTitleReleaseLevel({
+      title: 'fix: close callback race',
+      minimumLevel: 'patch',
+    })
   );
 });
 
