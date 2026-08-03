@@ -9,7 +9,7 @@ description: "5 分钟跑通 @unif/react-native-umeng：App 根挂 <ShareSheetHo
 5 分钟跑通:根挂 `<ShareSheetHost />` → 启动时 `preInit` → 用户同意后 `init` → `await Share.openSheet()` 拉起面板。
 
 :::info 当前验证边界
-这套流程已在 JS、Android 和 iOS 落地。iOS 已通过 simulator build/XCTest/native contract；Android 源码/static contract 已核对，仓库已有 JVM tests，但本轮 Gradle/JVM 留待 Android SDK CI。真实第三方 App 回跳仍需真机验证。
+这套流程已在 JS、Android 和 iOS 落地。iOS 已通过 simulator build/XCTest/native contract；Android CI 已通过 native contract、JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实第三方 App 回跳与 Android 真机 R8 运行仍需真机验证。
 :::
 
 :::warning 分享必须真机运行

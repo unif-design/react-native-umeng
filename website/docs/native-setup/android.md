@@ -9,7 +9,7 @@ description: "Android 原生接入:宿主提供 WXEntryActivity : WXCallbackActi
 分享后能否跳回 App 全靠回调 Activity 的注册。**模板别凭记忆编**，逐项核对本页。
 
 :::info 当前验证边界
-Android 源码/static native contract 已核对，仓库已有 bootstrap/callback state machine 与 module JVM tests；本轮没有执行 Android Gradle/JVM，留待具备 SDK 的 CI。真实微信/钉钉回跳和启用 R8 的 minified release 同样尚未验证，因此本页仍要求消费者实际构建与真机验收。
+Android CI 已通过 native contract、bootstrap/callback state machine 与 module JVM tests、启用 minify 的 release 构建和 merged manifest 核对。真实微信/钉钉回跳以及 minified release 在真机上的运行仍未验收，因此本页仍要求消费者实际构建与真机验证。
 :::
 
 ---

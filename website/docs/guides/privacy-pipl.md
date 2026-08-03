@@ -9,7 +9,7 @@ description: "@unif/react-native-umeng 的 PIPL 两段式初始化：Common.preI
 本库的公共契约采用 **preInit → init** 两段式,用于满足 PIPL(个人信息保护法)对「用户同意前不采集」的要求。本页讲清两段职责与时序。
 
 :::info 验证边界
-Android 与 iOS 都已实现本页边界。iOS simulator/XCTest/native contract 已验证授权前模块构造、Share/Analytics gate 与 bootstrap 顺序；Android 源码/static contract 已核对，仓库已有 JVM 状态机测试，但本轮未执行 Gradle/JVM，留待 Android SDK CI。真实 vendor 网络、平台回跳与数据后台仍需对应真机/测试账号验证。
+Android 与 iOS 都已实现本页边界。iOS simulator/XCTest/native contract 已验证授权前模块构造、Share/Analytics gate 与 bootstrap 顺序；Android CI 已通过 native contract、JVM 状态机测试、启用 minify 的 release 构建与 merged manifest 核对。真实 vendor 网络、平台回跳、Android 真机 R8 运行与数据后台仍需对应真机/测试账号验证。
 :::
 
 ---
