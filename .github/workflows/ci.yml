@@ -159,6 +159,12 @@ jobs:
       - name: Run unit tests
         run: yarn test --maxWorkers=2 --coverage
 
+      - name: Run example tests
+        run: yarn example test --maxWorkers=2
+
+      - name: Verify example contract
+        run: yarn verify:example-contract
+
   website:
     runs-on: ubuntu-latest
     needs: changes

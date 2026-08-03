@@ -5,7 +5,9 @@
 [![License](https://img.shields.io/npm/l/@unif/react-native-umeng.svg?color=blue)](LICENSE)
 [![Docs](https://img.shields.io/badge/docs-unif--design.github.io-orange.svg)](https://unif-design.github.io/react-native-umeng/)
 
-友盟 React Native 新架构桥：**U-Share**（微信会话 / 钉钉分享）+ **U-App** 移动统计。当前只验证 **React Native 0.85 New Architecture**（TurboModule）与 React 19。
+友盟 React Native 新架构桥：**U-Share**（微信会话 / 钉钉分享）+ **U-App** 移动统计。
+
+当前仓库开发 / example 验证基线为 **React Native 0.86.2**、**React 19.2.3**、**@unif/react-native-design 0.20.0**。发布包的 React / RN peer contract 保持 `package.json` 原值，本仓验证没有收紧公共兼容范围。
 
 > iOS 的初始化状态机、Share/Analytics 门禁、TurboModule 注册、AppDelegate/SceneDelegate 转发和 example 配置已通过 native contract、simulator build 与 XCTest。Android CI 已通过 native contract、bootstrap/callback JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实微信 / 钉钉拉起与回包、iOS URL Scheme / Universal Link / AASA、Android 真机 R8 运行仍须在对应环境验证。
 
@@ -108,6 +110,7 @@ iOS 启用微信时 `wechatAppId`、`wechatAppSecret`、绝对 HTTPS `wechatUniv
 - 文档站：<https://unif-design.github.io/react-native-umeng/>
 - AI 索引：<https://unif-design.github.io/react-native-umeng/llms.txt> · 全文：<https://unif-design.github.io/react-native-umeng/llms-full.txt>
 - AI 编码助手：[`umeng-share`](https://github.com/unif-design/skills/tree/main/skills/umeng-share) Skill
+- [Example 展厅](./example/README.md)：运行时填写凭据，逐步验证隐私同意、平台检测、分享、统计与原生回调。
 
 ## 平台与验证边界
 

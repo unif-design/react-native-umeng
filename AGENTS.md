@@ -28,7 +28,7 @@ npx skills add unif-design/skills --skill rn-library --skill umeng-share --globa
 
 ## 仓库定位
 
-`@unif/react-native-umeng` —— 友盟 RN 新架构桥,做两件事:**U-Share**(微信会话 + 钉钉分享)与 **U-App 移动统计**。目标运行时:**RN 0.85 新架构**(TurboModule)、React 19、TypeScript 6。UI 文案中文。首版只支持微信会话 + 钉钉(无朋友圈 / QQ / 微博)。
+`@unif/react-native-umeng` —— 友盟 RN 新架构桥,做两件事:**U-Share**(微信会话 + 钉钉分享)与 **U-App 移动统计**。当前仓库开发/example 验证基线：RN 0.86.2、React 19.2.3、Design 0.20.0。发布包的 React/RN peer contract 保持 package.json 原值，本任务未收紧公共兼容范围。TypeScript 6。UI 文案中文。首版只支持微信会话 + 钉钉(无朋友圈 / QQ / 微博)。
 
 turbo-module 库(`create-react-native-library` `kotlin-objc`):JS 在 `src/`,原生在 `android/`(Kotlin)+ `ios/`(Objective-C++ `.mm`)。yarn workspaces 单仓库:库本体在根目录,`example/` 是宿主 RN app,`website/` 是 Docusaurus 文档站。
 
@@ -44,6 +44,8 @@ yarn lint --fix       # 自动修复
 yarn test             # jest(跑 src/__tests__/ 下的 JS / React 组件测试)
 yarn test src/__tests__/share.test.ts    # 跑单文件
 yarn test -t "pattern"                    # 按测试名过滤
+yarn example test     # example 展厅 Jest 测试
+yarn verify:example-contract  # example 原生 callback / placeholder contract
 yarn prepare          # react-native-builder-bob → lib/module(ESM)+ lib/typescript
 yarn clean            # 清 lib/ + example 构建产物
 
