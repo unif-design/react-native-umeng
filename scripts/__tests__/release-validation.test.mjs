@@ -149,6 +149,56 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
   );
 });
 
+test('root and example development graph matches the React Native 0.86.2 fixture', async () => {
+  const [root, example] = await Promise.all(
+    ['../../package.json', '../../example/package.json'].map(
+      async (relativePath) =>
+        JSON.parse(
+          await readFile(new URL(relativePath, import.meta.url), 'utf8')
+        )
+    )
+  );
+
+  assert.equal(root.devDependencies['react-native'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/babel-preset'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/eslint-config'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/jest-preset'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/metro-config'], '0.86.2');
+  assert.equal(root.peerDependencies['react-native'], '*');
+
+  assert.equal(example.dependencies.react, '19.2.3');
+  assert.equal(example.dependencies['react-native'], '0.86.2');
+  assert.equal(
+    example.devDependencies['@react-native/babel-preset'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native/jest-preset'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native/metro-config'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native/typescript-config'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native-community/cli'],
+    '20.1.0'
+  );
+  assert.equal(
+    example.devDependencies['@react-native-community/cli-platform-android'],
+    '20.1.0'
+  );
+  assert.equal(
+    example.devDependencies['@react-native-community/cli-platform-ios'],
+    '20.1.0'
+  );
+  assert.equal(example.devDependencies['react-test-renderer'], '19.2.3');
+});
+
 test('website validation runs the cross-workspace dependency verifier', async () => {
   const workflow = await readFile(
     new URL('../../.github/workflows/project-validation.yml', import.meta.url),

@@ -30,6 +30,25 @@ const requiredSecurityResolutions = {
   'copy-webpack-plugin/serialize-javascript': '7.0.7',
   'css-minimizer-webpack-plugin/serialize-javascript': '7.0.7',
 };
+const requiredRootReactNativeDevelopmentGraph = {
+  'react': '19.2.3',
+  'react-native': '0.86.2',
+  '@react-native/babel-preset': '0.86.2',
+  '@react-native/eslint-config': '0.86.2',
+  '@react-native/jest-preset': '0.86.2',
+  '@react-native/metro-config': '0.86.2',
+  'react-test-renderer': '19.2.3',
+};
+const requiredExampleReactNativeDevelopmentGraph = {
+  '@react-native-community/cli': '20.1.0',
+  '@react-native-community/cli-platform-android': '20.1.0',
+  '@react-native-community/cli-platform-ios': '20.1.0',
+  '@react-native/babel-preset': '0.86.2',
+  '@react-native/jest-preset': '0.86.2',
+  '@react-native/metro-config': '0.86.2',
+  '@react-native/typescript-config': '0.86.2',
+  'react-test-renderer': '19.2.3',
+};
 const lockedPackageContracts = {
   '@unif/react-native-design': {
     version: '0.20.0',
@@ -96,6 +115,16 @@ function assertDesignPeers(manifest, field, manifestPath) {
       manifest[field]?.[name],
       undefined,
       `${manifestPath} must explicitly declare ${name} in ${field}`,
+    );
+  }
+}
+
+function assertExactDependencies(manifest, field, manifestPath, expected) {
+  for (const [name, version] of Object.entries(expected)) {
+    assert.equal(
+      manifest[field]?.[name],
+      version,
+      `${manifestPath} must declare ${name} as ${version} in ${field}`,
     );
   }
 }
@@ -171,6 +200,38 @@ assertSharedDependencyRanges(root, 'peerDependencies', 'package.json');
 assertSharedDependencyRanges(root, 'devDependencies', 'package.json');
 assertSharedDependencyRanges(example, 'dependencies', 'example/package.json');
 assertSharedDependencyRanges(website, 'dependencies', 'website/package.json');
+assertExactDependencies(
+  root,
+  'devDependencies',
+  'package.json',
+  requiredRootReactNativeDevelopmentGraph,
+);
+assert.equal(
+  root.peerDependencies['react-native'],
+  '*',
+  'package.json must keep the public react-native peer unchanged',
+);
+assert.equal(
+  root.peerDependencies.react,
+  '*',
+  'package.json must keep the public react peer unchanged',
+);
+assert.equal(
+  example.dependencies.react,
+  '19.2.3',
+  'example/package.json must declare react as 19.2.3 in dependencies',
+);
+assert.equal(
+  example.dependencies['react-native'],
+  '0.86.2',
+  'example/package.json must declare react-native as 0.86.2 in dependencies',
+);
+assertExactDependencies(
+  example,
+  'devDependencies',
+  'example/package.json',
+  requiredExampleReactNativeDevelopmentGraph,
+);
 assert.equal(root.peerDependencies['react-native-gesture-handler'], '>=3.0.0 <4.0.0');
 assert.deepEqual(
   Object.fromEntries(
