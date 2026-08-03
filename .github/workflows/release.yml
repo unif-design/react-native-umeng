@@ -34,6 +34,7 @@ on:
       # release-it 看 conventional commits 决定 bump；paths 负责不漏掉发布契约变化。
       - 'package.json'
       - 'src/**'
+      - 'scripts/**'
       - 'ios/**'
       - 'android/**'
       - '*.podspec'
