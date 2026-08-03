@@ -74,19 +74,23 @@ export function PlatformsScreen() {
             item?.displayName ?? PLATFORM_DISPLAY_NAMES[platform];
           const presentation = installationPresentation(item?.installed);
           const checking = platformState.checking === platform;
+          const stale = item?.freshness === 'stale';
 
           return (
             <Card key={platform}>
               <View style={styles.row}>
                 <StatusDot
                   status={presentation.status}
-                  accessibilityLabel={`${displayName}${presentation.label}`}
+                  accessibilityLabel={`${displayName}${presentation.label}${
+                    stale ? '，需复查' : ''
+                  }`}
                 />
                 <Text style={styles.name}>{displayName}</Text>
                 <Tag
                   label={presentation.label}
                   variant={presentation.variant}
                 />
+                {stale ? <Tag label="需复查" variant="outline" /> : null}
               </View>
               <Button
                 label={`重新检测${displayName}`}

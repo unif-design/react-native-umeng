@@ -370,14 +370,15 @@ describe('ShowcaseProvider platform operations', () => {
         platform: Platform.WECHAT_SESSION,
         installed: true,
         displayName: '微信',
+        freshness: 'fresh',
       },
       {
         platform: Platform.DINGTALK,
         installed: false,
         displayName: '钉钉',
+        freshness: 'fresh',
       },
     ]);
-    const previousItems = current().state.platforms.items;
     mockedShare.listPlatforms.mockRejectedValueOnce(
       new UmengError('E_UNKNOWN', nativeDetail)
     );
@@ -387,7 +388,20 @@ describe('ShowcaseProvider platform operations', () => {
     });
 
     expect(current().state.setup.phase).toBe('initialized');
-    expect(current().state.platforms.items).toBe(previousItems);
+    expect(current().state.platforms.items).toEqual([
+      {
+        platform: Platform.WECHAT_SESSION,
+        installed: true,
+        displayName: '微信',
+        freshness: 'stale',
+      },
+      {
+        platform: Platform.DINGTALK,
+        installed: false,
+        displayName: '钉钉',
+        freshness: 'stale',
+      },
+    ]);
     expect(current().state.platforms.feedback?.code).toBe('E_UNKNOWN');
     expect(current().state.feedback?.code).toBe('E_UNKNOWN');
     expect(JSON.stringify(current().state.logs)).not.toContain(nativeDetail);
@@ -409,14 +423,46 @@ describe('ShowcaseProvider platform operations', () => {
         platform: Platform.WECHAT_SESSION,
         installed: true,
         displayName: '微信',
+        freshness: 'fresh',
       },
       {
         platform: Platform.DINGTALK,
         installed: false,
         displayName: '钉钉',
+        freshness: 'fresh',
       },
     ]);
     expect(current().state.platforms.items[0]).toBe(previousItems[0]);
+  });
+
+  it('keeps a failed single-platform check visible but marks only that target stale', async () => {
+    const nativeDetail = 'single platform query failed';
+    mockedShare.isInstalled.mockRejectedValueOnce(
+      new UmengError('E_UNKNOWN', nativeDetail)
+    );
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+
+    await act(async () => {
+      await current().actions.checkPlatform(Platform.WECHAT_SESSION);
+    });
+
+    expect(current().state.platforms.items).toEqual([
+      {
+        platform: Platform.WECHAT_SESSION,
+        installed: true,
+        displayName: '微信',
+        freshness: 'stale',
+      },
+      {
+        platform: Platform.DINGTALK,
+        installed: true,
+        displayName: '钉钉',
+        freshness: 'fresh',
+      },
+    ]);
+    expect(current().state.platforms.feedback?.code).toBe('E_UNKNOWN');
+    expect(JSON.stringify(current().state.logs)).not.toContain(nativeDetail);
   });
 });
 
@@ -560,8 +606,87 @@ describe('ShowcaseProvider share operations', () => {
         platform: Platform.DINGTALK,
         installed: true,
         displayName: '钉钉',
+        freshness: 'fresh',
       },
     ]);
+  });
+
+  it('rechecks a stale installed platform before sharing and stores the fresh result', async () => {
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+    mockedShare.listPlatforms.mockRejectedValueOnce(
+      new UmengError('E_UNKNOWN', 'refresh failed')
+    );
+    await act(async () => {
+      await current().actions.refreshPlatforms();
+    });
+    mockedShare.isInstalled.mockResolvedValueOnce(true);
+
+    await act(async () => {
+      await current().actions.shareDirect(
+        'text',
+        Platform.WECHAT_SESSION,
+        validDraft
+      );
+    });
+
+    expect(mockedShare.isInstalled).toHaveBeenCalledWith(
+      Platform.WECHAT_SESSION
+    );
+    expect(mockedShare.shareText).toHaveBeenCalledWith({
+      platform: Platform.WECHAT_SESSION,
+      text: 'sensitive share body',
+    });
+    expect(
+      current().state.platforms.items.find(
+        (item) => item.platform === Platform.WECHAT_SESSION
+      )
+    ).toEqual({
+      platform: Platform.WECHAT_SESSION,
+      installed: true,
+      displayName: '微信',
+      freshness: 'fresh',
+    });
+  });
+
+  it('does not share when rechecking a stale platform fails and keeps its last-known value stale', async () => {
+    const nativeDetail = 'stale platform query failed';
+    render(<Probe />, { wrapper: Harness });
+    await enterInitialized();
+    mockedShare.listPlatforms.mockRejectedValueOnce(
+      new UmengError('E_UNKNOWN', 'refresh failed')
+    );
+    await act(async () => {
+      await current().actions.refreshPlatforms();
+    });
+    mockedShare.isInstalled.mockRejectedValueOnce(
+      new UmengError('E_UNKNOWN', nativeDetail)
+    );
+
+    await act(async () => {
+      await current().actions.shareDirect(
+        'text',
+        Platform.WECHAT_SESSION,
+        validDraft
+      );
+    });
+
+    expect(mockedShare.isInstalled).toHaveBeenCalledWith(
+      Platform.WECHAT_SESSION
+    );
+    expect(mockedShare.shareText).not.toHaveBeenCalled();
+    expect(
+      current().state.platforms.items.find(
+        (item) => item.platform === Platform.WECHAT_SESSION
+      )
+    ).toEqual({
+      platform: Platform.WECHAT_SESSION,
+      installed: true,
+      displayName: '微信',
+      freshness: 'stale',
+    });
+    expect(current().state.feedback?.code).toBe('E_UNKNOWN');
+    expect(JSON.stringify(current().state.logs)).not.toContain(nativeDetail);
   });
 
   it('keeps an unknown platform unknown when installation query fails', async () => {

@@ -161,6 +161,7 @@ it('分享面板切换三种 payload，并提交全部公开 options', async () 
   fireEvent.press(screen.getByRole('tab', { name: '图片' }));
   const imagePreview = screen.getByLabelText('分享图片预览');
   fireEvent(imagePreview, 'load');
+  fireEvent(screen.getByLabelText('图片缩略图预览'), 'load');
   fireEvent.press(screen.getByRole('button', { name: '打开分享面板' }));
   await waitFor(() =>
     expect(mockedShare.openSheet).toHaveBeenLastCalledWith(
@@ -195,10 +196,12 @@ it('图片预览失败时禁用本次分享，修改 URL 并加载后可恢复',
   fireEvent.press(screen.getByRole('button', { name: '分享面板' }));
   fireEvent.press(screen.getByRole('tab', { name: '图片' }));
 
+  fireEvent(screen.getByLabelText('图片缩略图预览'), 'load');
   fireEvent(screen.getByLabelText('分享图片预览'), 'error');
   expect(
     await screen.findByText('图片预览失败，请修改 URL 后重试')
   ).toBeOnTheScreen();
+  expect(screen.queryByText('正在检查远程素材')).not.toBeOnTheScreen();
   expect(screen.getByRole('button', { name: '打开分享面板' })).toBeDisabled();
 
   fireEvent.changeText(
@@ -221,10 +224,120 @@ it('图片预览失败时禁用本次分享，修改 URL 并加载后可恢复',
   );
 });
 
+it('非空媒体 URL 分别加载，且空 thumb 对图片与链接分享合法', async () => {
+  await renderInitializedApp();
+  fireEvent.press(screen.getByRole('button', { name: '分享面板' }));
+  fireEvent.press(screen.getByRole('tab', { name: '图片' }));
+
+  fireEvent(screen.getByLabelText('分享图片预览'), 'load');
+  expect(screen.getByRole('button', { name: '打开分享面板' })).toBeDisabled();
+  fireEvent.changeText(screen.getByLabelText('图片缩略图 URL'), '');
+  const openButton = screen.getByRole('button', { name: '打开分享面板' });
+  expect(openButton).toBeEnabled();
+  fireEvent.press(openButton);
+  await waitFor(() =>
+    expect(mockedShare.openSheet).toHaveBeenLastCalledWith(
+      {
+        type: 'image',
+        image: 'https://unif-design.github.io/react-native-umeng/img/logo.png',
+      },
+      expect.any(Object)
+    )
+  );
+
+  fireEvent.press(screen.getByRole('tab', { name: '链接' }));
+  expect(screen.queryByLabelText('分享缩略图预览')).not.toBeOnTheScreen();
+  expect(openButton).toBeEnabled();
+  fireEvent.press(openButton);
+  await waitFor(() =>
+    expect(mockedShare.openSheet).toHaveBeenLastCalledWith(
+      {
+        type: 'link',
+        title: '@unif/react-native-umeng',
+        url: 'https://unif-design.github.io/react-native-umeng/',
+        description: '合规初始化、微信会话与钉钉分享示例',
+      },
+      expect.any(Object)
+    )
+  );
+});
+
+it('直接分享按 type 与 URL 隔离媒体预览状态', async () => {
+  await renderInitializedApp();
+  fireEvent.press(screen.getByRole('button', { name: '直接分享' }));
+
+  const imageButton = screen.getByRole('button', {
+    name: '微信会话 · 图片',
+  });
+  const linkButton = screen.getByRole('button', {
+    name: '微信会话 · 链接',
+  });
+  expect(imageButton).toBeDisabled();
+  expect(linkButton).toBeDisabled();
+
+  fireEvent(screen.getByLabelText('分享图片预览'), 'load');
+  expect(imageButton).toBeDisabled();
+  fireEvent(screen.getByLabelText('图片缩略图预览'), 'load');
+  expect(imageButton).toBeEnabled();
+  expect(linkButton).toBeDisabled();
+
+  fireEvent.press(screen.getByRole('tab', { name: '编辑链接' }));
+  fireEvent(screen.getByLabelText('分享缩略图预览'), 'error');
+  expect(linkButton).toBeDisabled();
+  expect(imageButton).toBeEnabled();
+  expect(screen.queryByText('正在检查远程素材')).not.toBeOnTheScreen();
+
+  fireEvent.changeText(
+    screen.getByLabelText('链接缩略图 URL'),
+    'https://example.com/link-recovered.png'
+  );
+  fireEvent(screen.getByLabelText('分享缩略图预览'), 'load');
+  expect(linkButton).toBeEnabled();
+  expect(imageButton).toBeDisabled();
+
+  fireEvent.press(screen.getByRole('tab', { name: '编辑图片' }));
+  fireEvent(screen.getByLabelText('图片缩略图预览'), 'load');
+  expect(imageButton).toBeEnabled();
+  fireEvent.changeText(
+    screen.getByLabelText('图片 URL'),
+    'https://example.com/image-new.png'
+  );
+  expect(imageButton).toBeDisabled();
+  expect(linkButton).toBeEnabled();
+  fireEvent(screen.getByLabelText('分享图片预览'), 'load');
+  expect(imageButton).toBeEnabled();
+});
+
+it('直接分享以两个平台行和三个类型列呈现可访问矩阵', async () => {
+  await renderInitializedApp();
+  fireEvent.press(screen.getByRole('button', { name: '直接分享' }));
+
+  expect(screen.getByRole('header', { name: '平台' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: '文本' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: '图片' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: '链接' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: '微信会话' })).toBeOnTheScreen();
+  expect(screen.getByRole('header', { name: '钉钉' })).toBeOnTheScreen();
+
+  for (const action of [
+    '微信会话 · 文本',
+    '微信会话 · 图片',
+    '微信会话 · 链接',
+    '钉钉 · 文本',
+    '钉钉 · 图片',
+    '钉钉 · 链接',
+  ]) {
+    expect(screen.getByRole('button', { name: action })).toBeOnTheScreen();
+  }
+});
+
 it('直接分享暴露两平台乘三类型六个公开动作', async () => {
   await renderInitializedApp();
   fireEvent.press(screen.getByRole('button', { name: '直接分享' }));
   fireEvent(screen.getByLabelText('分享图片预览'), 'load');
+  fireEvent(screen.getByLabelText('图片缩略图预览'), 'load');
+  fireEvent.press(screen.getByRole('tab', { name: '编辑链接' }));
+  fireEvent(screen.getByLabelText('分享缩略图预览'), 'load');
 
   const cases = [
     ['微信会话 · 文本', mockedShare.shareText],

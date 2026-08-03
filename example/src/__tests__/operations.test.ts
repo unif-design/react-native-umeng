@@ -1,24 +1,23 @@
-import {
-  PLATFORM_DISPLAY_NAMES,
-  Platform,
-  type PlatformInfo,
-} from '@unif/react-native-umeng';
+import { PLATFORM_DISPLAY_NAMES, Platform } from '@unif/react-native-umeng';
 
 import {
   createInitialPlatformState,
   platformReducer,
+  type PlatformStatus,
 } from '../state/operations';
 
-const previousItems: readonly PlatformInfo[] = [
+const previousItems: readonly PlatformStatus[] = [
   {
     platform: Platform.WECHAT_SESSION,
     installed: true,
     displayName: PLATFORM_DISPLAY_NAMES[Platform.WECHAT_SESSION],
+    freshness: 'fresh',
   },
   {
     platform: Platform.DINGTALK,
     installed: true,
     displayName: PLATFORM_DISPLAY_NAMES[Platform.DINGTALK],
+    freshness: 'fresh',
   },
 ];
 
@@ -56,11 +55,13 @@ describe('platformReducer', () => {
           platform: Platform.WECHAT_SESSION,
           installed: true,
           displayName: '微信',
+          freshness: 'fresh',
         },
         {
           platform: Platform.DINGTALK,
           installed: false,
           displayName: '钉钉',
+          freshness: 'fresh',
         },
       ],
       refreshing: false,
@@ -69,7 +70,7 @@ describe('platformReducer', () => {
     });
   });
 
-  it('retains the last trusted items when refresh fails', () => {
+  it('retains last-known install values but marks every item stale when refresh fails', () => {
     const previous = {
       ...createInitialPlatformState(),
       items: previousItems,
@@ -80,7 +81,20 @@ describe('platformReducer', () => {
       feedback: unknownFeedback,
     });
 
-    expect(failed.items).toBe(previousItems);
+    expect(failed.items).toEqual([
+      {
+        platform: Platform.WECHAT_SESSION,
+        installed: true,
+        displayName: '微信',
+        freshness: 'stale',
+      },
+      {
+        platform: Platform.DINGTALK,
+        installed: true,
+        displayName: '钉钉',
+        freshness: 'stale',
+      },
+    ]);
     expect(failed).toMatchObject({
       refreshing: false,
       checking: null,
@@ -108,11 +122,13 @@ describe('platformReducer', () => {
         platform: Platform.WECHAT_SESSION,
         installed: true,
         displayName: '微信',
+        freshness: 'fresh',
       },
       {
         platform: Platform.DINGTALK,
         installed: false,
         displayName: '钉钉',
+        freshness: 'fresh',
       },
     ]);
     expect(checked.items[0]).toBe(previousItems[0]);
@@ -142,11 +158,44 @@ describe('platformReducer', () => {
         platform: Platform.DINGTALK,
         installed: true,
         displayName: '钉钉',
+        freshness: 'fresh',
       },
     ]);
   });
 
-  it('does not replace a trusted install state when a check fails', () => {
+  it('keeps another stale platform stale when a previously unknown target succeeds', () => {
+    const staleWechat: PlatformStatus = {
+      platform: Platform.WECHAT_SESSION,
+      installed: true,
+      displayName: '微信',
+      freshness: 'stale',
+    };
+    const checked = platformReducer(
+      {
+        ...createInitialPlatformState(),
+        items: [staleWechat],
+        checking: Platform.DINGTALK,
+      },
+      {
+        type: 'checkSucceeded',
+        platform: Platform.DINGTALK,
+        installed: true,
+      }
+    );
+
+    expect(checked.items).toEqual([
+      staleWechat,
+      {
+        platform: Platform.DINGTALK,
+        installed: true,
+        displayName: '钉钉',
+        freshness: 'fresh',
+      },
+    ]);
+    expect(checked.items[0]).toBe(staleWechat);
+  });
+
+  it('retains the last-known install value but marks the failed target stale', () => {
     const previous = {
       ...createInitialPlatformState(),
       items: previousItems,
@@ -161,7 +210,20 @@ describe('platformReducer', () => {
       feedback: unknownFeedback,
     });
 
-    expect(failed.items).toBe(previousItems);
+    expect(failed.items).toEqual([
+      {
+        platform: Platform.WECHAT_SESSION,
+        installed: true,
+        displayName: '微信',
+        freshness: 'stale',
+      },
+      {
+        platform: Platform.DINGTALK,
+        installed: true,
+        displayName: '钉钉',
+        freshness: 'fresh',
+      },
+    ]);
     expect(failed).toMatchObject({
       refreshing: false,
       checking: null,

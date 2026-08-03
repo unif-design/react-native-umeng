@@ -7,22 +7,31 @@ import {
   useThemedStyles,
   type ColorTokens,
 } from '@unif/react-native-design';
-import { useEffect, useState } from 'react';
 import { Image, Text, View } from 'react-native';
 
 import type { ShareContentDraft } from '../content/shareContent';
 import type { DirectShareType } from '../state/operations';
+import {
+  requiredPreviews,
+  type PreviewResolution,
+  type PreviewResolutionByKey,
+} from '../state/previewState';
 
 type SharePayloadEditorProps = {
   readonly type: DirectShareType;
   readonly draft: ShareContentDraft;
   readonly onChange: (field: keyof ShareContentDraft, value: string) => void;
-  readonly onPreviewReadyChange?: (ready: boolean) => void;
+  readonly previewResolutions: PreviewResolutionByKey;
+  readonly onPreviewResolutionChange: (
+    key: string,
+    resolution: PreviewResolution
+  ) => void;
 };
 
-type PreviewState = 'idle' | 'loading' | 'ready' | 'error';
-
 const makeStyles = (colors: ColorTokens) => ({
+  previewList: {
+    gap: 8,
+  },
   previewCard: {
     gap: 8,
   },
@@ -50,43 +59,15 @@ const makeStyles = (colors: ColorTokens) => ({
   },
 });
 
-function previewConfig(
-  type: DirectShareType,
-  draft: ShareContentDraft
-): { readonly url: string; readonly label: string } | null {
-  switch (type) {
-    case 'text':
-      return null;
-    case 'image':
-      return { url: draft.image, label: '分享图片预览' };
-    case 'link':
-      return { url: draft.thumb, label: '分享缩略图预览' };
-  }
-}
-
 export function SharePayloadEditor({
   type,
   draft,
   onChange,
-  onPreviewReadyChange,
+  previewResolutions,
+  onPreviewResolutionChange,
 }: SharePayloadEditorProps) {
   const styles = useThemedStyles(makeStyles);
-  const config = previewConfig(type, draft);
-  const hasPreview = config != null;
-  const [previewState, setPreviewState] = useState<PreviewState>(
-    config == null ? 'idle' : 'loading'
-  );
-  const previewUrl = config?.url ?? '';
-
-  useEffect(() => {
-    if (!hasPreview) {
-      setPreviewState('idle');
-      onPreviewReadyChange?.(true);
-      return;
-    }
-    setPreviewState('loading');
-    onPreviewReadyChange?.(false);
-  }, [hasPreview, onPreviewReadyChange, previewUrl, type]);
+  const previews = requiredPreviews(type, draft);
 
   const update = (field: keyof ShareContentDraft) => (value: string) => {
     onChange(field, value);
@@ -168,47 +149,56 @@ export function SharePayloadEditor({
         </FormGroup>
       </Form>
 
-      {config == null ? null : (
-        <View style={styles.previewCard}>
-          <Image
-            key={`${type}-${previewUrl}`}
-            accessibilityLabel={config.label}
-            source={{ uri: previewUrl }}
-            style={styles.preview}
-            resizeMode="cover"
-            onLoad={() => {
-              setPreviewState('ready');
-              onPreviewReadyChange?.(true);
-            }}
-            onError={() => {
-              setPreviewState('error');
-              onPreviewReadyChange?.(false);
-            }}
-          />
-          <View style={styles.previewStatus}>
-            <StatusDot
-              status={
-                previewState === 'ready'
-                  ? 'done'
-                  : previewState === 'error'
-                    ? 'error'
-                    : 'active'
-              }
-              accessibilityLabel={
-                previewState === 'ready'
-                  ? '预览加载成功'
-                  : previewState === 'error'
-                    ? '预览加载失败'
-                    : '预览加载中'
-              }
-            />
-            <Text style={styles.previewCopy}>
-              {previewState === 'ready' ? '素材预览可用' : '正在检查远程素材'}
-            </Text>
-          </View>
-          {previewState === 'error' ? (
-            <Text style={styles.error}>图片预览失败，请修改 URL 后重试</Text>
-          ) : null}
+      {previews.length === 0 ? null : (
+        <View style={styles.previewList}>
+          {previews.map((preview) => {
+            const resolution = previewResolutions[preview.key];
+            const status =
+              resolution === 'ready'
+                ? 'done'
+                : resolution === 'error'
+                  ? 'error'
+                  : 'active';
+            const statusLabel =
+              resolution === 'ready'
+                ? '预览加载成功'
+                : resolution === 'error'
+                  ? '预览加载失败'
+                  : '预览加载中';
+            const copy =
+              resolution === 'ready'
+                ? '素材预览可用'
+                : resolution === 'error'
+                  ? '图片预览失败，请修改 URL 后重试'
+                  : '正在检查远程素材';
+            return (
+              <View key={preview.key} style={styles.previewCard}>
+                <Image
+                  accessibilityLabel={preview.accessibilityLabel}
+                  source={{ uri: preview.url }}
+                  style={styles.preview}
+                  resizeMode="cover"
+                  onLoad={() => {
+                    onPreviewResolutionChange(preview.key, 'ready');
+                  }}
+                  onError={() => {
+                    onPreviewResolutionChange(preview.key, 'error');
+                  }}
+                />
+                <View style={styles.previewStatus}>
+                  <StatusDot status={status} accessibilityLabel={statusLabel} />
+                  <Text
+                    style={[
+                      styles.previewCopy,
+                      resolution === 'error' ? styles.error : null,
+                    ]}
+                  >
+                    {copy}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
       )}
     </View>

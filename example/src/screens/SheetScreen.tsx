@@ -9,7 +9,7 @@ import {
   useThemedStyles,
   type ColorTokens,
 } from '@unif/react-native-design';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import {
@@ -20,6 +20,11 @@ import { OperationFeedback } from '../components/OperationFeedback';
 import { SharePayloadEditor } from '../components/SharePayloadEditor';
 import { ShowcaseScaffold } from '../components/ShowcaseScaffold';
 import type { DirectShareType, SheetDraft } from '../state/operations';
+import {
+  isPreviewReady,
+  type PreviewResolution,
+  type PreviewResolutionByKey,
+} from '../state/previewState';
 import { useShowcase } from '../state/useShowcase';
 
 const TYPE_ITEMS = [
@@ -51,7 +56,8 @@ export function SheetScreen() {
   });
   const [options, setOptions] =
     useState<SheetDraft['options']>(DEFAULT_OPTIONS);
-  const [previewReady, setPreviewReady] = useState(true);
+  const [previewResolutions, setPreviewResolutions] =
+    useState<PreviewResolutionByKey>({});
   const latestSuccess = useMemo(
     () =>
       state.logs.find(
@@ -73,6 +79,17 @@ export function SheetScreen() {
   ): void => {
     setOptions((current) => ({ ...current, [field]: value }));
   };
+  const updatePreviewResolution = useCallback(
+    (key: string, resolution: PreviewResolution): void => {
+      setPreviewResolutions((current) =>
+        current[key] === resolution
+          ? current
+          : { ...current, [key]: resolution }
+      );
+    },
+    []
+  );
+  const previewReady = isPreviewReady(type, content, previewResolutions);
 
   return (
     <ShowcaseScaffold title="分享面板" onBack={actions.back}>
@@ -80,9 +97,7 @@ export function SheetScreen() {
         value={type}
         items={TYPE_ITEMS}
         onChange={(nextType) => {
-          const selectedType = nextType as DirectShareType;
-          setType(selectedType);
-          setPreviewReady(selectedType === 'text');
+          setType(nextType as DirectShareType);
         }}
       />
       <View style={styles.section}>
@@ -90,7 +105,8 @@ export function SheetScreen() {
           type={type}
           draft={content}
           onChange={updateContent}
-          onPreviewReadyChange={setPreviewReady}
+          previewResolutions={previewResolutions}
+          onPreviewResolutionChange={updatePreviewResolution}
         />
       </View>
 

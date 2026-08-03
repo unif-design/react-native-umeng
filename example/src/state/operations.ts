@@ -22,8 +22,14 @@ export type SheetDraft = ShareContentDraft & {
   };
 };
 
+export type PlatformFreshness = 'fresh' | 'stale';
+
+export type PlatformStatus = PlatformInfo & {
+  readonly freshness: PlatformFreshness;
+};
+
 export type PlatformState = {
-  readonly items: readonly PlatformInfo[];
+  readonly items: readonly PlatformStatus[];
   readonly refreshing: boolean;
   readonly checking: Platform | null;
   readonly feedback: OperationFeedback | null;
@@ -65,32 +71,63 @@ export function createInitialPlatformState(): PlatformState {
 
 function orderPlatformItems(
   items: readonly PlatformInfo[]
-): readonly PlatformInfo[] {
+): readonly PlatformStatus[] {
   return SUPPORTED_PLATFORMS.flatMap((platform) => {
     const item = items.find((candidate) => candidate.platform === platform);
-    return item === undefined ? [] : [{ ...item }];
+    return item === undefined ? [] : [{ ...item, freshness: 'fresh' as const }];
+  });
+}
+
+function orderPlatformStatuses(
+  items: readonly PlatformStatus[]
+): readonly PlatformStatus[] {
+  return SUPPORTED_PLATFORMS.flatMap((platform) => {
+    const item = items.find((candidate) => candidate.platform === platform);
+    return item === undefined ? [] : [item];
   });
 }
 
 function updateCheckedPlatform(
-  items: readonly PlatformInfo[],
+  items: readonly PlatformStatus[],
   platform: Platform,
   installed: boolean
-): readonly PlatformInfo[] {
+): readonly PlatformStatus[] {
   if (items.some((item) => item.platform === platform)) {
     return items.map((item) =>
-      item.platform === platform ? { ...item, installed } : item
+      item.platform === platform
+        ? { ...item, installed, freshness: 'fresh' }
+        : item
     );
   }
 
-  return orderPlatformItems([
+  return orderPlatformStatuses([
     ...items,
     {
       platform,
       installed,
       displayName: PLATFORM_DISPLAY_NAMES[platform],
+      freshness: 'fresh',
     },
   ]);
+}
+
+function markAllPlatformsStale(
+  items: readonly PlatformStatus[]
+): readonly PlatformStatus[] {
+  return items.map((item) =>
+    item.freshness === 'stale' ? item : { ...item, freshness: 'stale' }
+  );
+}
+
+function markPlatformStale(
+  items: readonly PlatformStatus[],
+  platform: Platform
+): readonly PlatformStatus[] {
+  return items.map((item) =>
+    item.platform === platform && item.freshness !== 'stale'
+      ? { ...item, freshness: 'stale' }
+      : item
+  );
 }
 
 function assertNever(_action: never): never {
@@ -119,6 +156,7 @@ export function platformReducer(
     case 'refreshFailed':
       return {
         ...state,
+        items: markAllPlatformsStale(state.items),
         refreshing: false,
         checking: null,
         feedback: action.feedback,
@@ -143,6 +181,7 @@ export function platformReducer(
     case 'checkFailed':
       return {
         ...state,
+        items: markPlatformStale(state.items, action.platform),
         checking: null,
         feedback: action.feedback,
       };

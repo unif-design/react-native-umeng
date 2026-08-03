@@ -398,7 +398,7 @@ export function ShowcaseProvider({
         (item) => item.platform === platform
       );
       const installed =
-        knownPlatform === undefined
+        knownPlatform === undefined || knownPlatform.freshness === 'stale'
           ? await queryPlatform(platform)
           : knownPlatform.installed;
       if (installed === null) {
