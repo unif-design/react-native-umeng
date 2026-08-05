@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.6.0](https://github.com/unif-design/react-native-umeng/compare/v0.5.0...v0.6.0) (2026-08-05)
+
+### Features
+
+* 放宽 design peer 到 >=0.21.0 <1.0.0 ([#80](https://github.com/unif-design/react-native-umeng/issues/80)) ([9f9b5d5](https://github.com/unif-design/react-native-umeng/commit/9f9b5d58cd89801d6e00254ab994d60d6e5ea868))
+
 # [0.5.0](https://github.com/unif-design/react-native-umeng/compare/v0.4.2...v0.5.0) (2026-08-05)
 
 ### Features
