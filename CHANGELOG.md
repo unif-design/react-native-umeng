@@ -1,5 +1,7 @@
 # Changelog
 
+## [0.4.2](https://github.com/unif-design/react-native-umeng/compare/v0.4.1...v0.4.2) (2026-08-05)
+
 ## [0.4.1](https://github.com/unif-design/react-native-umeng/compare/v0.4.0...v0.4.1) (2026-08-03)
 
 ### Bug Fixes
