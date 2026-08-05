@@ -27,9 +27,16 @@ const activeMarkdownEntries = [
   'example/README.md',
   'website/docs',
 ];
-/** 关键依赖的 range 契约:peer 与 dev 必须同值。改这里 = 显式改发布契约。 */
+/**
+ * 关键依赖的 range 契约。值有两种写法:
+ *   - 字符串:peer 与 dev 同值
+ *   - `{ peer, dev }`:两者分开 —— 语义本就不同。**peer 是对外兼容范围(该宽)**,
+ *     写窄了会把下游卡在旧版上;**dev 是开发验证基线(该窄且确定)**。
+ *     ⚠️ peer 里别用 `^`:0.x 下它锁 minor(`^0.21.1` 不含 0.22),
+ *     等于把每次 minor 都变成 breaking。
+ */
 const expectedDependencyRanges = {
-  '@unif/react-native-design': '^0.21.1',
+  '@unif/react-native-design': { peer: '>=0.21.0 <1.0.0', dev: '^0.23.0' },
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
 };
@@ -374,10 +381,15 @@ export async function verifyAgentInstructions(
   const manifest = JSON.parse(
     await readFile(resolve(repositoryRoot, 'package.json'), 'utf8')
   );
-  for (const [dependencyName, expectedRange] of Object.entries(
+  for (const [dependencyName, expected] of Object.entries(
     expectedDependencyRanges
   )) {
+    const expectedBySection =
+      typeof expected === 'string'
+        ? { peerDependencies: expected, devDependencies: expected }
+        : { peerDependencies: expected.peer, devDependencies: expected.dev };
     for (const section of ['peerDependencies', 'devDependencies']) {
+      const expectedRange = expectedBySection[section];
       const actualRange = manifest[section]?.[dependencyName];
       if (actualRange !== expectedRange) {
         failures.push(

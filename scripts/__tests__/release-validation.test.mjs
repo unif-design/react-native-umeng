@@ -28,7 +28,16 @@ import {
 import {
   assertSharedDependencyRanges,
   sharedDependencyRanges,
+  sharedRangesFor,
 } from '../dependency-contract.mjs';
+
+/** peer range 只在 dependency-contract 里声明一份,断言从那里推导,别再抄字面量。 */
+const designPeerRange =
+  sharedDependencyRanges['@unif/react-native-design'].peer;
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
 import {
   assertProductionNativeFiles,
   collectProductionNativeFiles,
@@ -267,12 +276,32 @@ test('native runtime sources and new init helpers cannot bypass minor', () => {
 
 test('shared Design runtime ranges must remain exact in every manifest', () => {
   const manifest = {
-    dependencies: { ...sharedDependencyRanges },
+    dependencies: sharedRangesFor('dependencies'),
   };
   assert.doesNotThrow(() =>
     assertSharedDependencyRanges(
       manifest,
       'dependencies',
+      'fixture/package.json'
+    )
+  );
+
+  // peer 与安装侧分段:装了 install range 的 manifest 冒充 peerDependencies 必须被拒,
+  // 否则「peer 该宽 / 安装侧该窄」这条分段规则形同虚设。
+  assert.notEqual(designPeerRange, sharedRangesFor('dependencies')['@unif/react-native-design']);
+  assert.throws(
+    () =>
+      assertSharedDependencyRanges(
+        { peerDependencies: sharedRangesFor('dependencies') },
+        'peerDependencies',
+        'fixture/package.json'
+      ),
+    new RegExp(escapeRegExp(designPeerRange))
+  );
+  assert.doesNotThrow(() =>
+    assertSharedDependencyRanges(
+      { peerDependencies: sharedRangesFor('peerDependencies') },
+      'peerDependencies',
       'fixture/package.json'
     )
   );
@@ -502,10 +531,11 @@ test('example README consumer guide rejects contract mutations', async (t) => {
     },
     {
       name: 'missing Design peer',
-      search: "  '@unif/react-native-design@^0.21.1' \\",
+      search: `  '@unif/react-native-design@${designPeerRange}' \\`,
       replacement: '',
-      expectedFailure:
-        /consumer yarn add command is missing peer @unif\/react-native-design@\^0\.21\.1/,
+      expectedFailure: new RegExp(
+        `consumer yarn add command is missing peer @unif/react-native-design@${escapeRegExp(designPeerRange)}`
+      ),
     },
     {
       name: 'missing AppDelegate template link',

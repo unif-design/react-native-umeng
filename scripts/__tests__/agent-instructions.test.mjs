@@ -12,10 +12,16 @@ import test from 'node:test';
 
 import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 
-const expectedRanges = {
-  '@unif/react-native-design': '^0.21.1',
+// 刻意不从 verify-agent-instructions 的契约推导:那样测试会自证,契约被改坏也照过。
+// design 的 peer 与 dev 分段 —— peer 是对外兼容范围,dev 是本仓验证基线。
+const expectedPeerRanges = {
+  '@unif/react-native-design': '>=0.21.0 <1.0.0',
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
+};
+const expectedDevRanges = {
+  ...expectedPeerRanges,
+  '@unif/react-native-design': '^0.23.0',
 };
 
 async function write(relativeRoot, relativePath, content) {
@@ -44,8 +50,8 @@ ${routes.map((route) => `              - '${route}'`).join('\n')}
 async function createValidRepository() {
   const fixtureRoot = await mkdtemp(join(tmpdir(), 'umeng-instructions-'));
   const packageJson = {
-    peerDependencies: expectedRanges,
-    devDependencies: expectedRanges,
+    peerDependencies: expectedPeerRanges,
+    devDependencies: expectedDevRanges,
   };
 
   await Promise.all([
