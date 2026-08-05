@@ -1,9 +1,22 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
+import {
+  collectExampleContractFailures,
+  collectExampleDocsContractFailures,
+} from '../verify-example-contract.mjs';
 import * as publishContract from '../verify-publish-contract.mjs';
 import {
   equalManifestContractField,
@@ -26,6 +39,133 @@ import {
   mockJestSmokeCases,
 } from '../verify-consumers.mjs';
 import { finalizeTempVerification } from '../verification-utils.mjs';
+
+const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+const iosExampleContractPaths = [
+  'example/ios/ReactNativeUmengExample/Info.plist',
+  'example/ios/ReactNativeUmengExample/AppDelegate.swift',
+  'example/ios/ReactNativeUmengExample/SceneDelegateFixture.swift',
+];
+const exampleDocsContractPaths = ['example/README.md', 'package.json'];
+const androidExampleContractPaths = [
+  'example/android/app/src/main/AndroidManifest.xml',
+  'example/android/app/build.gradle',
+  'example/android/app/src/main/java/unif/reactnativeumeng/example/wxapi/WXEntryActivity.kt',
+  'example/android/app/src/main/java/unif/reactnativeumeng/example/ddshare/DDShareActivity.kt',
+];
+
+async function createIosExampleContractFixture(mutate) {
+  const fixtureRoot = await mkdtemp(
+    join(tmpdir(), 'umeng-ios-contract-fixture-')
+  );
+  let mutationCount = 0;
+
+  try {
+    for (const relativePath of iosExampleContractPaths) {
+      const source = await readFile(join(repositoryRoot, relativePath), 'utf8');
+      const fixtureSource = mutate
+        ? mutate({ relativePath, source })
+        : source;
+      if (fixtureSource !== source) {
+        mutationCount += 1;
+      }
+
+      const fixturePath = join(fixtureRoot, relativePath);
+      await mkdir(dirname(fixturePath), { recursive: true });
+      await writeFile(fixturePath, fixtureSource);
+    }
+
+    if (mutate) {
+      assert.ok(mutationCount > 0, 'fixture mutation must change a source file');
+    }
+    return fixtureRoot;
+  } catch (error) {
+    await rm(fixtureRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function createExampleDocsContractFixture(mutate) {
+  const fixtureRoot = await mkdtemp(
+    join(tmpdir(), 'umeng-example-docs-contract-fixture-')
+  );
+  let mutationCount = 0;
+
+  try {
+    for (const relativePath of exampleDocsContractPaths) {
+      const source = await readFile(join(repositoryRoot, relativePath), 'utf8');
+      const fixtureSource = mutate
+        ? mutate({ relativePath, source })
+        : source;
+      if (fixtureSource !== source) {
+        mutationCount += 1;
+      }
+
+      const fixturePath = join(fixtureRoot, relativePath);
+      await mkdir(dirname(fixturePath), { recursive: true });
+      await writeFile(fixturePath, fixtureSource);
+    }
+
+    if (mutate) {
+      assert.ok(mutationCount > 0, 'fixture mutation must change a source file');
+    }
+    return fixtureRoot;
+  } catch (error) {
+    await rm(fixtureRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+async function createAndroidExampleContractFixture(mutate) {
+  const fixtureRoot = await mkdtemp(
+    join(tmpdir(), 'umeng-android-contract-fixture-')
+  );
+  let mutationCount = 0;
+
+  try {
+    for (const relativePath of androidExampleContractPaths) {
+      const source = await readFile(join(repositoryRoot, relativePath), 'utf8');
+      const fixtureSource = mutate
+        ? mutate({ relativePath, source })
+        : source;
+      if (fixtureSource !== source) {
+        mutationCount += 1;
+      }
+
+      const fixturePath = join(fixtureRoot, relativePath);
+      await mkdir(dirname(fixturePath), { recursive: true });
+      await writeFile(fixturePath, fixtureSource);
+    }
+
+    if (mutate) {
+      assert.ok(mutationCount > 0, 'fixture mutation must change a source file');
+    }
+    return fixtureRoot;
+  } catch (error) {
+    await rm(fixtureRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function replaceOccurrence(source, search, replacement, occurrence = 1) {
+  let index = -1;
+  let searchFrom = 0;
+  for (let count = 0; count < occurrence; count += 1) {
+    index = source.indexOf(search, searchFrom);
+    assert.notEqual(
+      index,
+      -1,
+      `fixture mutation cannot find occurrence ${occurrence} of ${search}`
+    );
+    searchFrom = index + search.length;
+  }
+
+  return (
+    source.slice(0, index) +
+    replacement +
+    source.slice(index + search.length)
+  );
+}
 
 test('conditional export reorder is a contract mutation', () => {
   const before = {
@@ -149,6 +289,543 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
   );
 });
 
+test('workspace development graph matches the React Native 0.86.2 fixture', async () => {
+  const [root, example, website] = await Promise.all(
+    [
+      '../../package.json',
+      '../../example/package.json',
+      '../../website/package.json',
+    ].map(
+      async (relativePath) =>
+        JSON.parse(
+          await readFile(new URL(relativePath, import.meta.url), 'utf8')
+        )
+    )
+  );
+
+  assert.equal(root.devDependencies['react-native'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/babel-preset'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/eslint-config'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/jest-preset'], '0.86.2');
+  assert.equal(root.devDependencies['@react-native/metro-config'], '0.86.2');
+  assert.equal(root.peerDependencies['react-native'], '*');
+
+  assert.equal(example.dependencies.react, '19.2.3');
+  assert.equal(example.dependencies['react-native'], '0.86.2');
+  assert.equal(
+    example.devDependencies['@react-native/babel-preset'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native/jest-preset'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native/metro-config'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native/typescript-config'],
+    '0.86.2'
+  );
+  assert.equal(
+    example.devDependencies['@react-native-community/cli'],
+    '20.1.0'
+  );
+  assert.equal(
+    example.devDependencies['@react-native-community/cli-platform-android'],
+    '20.1.0'
+  );
+  assert.equal(
+    example.devDependencies['@react-native-community/cli-platform-ios'],
+    '20.1.0'
+  );
+  assert.equal(example.devDependencies['react-test-renderer'], '19.2.3');
+
+  assert.equal(website.dependencies.react, '19.2.3');
+  assert.equal(website.dependencies['react-dom'], '19.2.3');
+  assert.equal(website.dependencies['react-native'], '0.86.2');
+  assert.equal(
+    website.devDependencies['@react-native/metro-config'],
+    '0.86.2'
+  );
+});
+
+test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', async () => {
+  const fixtureRoot = await mkdtemp(
+    join(tmpdir(), 'umeng-rn-lock-verification-')
+  );
+  const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+  const verifierPath = fileURLToPath(
+    new URL('../verify-dependencies.mjs', import.meta.url)
+  );
+
+  try {
+    await Promise.all([
+      mkdir(join(fixtureRoot, 'example'), { recursive: true }),
+      mkdir(join(fixtureRoot, 'website'), { recursive: true }),
+    ]);
+    await Promise.all(
+      ['package.json', 'example/package.json', 'website/package.json'].map(
+        async (relativePath) =>
+          writeFile(
+            join(fixtureRoot, relativePath),
+            await readFile(join(repositoryRoot, relativePath), 'utf8')
+          )
+      )
+    );
+    await symlink(
+      join(repositoryRoot, 'node_modules'),
+      join(fixtureRoot, 'node_modules'),
+      'dir'
+    );
+
+    const lockfile = await readFile(
+      join(repositoryRoot, 'yarn.lock'),
+      'utf8'
+    );
+    const reactNativePackageStanza =
+      /^"react-native@npm:0\.86\.2":\n  version: 0\.86\.2\n  resolution: "react-native@npm:0\.86\.2"/m;
+    assert.match(lockfile, reactNativePackageStanza);
+
+    const lockfileWithUnrelated085 = `${lockfile}
+"unrelated-tool@npm:0.85.3":
+  version: 0.85.3
+  resolution: "unrelated-tool@npm:0.85.3"
+`;
+    const runVerifier = () =>
+      spawnSync(process.execPath, [verifierPath], {
+        cwd: fixtureRoot,
+        encoding: 'utf8',
+      });
+
+    await writeFile(
+      join(fixtureRoot, 'yarn.lock'),
+      lockfileWithUnrelated085
+    );
+    const unrelatedResult = runVerifier();
+    assert.equal(
+      unrelatedResult.status,
+      0,
+      `unrelated 0.85.3 packages must remain valid:\n${unrelatedResult.stderr}`
+    );
+
+    const mutatedLockfile = lockfileWithUnrelated085.replace(
+      reactNativePackageStanza,
+      '"react-native@npm:0.85.3":\n  version: 0.85.3\n  resolution: "react-native@npm:0.85.3"'
+    );
+    await writeFile(join(fixtureRoot, 'yarn.lock'), mutatedLockfile);
+
+    const reactNativeResult = runVerifier();
+    const verifierOutput = `${reactNativeResult.stderr}\n${reactNativeResult.stdout}`;
+    assert.notEqual(
+      reactNativeResult.status,
+      0,
+      'the dependency verifier must reject an RN 0.85 package resolution'
+    );
+    assert.match(verifierOutput, /react-native@npm:0\.85\.3/);
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('versioned example Pod lock remains visible to Git maintenance', () => {
+  const repositoryRoot = new URL('../../', import.meta.url);
+  const lockfile = 'example/ios/Podfile.lock';
+  const tracked = spawnSync(
+    'git',
+    ['ls-files', '--error-unmatch', lockfile],
+    {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    }
+  );
+  assert.equal(
+    tracked.status,
+    0,
+    `Pod lock must remain tracked: ${tracked.stderr}`
+  );
+
+  const ignored = spawnSync(
+    'git',
+    ['check-ignore', '--no-index', '-v', lockfile],
+    {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    }
+  );
+  assert.equal(
+    ignored.status,
+    1,
+    `tracked Pod lock must not match an ignore rule: ${ignored.stdout}`
+  );
+});
+
+test('example native contract verifier is registered and executable', async () => {
+  const manifest = JSON.parse(
+    await readFile(join(repositoryRoot, 'package.json'), 'utf8')
+  );
+  assert.equal(
+    manifest.scripts['verify:example-contract'],
+    'node scripts/verify-example-contract.mjs'
+  );
+
+  const verifierPath = join(
+    repositoryRoot,
+    'scripts/verify-example-contract.mjs'
+  );
+  const result = spawnSync(process.execPath, [verifierPath], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(
+    result.status,
+    0,
+    [result.stderr, result.stdout].filter(Boolean).join('\n')
+  );
+});
+
+test('example README includes an executable independent consumer copy guide', () => {
+  assert.deepEqual(
+    collectExampleDocsContractFailures({ repositoryRoot }),
+    []
+  );
+});
+
+test('example README consumer guide rejects contract mutations', async (t) => {
+  const mutations = [
+    {
+      name: 'workspace package in consumer install command',
+      search: 'yarn add @unif/react-native-umeng \\',
+      replacement: 'yarn add @unif/react-native-umeng@workspace:* \\',
+      expectedFailure: /consumer yarn add command must not use workspace:\*/,
+    },
+    {
+      name: 'missing Design peer',
+      search: "  '@unif/react-native-design@^0.20.0' \\",
+      replacement: '',
+      expectedFailure:
+        /consumer yarn add command is missing peer @unif\/react-native-design@\^0\.20\.0/,
+    },
+    {
+      name: 'missing AppDelegate template link',
+      search: './ios/ReactNativeUmengExample/AppDelegate.swift',
+      replacement: '#missing-app-delegate-template',
+      expectedFailure: /consumer guide is missing link .*AppDelegate\.swift/,
+    },
+    {
+      name: 'missing DingTalk compile dependency',
+      search: 'implementation("com.alibaba.android:ddsharesdk:1.2.2")',
+      replacement: '',
+      expectedFailure:
+        /consumer guide is missing Android dependency com\.alibaba\.android:ddsharesdk:1\.2\.2/,
+    },
+    {
+      name: 'missing Jetifier setting',
+      search: 'android.enableJetifier=true',
+      replacement: 'android.enableJetifier=false',
+      expectedFailure: /consumer guide is missing android\.enableJetifier=true/,
+    },
+    {
+      name: 'AASA redirect allowed',
+      search: '且不得重定向',
+      replacement: '且可以重定向',
+      expectedFailure: /consumer guide is missing AASA endpoint must not redirect/,
+    },
+    {
+      name: 'missing AASA appID format',
+      search: 'TEAM_ID.BUNDLE_ID',
+      replacement: 'TEAM-ID-BUNDLE-ID',
+      expectedFailure: /consumer guide is missing AASA appID format/,
+    },
+  ];
+
+  for (const mutation of mutations) {
+    await t.test(mutation.name, async () => {
+      const fixtureRoot = await createExampleDocsContractFixture(
+        ({ relativePath, source }) =>
+          relativePath === 'example/README.md'
+            ? replaceOccurrence(
+                source,
+                mutation.search,
+                mutation.replacement
+              )
+            : source
+      );
+
+      try {
+        const failures = collectExampleDocsContractFailures({
+          repositoryRoot: fixtureRoot,
+        });
+        assert.match(failures.join('\n'), mutation.expectedFailure);
+      } finally {
+        await rm(fixtureRoot, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('example Android contract rejects equivalent host callback declarations', async (t) => {
+  const names = [
+    {
+      label: 'relative',
+      wx: '.wxapi.WXEntryActivity',
+      dingtalk: '.ddshare.DDShareActivity',
+    },
+    {
+      label: 'fully qualified',
+      wx: 'unif.reactnativeumeng.example.wxapi.WXEntryActivity',
+      dingtalk:
+        'unif.reactnativeumeng.example.ddshare.DDShareActivity',
+    },
+    {
+      label: 'applicationId placeholder',
+      wx: '${applicationId}.wxapi.WXEntryActivity',
+      dingtalk: '${applicationId}.ddshare.DDShareActivity',
+    },
+  ];
+
+  for (const namesCase of names) {
+    await t.test(namesCase.label, async () => {
+      const fixtureRoot = await createAndroidExampleContractFixture(
+        ({ relativePath, source }) => {
+          if (
+            relativePath !==
+            'example/android/app/src/main/AndroidManifest.xml'
+          ) {
+            return source;
+          }
+          return replaceOccurrence(
+            source,
+            '    </application>',
+            [
+              `      <activity android:name="${namesCase.wx}" />`,
+              `      <activity android:name="${namesCase.dingtalk}" />`,
+              '    </application>',
+            ].join('\n')
+          );
+        }
+      );
+
+      try {
+        const failures = collectExampleContractFailures({
+          platform: 'android',
+          repositoryRoot: fixtureRoot,
+        });
+        assert.match(
+          failures.join('\n'),
+          /duplicate callback Activity .*WXEntryActivity/
+        );
+        assert.match(
+          failures.join('\n'),
+          /duplicate callback Activity .*DDShareActivity/
+        );
+      } finally {
+        await rm(fixtureRoot, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('example Android contract couples callback packages to applicationId', async () => {
+  const fixtureRoot = await createAndroidExampleContractFixture(
+    ({ relativePath, source }) =>
+      relativePath === 'example/android/app/build.gradle'
+        ? replaceOccurrence(
+            source,
+            'applicationId "unif.reactnativeumeng.example"',
+            'applicationId "unif.reactnativeumeng.renamed"'
+          )
+        : source
+  );
+
+  try {
+    const failures = collectExampleContractFailures({
+      platform: 'android',
+      repositoryRoot: fixtureRoot,
+    });
+    assert.match(
+      failures.join('\n'),
+      /package must be unif\.reactnativeumeng\.renamed\.wxapi/
+    );
+    assert.match(
+      failures.join('\n'),
+      /package must be unif\.reactnativeumeng\.renamed\.ddshare/
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('example iOS contract accepts a valid temporary fixture', async () => {
+  const fixtureRoot = await createIosExampleContractFixture();
+  try {
+    assert.deepEqual(
+      collectExampleContractFailures({
+        platform: 'ios',
+        repositoryRoot: fixtureRoot,
+      }),
+      []
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('example iOS contract rejects a prefixed scheme hidden in a duplicate URL type', async () => {
+  const fixtureRoot = await createIosExampleContractFixture(
+    ({ relativePath, source }) => {
+      if (
+        relativePath !==
+        'example/ios/ReactNativeUmengExample/Info.plist'
+      ) {
+        return source;
+      }
+
+      const dingTalkEntryStart = [
+        '\t\t<dict>',
+        '\t\t\t<key>CFBundleTypeRole</key>',
+        '\t\t\t<string>Editor</string>',
+        '\t\t\t<key>CFBundleURLName</key>',
+        '\t\t\t<string>dingtalk</string>',
+      ].join('\n');
+      const hiddenWechatEntry = [
+        '\t\t<dict>',
+        '\t\t\t<key>CFBundleTypeRole</key>',
+        '\t\t\t<string>Editor</string>',
+        '\t\t\t<key>CFBundleURLName</key>',
+        '\t\t\t<string>wechat</string>',
+        '\t\t\t<key>CFBundleURLSchemes</key>',
+        '\t\t\t<array>',
+        '\t\t\t\t<string>wxYOUR_HIDDEN_WECHAT_ID</string>',
+        '\t\t\t</array>',
+        '\t\t</dict>',
+      ].join('\n');
+
+      return replaceOccurrence(
+        source,
+        dingTalkEntryStart,
+        `${hiddenWechatEntry}\n${dingTalkEntryStart}`
+      );
+    }
+  );
+
+  try {
+    const failures = collectExampleContractFailures({
+      platform: 'ios',
+      repositoryRoot: fixtureRoot,
+    });
+    assert.match(
+      failures.join('\n'),
+      /WeChat URL scheme placeholder must not have a wx prefix/
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('example iOS contract rejects callback argument mutations', async (t) => {
+  const appDelegatePath =
+    'example/ios/ReactNativeUmengExample/AppDelegate.swift';
+  const sceneDelegatePath =
+    'example/ios/ReactNativeUmengExample/SceneDelegateFixture.swift';
+  const mutations = [
+    {
+      name: 'AppDelegate URL uses callback URL and options',
+      path: appDelegatePath,
+      search:
+        'UmengBootstrap.shared().handleOpen(url, options: options)',
+      replacement:
+        'UmengBootstrap.shared().handleOpen(URL(string: "https://invalid.example")!, options: [:])',
+      expectedFailure: /AppDelegate\.swift URL callback.*Umeng arguments/,
+    },
+    {
+      name: 'AppDelegate URL uses callback application',
+      path: appDelegatePath,
+      search: ['      application,', '      open: url,'].join('\n'),
+      replacement: [
+        '      UIApplication.shared,',
+        '      open: url,',
+      ].join('\n'),
+      expectedFailure: /AppDelegate\.swift URL callback.*RCTLinking arguments/,
+    },
+    {
+      name: 'AppDelegate Universal Link uses callback activity',
+      path: appDelegatePath,
+      search:
+        'UmengBootstrap.shared().handleUniversalLink(userActivity)',
+      replacement:
+        'UmengBootstrap.shared().handleUniversalLink(NSUserActivity(activityType: "invalid"))',
+      expectedFailure:
+        /AppDelegate\.swift Universal Link callback.*Umeng arguments/,
+    },
+    {
+      name: 'Scene URL derives options from its current context',
+      path: sceneDelegatePath,
+      search: 'let options = applicationOptions(for: context)',
+      replacement:
+        'let options: [UIApplication.OpenURLOptionsKey: Any] = [:]',
+      expectedFailure: /SceneDelegateFixture\.swift URL callback.*context/,
+    },
+    {
+      name: 'Scene Universal Link forwards its current activity',
+      path: sceneDelegatePath,
+      search: 'continue: userActivity',
+      replacement:
+        'continue: NSUserActivity(activityType: "invalid")',
+      expectedFailure:
+        /SceneDelegateFixture\.swift Universal Link callback.*RCTLinking arguments/,
+    },
+    {
+      name: 'Scene connection URL forwards its current context URL',
+      path: sceneDelegatePath,
+      search: 'open: context.url',
+      replacement:
+        'open: URL(string: "https://invalid.example")!',
+      occurrence: 2,
+      expectedFailure:
+        /SceneDelegateFixture\.swift connection callback.*RCTLinking arguments/,
+    },
+    {
+      name: 'Scene connection Universal Link forwards its current activity',
+      path: sceneDelegatePath,
+      search:
+        'UmengBootstrap.shared().handleUniversalLink(userActivity)',
+      replacement:
+        'UmengBootstrap.shared().handleUniversalLink(NSUserActivity(activityType: "invalid"))',
+      occurrence: 2,
+      expectedFailure:
+        /SceneDelegateFixture\.swift connection callback.*Umeng arguments/,
+    },
+  ];
+
+  for (const mutation of mutations) {
+    await t.test(mutation.name, async () => {
+      const fixtureRoot = await createIosExampleContractFixture(
+        ({ relativePath, source }) =>
+          relativePath === mutation.path
+            ? replaceOccurrence(
+                source,
+                mutation.search,
+                mutation.replacement,
+                mutation.occurrence
+              )
+            : source
+      );
+
+      try {
+        const failures = collectExampleContractFailures({
+          platform: 'ios',
+          repositoryRoot: fixtureRoot,
+        });
+        assert.match(failures.join('\n'), mutation.expectedFailure);
+      } finally {
+        await rm(fixtureRoot, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
 test('website validation runs the cross-workspace dependency verifier', async () => {
   const workflow = await readFile(
     new URL('../../.github/workflows/project-validation.yml', import.meta.url),
@@ -159,6 +836,32 @@ test('website validation runs the cross-workspace dependency verifier', async ()
     ?.split(/^  instructions:/m)[0];
 
   assert.match(websiteJob ?? '', /yarn verify:dependencies/);
+});
+
+test('Turbo example test dry-run expands Jest harness inputs', () => {
+  const result = spawnSync('yarn', ['turbo', 'run', 'test', '--dry=json'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    env: { ...process.env, FORCE_COLOR: '0' },
+  });
+  assert.equal(
+    result.status,
+    0,
+    [result.stderr, result.stdout].filter(Boolean).join('\n')
+  );
+
+  const dryRun = JSON.parse(result.stdout);
+  const exampleTask = dryRun.tasks.find(
+    ({ taskId }) => taskId === '@unif/react-native-umeng-example#test'
+  );
+  assert.ok(exampleTask, 'Turbo dry-run must discover the example test task');
+
+  for (const harnessPath of ['jest.config.js', 'jest.setup.ts']) {
+    assert.ok(
+      Object.hasOwn(exampleTask.inputs, harnessPath),
+      `Turbo example test inputs must expand ${harnessPath}`
+    );
+  }
 });
 
 test('release workflow keeps the exact published-contract trigger paths', async () => {

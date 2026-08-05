@@ -3,6 +3,37 @@
   "globalDependencies": [".nvmrc", ".yarnrc.yml"],
   "globalEnv": ["NODE_ENV"],
   "tasks": {
+    "//#test": {
+      "inputs": [
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/yarn.lock",
+        "$TURBO_ROOT$/.yarnrc.yml",
+        "$TURBO_ROOT$/babel.config.js",
+        "$TURBO_ROOT$/tsconfig*.json",
+        "$TURBO_ROOT$/src/**",
+        "$TURBO_ROOT$/scripts/**"
+      ],
+      "outputs": ["coverage/**"]
+    },
+    "@unif/react-native-umeng-example#test": {
+      "inputs": [
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/yarn.lock",
+        "$TURBO_ROOT$/.yarnrc.yml",
+        "$TURBO_ROOT$/babel.config.js",
+        "$TURBO_ROOT$/tsconfig*.json",
+        "$TURBO_ROOT$/src/**",
+        "$TURBO_ROOT$/example/package.json",
+        "$TURBO_ROOT$/example/babel.config.js",
+        "$TURBO_ROOT$/example/jest.config.js",
+        "$TURBO_ROOT$/example/jest.setup.ts",
+        "$TURBO_ROOT$/example/metro.config.js",
+        "$TURBO_ROOT$/example/react-native.config.js",
+        "$TURBO_ROOT$/example/index.js",
+        "$TURBO_ROOT$/example/src/**"
+      ],
+      "outputs": ["coverage/**"]
+    },
     "@unif/react-native-umeng-example#build:android": {
       "env": ["ANDROID_HOME", "ORG_GRADLE_PROJECT_newArchEnabled"],
       "inputs": [

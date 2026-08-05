@@ -24,13 +24,18 @@ async function write(relativeRoot, relativePath, content) {
   await writeFile(absolutePath, content);
 }
 
-function workflowWithInstructionRoutes(routes) {
+function workflowWithInstructionRoutes(
+  routes,
+  javascriptRoutes = ['example/**']
+) {
   return `jobs:
   changes:
     steps:
       - uses: dorny/paths-filter@example
         with:
           filters: |
+            javascript:
+${javascriptRoutes.map((route) => `              - '${route}'`).join('\n')}
             instructions:
 ${routes.map((route) => `              - '${route}'`).join('\n')}
 `;
@@ -286,6 +291,54 @@ test('requires CI instruction routes for every scanned input group', async () =>
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
       /instructions filter must include website\/docs\/\*\*/
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('requires JavaScript validation routes for example tests and contracts', async () => {
+  const fixtureRoot = await createValidRepository();
+  const instructionRoutes = [
+    'AGENTS.md',
+    'CLAUDE.md',
+    'README.md',
+    'CONTRIBUTING.md',
+    'example/README.md',
+    'website/docs/**',
+    'package.json',
+    'scripts/verify-agent-instructions.mjs',
+  ];
+
+  try {
+    await write(
+      fixtureRoot,
+      '.github/workflows/project-validation.yml',
+      workflowWithInstructionRoutes(instructionRoutes, ['example/src/**'])
+    );
+    await assert.rejects(verifyAgentInstructions(fixtureRoot), (error) => {
+      assert.match(
+        error.message,
+        /javascript filter must cover example\/jest\.config\.js/
+      );
+      assert.match(
+        error.message,
+        /javascript filter must cover example\/jest\.setup\.ts/
+      );
+      return true;
+    });
+
+    await write(
+      fixtureRoot,
+      '.github/workflows/project-validation.yml',
+      workflowWithInstructionRoutes(instructionRoutes, [
+        'example/jest.config.js',
+        'example/jest.setup.ts',
+      ])
+    );
+    await assert.rejects(
+      verifyAgentInstructions(fixtureRoot),
+      /javascript filter must cover example\/src\/App\.tsx/
     );
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });

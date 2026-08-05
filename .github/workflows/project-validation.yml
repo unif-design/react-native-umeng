@@ -47,6 +47,7 @@ jobs:
             javascript:
               - 'src/**'
               - 'scripts/**'
+              - 'example/**'
               - 'package.json'
               - 'yarn.lock'
               - '.yarnrc.yml'
@@ -172,6 +173,12 @@ jobs:
 
       - name: Test
         run: yarn test --maxWorkers=2
+
+      - name: Run example tests
+        run: yarn example test --maxWorkers=2
+
+      - name: Verify example contract
+        run: yarn verify:example-contract
 
   consumer:
     needs: changes

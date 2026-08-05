@@ -2,7 +2,8 @@
   "compilerOptions": {
     "rootDir": ".",
     "paths": {
-      "@unif/react-native-umeng": ["./src/index"]
+      "@unif/react-native-umeng": ["./src/index"],
+      "@unif/react-native-umeng/mock": ["./src/mock"]
     },
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
