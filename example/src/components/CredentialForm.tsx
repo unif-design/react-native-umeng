@@ -89,10 +89,8 @@ export function CredentialForm({
                 value={draft.wechatAppSecret}
                 onChangeText={(value) => onChange('wechatAppSecret', value)}
                 disabled={disabled}
-                inputProps={{
-                  accessibilityLabel: '微信 App Secret',
-                  autoCapitalize: 'none',
-                }}
+                accessibilityLabel="微信 App Secret"
+                autoCapitalize="none"
               />
             </FormRow>
             <FormRow label="Universal Link" error={errors.wechatUniversalLink}>

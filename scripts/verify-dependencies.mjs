@@ -60,17 +60,17 @@ const requiredWebsiteReactNativeDevelopmentGraph = {
 };
 const lockedPackageContracts = {
   '@unif/react-native-design': {
-    version: '0.20.0',
+    version: '0.21.1',
     peerDependencies: {
       '@sbaiahmed1/react-native-blur': '>=4',
-      react: '*',
-      'react-native': '*',
+      react: '>=19.2.3 <20.0.0',
+      'react-native': '>=0.86.0 <0.87.0',
       'react-native-gesture-handler': '>=3.0.0 <4.0.0',
-      'react-native-reanimated': '>=4.1.0',
+      'react-native-reanimated': '>=4.5.2 <4.6.0',
       'react-native-reanimated-carousel': '>=5.0.0 <6.0.0',
       'react-native-safe-area-context': '>=5',
       'react-native-svg': '>=15',
-      'react-native-worklets': '>=0.9',
+      'react-native-worklets': '>=0.11.0 <0.12.0',
     },
   },
   'react-native-gesture-handler': {

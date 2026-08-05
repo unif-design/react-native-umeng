@@ -502,10 +502,10 @@ test('example README consumer guide rejects contract mutations', async (t) => {
     },
     {
       name: 'missing Design peer',
-      search: "  '@unif/react-native-design@^0.20.0' \\",
+      search: "  '@unif/react-native-design@^0.21.1' \\",
       replacement: '',
       expectedFailure:
-        /consumer yarn add command is missing peer @unif\/react-native-design@\^0\.20\.0/,
+        /consumer yarn add command is missing peer @unif\/react-native-design@\^0\.21\.1/,
     },
     {
       name: 'missing AppDelegate template link',

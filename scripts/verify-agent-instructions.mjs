@@ -27,8 +27,9 @@ const activeMarkdownEntries = [
   'example/README.md',
   'website/docs',
 ];
+/** 关键依赖的 range 契约:peer 与 dev 必须同值。改这里 = 显式改发布契约。 */
 const expectedDependencyRanges = {
-  '@unif/react-native-design': '^0.20.0',
+  '@unif/react-native-design': '^0.21.1',
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
 };
