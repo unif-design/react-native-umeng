@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.5.0](https://github.com/unif-design/react-native-umeng/compare/v0.4.2...v0.5.0) (2026-08-05)
+
+### Features
+
+* design 升到 ^0.21.1,peer 契约随之收紧 ([#79](https://github.com/unif-design/react-native-umeng/issues/79)) ([d60ca12](https://github.com/unif-design/react-native-umeng/commit/d60ca1245e2252a9b869f511cf0944479e90f0b0))
+
 ## [0.4.2](https://github.com/unif-design/react-native-umeng/compare/v0.4.1...v0.4.2) (2026-08-05)
 
 ## [0.4.1](https://github.com/unif-design/react-native-umeng/compare/v0.4.0...v0.4.1) (2026-08-03)
