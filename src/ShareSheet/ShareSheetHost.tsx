@@ -189,7 +189,13 @@ export const ShareSheetHost: React.FC = () => {
                     subtitles[info.platform] ??
                     PLATFORM_DEFAULT_SUBTITLES[info.platform]
                   }
-                  leading={<PlatformLeading platform={info.platform} />}
+                  // Design 0.21 起 Cell.leading 是 `IconName | { kind:'display'; node }` ——
+                  // 平台 logo 是品牌图形(微信绿底白 glyph / 钉钉多色),不在 Icon 目录里,
+                  // 故走 display 分支显式标注。
+                  leading={{
+                    kind: 'display',
+                    node: <PlatformLeading platform={info.platform} />,
+                  }}
                   arrow
                   onPress={() => {
                     if (state.sessionId !== null && state.payload !== null) {

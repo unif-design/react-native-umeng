@@ -20,7 +20,7 @@
     "@docusaurus/preset-classic": "^3.10.1",
     "@mdx-js/react": "^3.0.0",
     "@sbaiahmed1/react-native-blur": "^4.6.2",
-    "@unif/react-native-design": "^0.20.0",
+    "@unif/react-native-design": "^0.21.1",
     "@unif/react-native-umeng": "workspace:*",
     "clsx": "^2.0.0",
     "prism-react-renderer": "^2.3.0",

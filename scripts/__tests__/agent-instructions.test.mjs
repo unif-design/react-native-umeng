@@ -13,7 +13,7 @@ import test from 'node:test';
 import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 
 const expectedRanges = {
-  '@unif/react-native-design': '^0.20.0',
+  '@unif/react-native-design': '^0.21.1',
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
 };
