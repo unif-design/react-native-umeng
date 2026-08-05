@@ -7,7 +7,7 @@
 
 友盟 React Native 新架构桥：**U-Share**（微信会话 / 钉钉分享）+ **U-App** 移动统计。
 
-当前仓库开发 / example 验证基线为 **React Native 0.86.2**、**React 19.2.3**、**@unif/react-native-design 0.21.1**。Design 0.21 收紧了 `Cell.leading` 与 `TextFieldSlot` 契约，本仓已按新形状实现，0.20 编译不过。
+当前仓库开发 / example 验证基线为 **React Native 0.86.2**、**React 19.2.3**、**@unif/react-native-design 0.23.0**。peer 接受 `>=0.21.0 <1.0.0` —— 下限来自 0.21 收紧后的 `Cell.leading` 与 `TextFieldSlot` 契约,0.20 编译不过。
 
 > iOS 的初始化状态机、Share/Analytics 门禁、TurboModule 注册、AppDelegate/SceneDelegate 转发和 example 配置已通过 native contract、simulator build 与 XCTest。Android CI 已通过 native contract、bootstrap/callback JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实微信 / 钉钉拉起与回包、iOS URL Scheme / Universal Link / AASA、Android 真机 R8 运行仍须在对应环境验证。
 
@@ -29,7 +29,7 @@ RN 工程提供 `react` / `react-native`，其余 peerDependencies 使用 Yarn �
 ```sh
 yarn add @unif/react-native-umeng \
   '@sbaiahmed1/react-native-blur@>=4' \
-  '@unif/react-native-design@^0.21.1' \
+  '@unif/react-native-design@>=0.21.0 <1.0.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
   'react-native-reanimated@^4.5.3' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
@@ -50,7 +50,7 @@ module.exports = {
 };
 ```
 
-当前 `@unif/react-native-design@^0.21.1` 组合使用 RNGH 3 与 Carousel 5。Carousel 5 发布 metadata 的 RNGH peer 仍停在 `<3`，仓库通过 scoped override、窄 allowlist 与漂移检查管理这条已验证例外；不要为消除该 warning 降级 RNGH，也不要使用 `--force` 或 `--legacy-peer-deps`。
+当前 `@unif/react-native-design` 组合使用 RNGH 3 与 Carousel 5。Carousel 5 发布 metadata 的 RNGH peer 仍停在 `<3`，仓库通过 scoped override、窄 allowlist 与漂移检查管理这条已验证例外；不要为消除该 warning 降级 RNGH，也不要使用 `--force` 或 `--legacy-peer-deps`。
 
 完整依赖范围见[安装文档](https://unif-design.github.io/react-native-umeng/docs/getting-started/installation)。
 

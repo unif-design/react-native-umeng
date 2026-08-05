@@ -30,7 +30,7 @@ description: "用 Yarn 安装 @unif/react-native-umeng 的 10 个 peerDependenci
 ```sh
 yarn add @unif/react-native-umeng \
   '@sbaiahmed1/react-native-blur@>=4' \
-  '@unif/react-native-design@^0.21.1' \
+  '@unif/react-native-design@>=0.21.0 <1.0.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
   'react-native-reanimated@^4.5.3' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
@@ -44,7 +44,7 @@ yarn add @unif/react-native-umeng \
 | 包 | 版本约束 | 作用 |
 | --- | --- | --- |
 | `@sbaiahmed1/react-native-blur` | `>=4` | design 根入口的静态依赖 |
-| `@unif/react-native-design` | `^0.21.1` | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`) |
+| `@unif/react-native-design` | `>=0.21.0 <1.0.0` | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`) |
 | `react` | `*` | RN 工程已有 |
 | `react-native` | `*` | RN 工程已有;本仓 fixture 使用 RN 0.85 |
 | `react-native-gesture-handler` | `>=3.0.0 <4.0.0` | design 手势底层与 ShareSheet Modal 内部 root |
