@@ -149,11 +149,22 @@ jobs:
       # GITHUB_TOKEN 这里换成 App token —— release-it 的 git push(commit + tag)和建 GitHub Release 都走它。
       # verifier 已按 auto / 手动 increment 校验发布契约并输出精确版本；
       # release-it 必须消费同一个版本，不能在校验后重新推断或降级。
+      # should-release=false → 契约与已发布源码一个字节没动(改纯校验脚本、升开发
+      # 基线都会走到这里)。上面所有 verify 步骤照跑 —— 相当于 main 上的一次完整
+      # 验证 —— 只是不推一个产物零差异的空版本出去。
+      # 手动 workflow_dispatch 指定 increment 时 should-release 恒为 true。
       - name: Release
+        if: steps.publish-contract.outputs.should-release == 'true'
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           RELEASE_VERSION: ${{ steps.publish-contract.outputs.version }}
         run: yarn release-it "$RELEASE_VERSION" --ci
+
+      - name: Skip release
+        if: steps.publish-contract.outputs.should-release != 'true'
+        run: |
+          echo "契约与已发布源码无变更,跳过发版。"
+          echo "所有验证步骤已通过 —— 这是一次 main 上的完整验证,只是不发版。"
 
       # 发版成功后显式触发文档部署 —— dispatch 跑 main。
       # 不靠 deploy-docs 监听 release event:release 事件的 ref 是 tag(v*),而 GitHub Pages

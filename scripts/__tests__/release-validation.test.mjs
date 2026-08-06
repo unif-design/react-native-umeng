@@ -24,6 +24,7 @@ import {
   minimumReleaseLevel,
   parsePublishContractArgs,
   selectReleaseVersion,
+  shouldRelease,
 } from '../verify-publish-contract.mjs';
 import {
   assertSharedDependencyRanges,
@@ -270,6 +271,28 @@ test('native runtime sources and new init helpers cannot bypass minor', () => {
       isInitializationContractPath(relativePath),
       false,
       relativePath
+    );
+  }
+});
+
+test('无契约变更时不发版,人工指定 increment 时照发', () => {
+  // 这条守的是「空发版」:改一个纯校验脚本、升一次开发基线,产物零差异,
+  // 不该推一个新版本出去。0.6.1 就是这么发出来的。
+  assert.equal(
+    shouldRelease({ hasContractChange: false, increment: 'auto' }),
+    false
+  );
+  assert.equal(
+    shouldRelease({ hasContractChange: true, increment: 'auto' }),
+    true
+  );
+
+  // 手动 workflow_dispatch 是人明确要发 —— 不受这条约束。
+  for (const increment of ['patch', 'minor', 'major']) {
+    assert.equal(
+      shouldRelease({ hasContractChange: false, increment }),
+      true,
+      increment
     );
   }
 });
