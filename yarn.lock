@@ -6142,9 +6142,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@unif/react-native-design@npm:^0.23.0":
-  version: 0.23.0
-  resolution: "@unif/react-native-design@npm:0.23.0"
+"@unif/react-native-design@npm:^0.23.1":
+  version: 0.23.1
+  resolution: "@unif/react-native-design@npm:0.23.1"
   peerDependencies:
     "@sbaiahmed1/react-native-blur": ">=4"
     react: ">=19.2.3 <20.0.0"
@@ -6155,7 +6155,7 @@ __metadata:
     react-native-safe-area-context: ">=5"
     react-native-svg: ">=15"
     react-native-worklets: ">=0.11.0 <0.12.0"
-  checksum: 10c0/4a1fbdd0037afb08ab9f86d101254b7af01d280247c939b466fec36c92ffa0e990d28b646c978bc24affa9001ca673d7af380c5166a30bdd4c8198e5db173812
+  checksum: 10c0/cf0f06de6968db04a6369247125198a888be388bf71505643b7f0e6c4752dd600e6af2ed6d00c566dce324869087b007ef90c9214f2f9fa9abe716f04976fbbf
   languageName: node
   linkType: hard
 
@@ -6178,7 +6178,7 @@ __metadata:
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.2.0"
     "@types/react-test-renderer": "npm:^19"
-    "@unif/react-native-design": "npm:^0.23.0"
+    "@unif/react-native-design": "npm:^0.23.1"
     "@unif/react-native-umeng": "workspace:*"
     jest: "npm:^29.7.0"
     react: "npm:19.2.3"
@@ -6210,7 +6210,7 @@ __metadata:
     "@react-native/metro-config": "npm:0.86.2"
     "@sbaiahmed1/react-native-blur": "npm:^4.6.2"
     "@types/react": "npm:^19.2.0"
-    "@unif/react-native-design": "npm:^0.23.0"
+    "@unif/react-native-design": "npm:^0.23.1"
     "@unif/react-native-umeng": "workspace:*"
     clsx: "npm:^2.0.0"
     prism-react-renderer: "npm:^2.3.0"
@@ -6247,7 +6247,7 @@ __metadata:
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.2.0"
     "@types/react-test-renderer": "npm:^19"
-    "@unif/react-native-design": "npm:^0.23.0"
+    "@unif/react-native-design": "npm:^0.23.1"
     commitlint: "npm:^21.2.1"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.5"
