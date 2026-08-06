@@ -221,6 +221,19 @@ export function assertSquashTitleReleaseLevel({ title, minimumLevel }) {
   return titleLevel;
 }
 
+/**
+ * 这次到底发不发版。
+ *
+ * `minimumReleaseLevel` 已经扫过真实 diff,能算出 `'none'`(契约与已发布源码
+ * 一个字节没动)。在此之前那个结论只用来跳过版本校验,没用来阻止发版 —— 于是
+ * 改一个纯校验脚本、升一次开发基线,都会推出一个产物零差异的空版本。
+ *
+ * 手动 `workflow_dispatch` 指定 increment 是人明确要发,不受这条约束。
+ */
+export function shouldRelease({ hasContractChange, increment }) {
+  return hasContractChange || increment !== 'auto';
+}
+
 export function selectReleaseVersion({
   automaticVersion,
   increment,
@@ -572,6 +585,8 @@ async function main() {
     );
   }
 
+  const releasing = shouldRelease({ hasContractChange, increment });
+
   const successMessage = [
     'Publish contract verification passed.',
     `tag=${latestTag}`,
@@ -580,10 +595,12 @@ async function main() {
     `computed=${computedVersion}`,
     `minimum=${minimumLevel} (${minimumRelease})`,
     `changes=${changeCategories.join(' | ') || 'none'}`,
+    `should-release=${releasing}`,
   ].join(' ');
 
   if (githubOutput) {
     await appendFile(githubOutput, `version=${computedVersion}\n`);
+    await appendFile(githubOutput, `should-release=${releasing}\n`);
   }
 
   console.log(
