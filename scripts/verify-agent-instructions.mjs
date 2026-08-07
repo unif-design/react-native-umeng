@@ -36,7 +36,7 @@ const activeMarkdownEntries = [
  *     等于把每次 minor 都变成 breaking。
  */
 const expectedDependencyRanges = {
-  '@unif/react-native-design': { peer: '>=0.21.0 <1.0.0', dev: '^0.23.1' },
+  '@unif/react-native-design': { peer: '>=0.21.0 <1.0.0', dev: '^0.24.0' },
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
 };

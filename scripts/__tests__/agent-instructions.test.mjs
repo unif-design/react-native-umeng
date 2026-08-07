@@ -21,7 +21,7 @@ const expectedPeerRanges = {
 };
 const expectedDevRanges = {
   ...expectedPeerRanges,
-  '@unif/react-native-design': '^0.23.1',
+  '@unif/react-native-design': '^0.24.0',
 };
 
 async function write(relativeRoot, relativePath, content) {
