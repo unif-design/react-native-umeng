@@ -7,7 +7,7 @@
 
 友盟 React Native 新架构桥：**U-Share**（微信会话 / 钉钉分享）+ **U-App** 移动统计。
 
-当前仓库开发 / example 验证基线为 **React Native 0.86.2**、**React 19.2.3**、**@unif/react-native-design 0.24.0**。peer 接受 `>=0.21.0 <1.0.0` —— 下限来自 0.21 收紧后的 `Cell.leading` 与 `TextFieldSlot` 契约,0.20 编译不过。
+当前仓库开发 / example 验证基线为 **React Native 0.86.2**、**React 19.2.3**、**@unif/react-native-design 0.26.0**。design 的 peer 接受 `>=0.26.0`,`react-native` 接受 `>=0.86.0` —— 两者都不设上限,peer 写窄会把上游每次 minor 都变成 breaking。
 
 > iOS 的初始化状态机、Share/Analytics 门禁、TurboModule 注册、AppDelegate/SceneDelegate 转发和 example 配置已通过 native contract、simulator build 与 XCTest。Android CI 已通过 native contract、bootstrap/callback JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实微信 / 钉钉拉起与回包、iOS URL Scheme / Universal Link / AASA、Android 真机 R8 运行仍须在对应环境验证。
 
@@ -29,7 +29,7 @@ RN 工程提供 `react` / `react-native`，其余 peerDependencies 使用 Yarn �
 ```sh
 yarn add @unif/react-native-umeng \
   '@sbaiahmed1/react-native-blur@>=4' \
-  '@unif/react-native-design@>=0.21.0 <1.0.0' \
+  '@unif/react-native-design@>=0.26.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
   'react-native-reanimated@^4.5.3' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \

@@ -360,7 +360,7 @@ test('workspace development graph matches the React Native 0.86.2 fixture', asyn
   assert.equal(root.devDependencies['@react-native/eslint-config'], '0.86.2');
   assert.equal(root.devDependencies['@react-native/jest-preset'], '0.86.2');
   assert.equal(root.devDependencies['@react-native/metro-config'], '0.86.2');
-  assert.equal(root.peerDependencies['react-native'], '*');
+  assert.equal(root.peerDependencies['react-native'], '>=0.86.0');
 
   assert.equal(example.dependencies.react, '19.2.3');
   assert.equal(example.dependencies['react-native'], '0.86.2');

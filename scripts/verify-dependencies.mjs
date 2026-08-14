@@ -60,7 +60,7 @@ const requiredWebsiteReactNativeDevelopmentGraph = {
 };
 const lockedPackageContracts = {
   '@unif/react-native-design': {
-    version: '0.24.0',
+    version: '0.26.0',
     peerDependencies: {
       '@sbaiahmed1/react-native-blur': '>=4',
       react: '>=19.2.3 <20.0.0',
@@ -219,8 +219,8 @@ assertExactDependencies(
 );
 assert.equal(
   root.peerDependencies['react-native'],
-  '*',
-  'package.json must keep the public react-native peer unchanged',
+  '>=0.86.0',
+  'package.json must keep the public react-native peer at >=0.86.0 with no upper bound',
 );
 assert.equal(
   root.peerDependencies.react,
