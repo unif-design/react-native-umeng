@@ -1,5 +1,15 @@
 # Changelog
 
+# [0.7.0](https://github.com/unif-design/react-native-umeng/compare/v0.6.1...v0.7.0) (2026-08-14)
+
+### Bug Fixes
+
+* **release:** 契约无变更时不发版 ([#83](https://github.com/unif-design/react-native-umeng/issues/83)) ([19f8f33](https://github.com/unif-design/react-native-umeng/commit/19f8f336590b83ba223310c7756d4f07cdb36c66))
+
+### Features
+
+* peer 标定 RN >=0.86.0,design 抬到 >=0.26.0 并去掉上限 ([#91](https://github.com/unif-design/react-native-umeng/issues/91)) ([3e8a7e2](https://github.com/unif-design/react-native-umeng/commit/3e8a7e2f6dfd98c00da5c018ee093a5b3f62fe9d))
+
 ## [0.6.1](https://github.com/unif-design/react-native-umeng/compare/v0.6.0...v0.6.1) (2026-08-06)
 
 # [0.6.0](https://github.com/unif-design/react-native-umeng/compare/v0.5.0...v0.6.0) (2026-08-05)
