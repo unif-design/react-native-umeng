@@ -10,8 +10,8 @@ import assert from 'node:assert/strict';
  */
 export const sharedDependencyRanges = {
   '@unif/react-native-design': {
-    peer: '>=0.21.0 <1.0.0',
-    install: '^0.24.0',
+    peer: '>=0.26.0',
+    install: '^0.26.0',
   },
   'react-native-reanimated': '^4.5.3',
   'react-native-worklets': '^0.11.3',
