@@ -1,7 +1,7 @@
 # 参与贡献
 
 感谢参与 `@unif/react-native-umeng`。请保持交流友善，并遵守
-[Code of Conduct](./CODE_OF_CONDUCT.md)。组织级 CI、Dependabot、PR review 与分支保护
+[Code of Conduct](./CODE_OF_CONDUCT.md)。组织级 CI、人工依赖升级、PR review 与分支保护
 规则见 [AUTOMATION.md](https://github.com/unif-design/.github/blob/main/AUTOMATION.md)。
 
 ## 开发环境
