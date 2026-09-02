@@ -15,7 +15,7 @@ export const sharedDependencyRanges = {
   },
   '@unif/react-native-design': {
     peer: '>=0.26.0',
-    install: '^0.30.0',
+    install: '^0.30.1',
   },
   'react-native-reanimated': {
     peer: '>=4.5.3 <4.7.0',

@@ -37,7 +37,7 @@ const activeMarkdownEntries = [
  */
 const expectedDependencyRanges = {
   '@sbaiahmed1/react-native-blur': { peer: '>=4', dev: '6.0.1' },
-  '@unif/react-native-design': { peer: '>=0.26.0', dev: '^0.30.0' },
+  '@unif/react-native-design': { peer: '>=0.26.0', dev: '^0.30.1' },
   'react-native-reanimated': {
     peer: '>=4.5.3 <4.7.0',
     dev: '^4.6.0',

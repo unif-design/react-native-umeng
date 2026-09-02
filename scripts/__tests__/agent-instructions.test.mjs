@@ -22,7 +22,7 @@ const expectedPeerRanges = {
 };
 const expectedDevRanges = {
   '@sbaiahmed1/react-native-blur': '6.0.1',
-  '@unif/react-native-design': '^0.30.0',
+  '@unif/react-native-design': '^0.30.1',
   'react-native-reanimated': '^4.6.0',
   'react-native-worklets': '^0.12.1',
 };

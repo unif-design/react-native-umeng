@@ -60,7 +60,7 @@ const requiredWebsiteReactNativeDevelopmentGraph = {
 };
 const lockedPackageContracts = {
   '@unif/react-native-design': {
-    version: '0.30.0',
+    version: '0.30.1',
     peerDependencies: {
       '@sbaiahmed1/react-native-blur': '>=4',
       react: '>=19.2.3 <20.0.0',
