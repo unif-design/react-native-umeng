@@ -33,44 +33,44 @@ const requiredSecurityResolutions = {
 };
 const requiredRootReactNativeDevelopmentGraph = {
   'react': '19.2.3',
-  'react-native': '0.86.2',
-  '@react-native/babel-preset': '0.86.2',
-  '@react-native/eslint-config': '0.86.2',
-  '@react-native/jest-preset': '0.86.2',
-  '@react-native/metro-config': '0.86.2',
+  'react-native': '0.86.3',
+  '@react-native/babel-preset': '0.86.3',
+  '@react-native/eslint-config': '0.86.3',
+  '@react-native/jest-preset': '0.86.3',
+  '@react-native/metro-config': '0.86.3',
   'react-test-renderer': '19.2.3',
 };
 const requiredExampleReactNativeDevelopmentGraph = {
   '@react-native-community/cli': '20.1.0',
   '@react-native-community/cli-platform-android': '20.1.0',
   '@react-native-community/cli-platform-ios': '20.1.0',
-  '@react-native/babel-preset': '0.86.2',
-  '@react-native/jest-preset': '0.86.2',
-  '@react-native/metro-config': '0.86.2',
-  '@react-native/typescript-config': '0.86.2',
+  '@react-native/babel-preset': '0.86.3',
+  '@react-native/jest-preset': '0.86.3',
+  '@react-native/metro-config': '0.86.3',
+  '@react-native/typescript-config': '0.86.3',
   'react-test-renderer': '19.2.3',
 };
 const requiredWebsiteReactNativeRuntimeGraph = {
   'react': '19.2.3',
   'react-dom': '19.2.3',
-  'react-native': '0.86.2',
+  'react-native': '0.86.3',
 };
 const requiredWebsiteReactNativeDevelopmentGraph = {
-  '@react-native/metro-config': '0.86.2',
+  '@react-native/metro-config': '0.86.3',
 };
 const lockedPackageContracts = {
   '@unif/react-native-design': {
-    version: '0.26.0',
+    version: '0.30.1',
     peerDependencies: {
       '@sbaiahmed1/react-native-blur': '>=4',
       react: '>=19.2.3 <20.0.0',
-      'react-native': '>=0.86.0 <0.87.0',
+      'react-native': '>=0.86.0',
       'react-native-gesture-handler': '>=3.0.0 <4.0.0',
-      'react-native-reanimated': '>=4.5.2 <4.6.0',
+      'react-native-reanimated': '>=4.5.2 <4.7.0',
       'react-native-reanimated-carousel': '>=5.0.0 <6.0.0',
       'react-native-safe-area-context': '>=5',
       'react-native-svg': '>=15',
-      'react-native-worklets': '>=0.11.0 <0.12.0',
+      'react-native-worklets': '>=0.11.0 <0.13.0',
     },
   },
   'react-native-gesture-handler': {
@@ -83,8 +83,8 @@ const lockedPackageContracts = {
   'react-native-reanimated': {
     peerDependencies: {
       react: '*',
-      'react-native': '0.83 - 0.86',
-      'react-native-worklets': '0.10.x - 0.11.x',
+      'react-native': '0.83 - 0.87',
+      'react-native-worklets': '0.12.x',
     },
   },
   'react-native-reanimated-carousel': {
@@ -102,7 +102,7 @@ const lockedPackageContracts = {
       '@babel/core': '*',
       '@react-native/metro-config': '*',
       react: '*',
-      'react-native': '0.83 - 0.86',
+      'react-native': '0.83 - 0.87',
     },
   },
 };
@@ -234,8 +234,8 @@ assert.equal(
 );
 assert.equal(
   example.dependencies['react-native'],
-  '0.86.2',
-  'example/package.json must declare react-native as 0.86.2 in dependencies',
+  '0.86.3',
+  'example/package.json must declare react-native as 0.86.3 in dependencies',
 );
 assertExactDependencies(
   example,

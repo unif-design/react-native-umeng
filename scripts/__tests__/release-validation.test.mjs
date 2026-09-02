@@ -64,6 +64,32 @@ const androidExampleContractPaths = [
   'example/android/app/src/main/java/unif/reactnativeumeng/example/ddshare/DDShareActivity.kt',
 ];
 
+test(
+  'example Podfile can resolve autolinking from the repository root',
+  { skip: process.platform !== 'darwin' },
+  () => {
+    const result = spawnSync(
+      'pod',
+      [
+        'ipc',
+        'podfile',
+        'example/ios/Podfile',
+        '--project-directory=example/ios',
+      ],
+      {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+      }
+    );
+
+    assert.equal(
+      result.status,
+      0,
+      result.stderr || result.error?.message || 'pod ipc podfile failed'
+    );
+  }
+);
+
 async function createIosExampleContractFixture(mutate) {
   const fixtureRoot = await mkdtemp(
     join(tmpdir(), 'umeng-ios-contract-fixture-')
@@ -312,10 +338,15 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
   // peer 与安装侧分段:装了 install range 的 manifest 冒充 peerDependencies 必须被拒,
   // 否则「peer 该宽 / 安装侧该窄」这条分段规则形同虚设。
   assert.notEqual(designPeerRange, sharedRangesFor('dependencies')['@unif/react-native-design']);
+  const peerRangesWithInstallDesign = {
+    ...sharedRangesFor('peerDependencies'),
+    '@unif/react-native-design':
+      sharedRangesFor('dependencies')['@unif/react-native-design'],
+  };
   assert.throws(
     () =>
       assertSharedDependencyRanges(
-        { peerDependencies: sharedRangesFor('dependencies') },
+        { peerDependencies: peerRangesWithInstallDesign },
         'peerDependencies',
         'fixture/package.json'
       ),
@@ -329,7 +360,7 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
     )
   );
 
-  manifest.dependencies['react-native-worklets'] = '^0.12.0';
+  manifest.dependencies['react-native-worklets'] = '^0.11.3';
   assert.throws(
     () =>
       assertSharedDependencyRanges(
@@ -337,11 +368,11 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
         'dependencies',
         'fixture/package.json'
       ),
-    /react-native-worklets.*\^0\.11\.3/
+    /react-native-worklets.*\^0\.12\.1/
   );
 });
 
-test('workspace development graph matches the React Native 0.86.2 fixture', async () => {
+test('workspace development graph matches the React Native 0.86.3 fixture', async () => {
   const [root, example, website] = await Promise.all(
     [
       '../../package.json',
@@ -355,30 +386,30 @@ test('workspace development graph matches the React Native 0.86.2 fixture', asyn
     )
   );
 
-  assert.equal(root.devDependencies['react-native'], '0.86.2');
-  assert.equal(root.devDependencies['@react-native/babel-preset'], '0.86.2');
-  assert.equal(root.devDependencies['@react-native/eslint-config'], '0.86.2');
-  assert.equal(root.devDependencies['@react-native/jest-preset'], '0.86.2');
-  assert.equal(root.devDependencies['@react-native/metro-config'], '0.86.2');
+  assert.equal(root.devDependencies['react-native'], '0.86.3');
+  assert.equal(root.devDependencies['@react-native/babel-preset'], '0.86.3');
+  assert.equal(root.devDependencies['@react-native/eslint-config'], '0.86.3');
+  assert.equal(root.devDependencies['@react-native/jest-preset'], '0.86.3');
+  assert.equal(root.devDependencies['@react-native/metro-config'], '0.86.3');
   assert.equal(root.peerDependencies['react-native'], '>=0.86.0');
 
   assert.equal(example.dependencies.react, '19.2.3');
-  assert.equal(example.dependencies['react-native'], '0.86.2');
+  assert.equal(example.dependencies['react-native'], '0.86.3');
   assert.equal(
     example.devDependencies['@react-native/babel-preset'],
-    '0.86.2'
+    '0.86.3'
   );
   assert.equal(
     example.devDependencies['@react-native/jest-preset'],
-    '0.86.2'
+    '0.86.3'
   );
   assert.equal(
     example.devDependencies['@react-native/metro-config'],
-    '0.86.2'
+    '0.86.3'
   );
   assert.equal(
     example.devDependencies['@react-native/typescript-config'],
-    '0.86.2'
+    '0.86.3'
   );
   assert.equal(
     example.devDependencies['@react-native-community/cli'],
@@ -396,10 +427,10 @@ test('workspace development graph matches the React Native 0.86.2 fixture', asyn
 
   assert.equal(website.dependencies.react, '19.2.3');
   assert.equal(website.dependencies['react-dom'], '19.2.3');
-  assert.equal(website.dependencies['react-native'], '0.86.2');
+  assert.equal(website.dependencies['react-native'], '0.86.3');
   assert.equal(
     website.devDependencies['@react-native/metro-config'],
-    '0.86.2'
+    '0.86.3'
   );
 });
 
@@ -437,7 +468,7 @@ test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', a
       'utf8'
     );
     const reactNativePackageStanza =
-      /^"react-native@npm:0\.86\.2":\n  version: 0\.86\.2\n  resolution: "react-native@npm:0\.86\.2"/m;
+      /^"react-native@npm:0\.86\.3":\n  version: 0\.86\.3\n  resolution: "react-native@npm:0\.86\.3"/m;
     assert.match(lockfile, reactNativePackageStanza);
 
     const lockfileWithUnrelated085 = `${lockfile}

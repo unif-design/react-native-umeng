@@ -15,13 +15,16 @@ import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 // 刻意不从 verify-agent-instructions 的契约推导:那样测试会自证,契约被改坏也照过。
 // design 的 peer 与 dev 分段 —— peer 是对外兼容范围,dev 是本仓验证基线。
 const expectedPeerRanges = {
+  '@sbaiahmed1/react-native-blur': '>=4',
   '@unif/react-native-design': '>=0.26.0',
-  'react-native-reanimated': '^4.5.3',
-  'react-native-worklets': '^0.11.3',
+  'react-native-reanimated': '>=4.5.3 <4.7.0',
+  'react-native-worklets': '>=0.11.3 <0.13.0',
 };
 const expectedDevRanges = {
-  ...expectedPeerRanges,
-  '@unif/react-native-design': '^0.26.0',
+  '@sbaiahmed1/react-native-blur': '6.0.1',
+  '@unif/react-native-design': '^0.30.1',
+  'react-native-reanimated': '^4.6.0',
+  'react-native-worklets': '^0.12.1',
 };
 
 async function write(relativeRoot, relativePath, content) {

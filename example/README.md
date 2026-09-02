@@ -1,6 +1,6 @@
 # React Native Umeng Example 展厅
 
-这个 RN 0.86.2 New Architecture app 用于手工验证 `@unif/react-native-umeng` 的两段式初始化、平台检测、分享、Analytics 与原生回调接线。它不是可发布应用，也不保存真实 appkey、secret、URL Scheme、Associated Domain 或 AASA 内容。
+这个 RN 0.86.3 New Architecture app 使用 Design 0.30.0 与 Blur 6.0.1，用于手工验证 `@unif/react-native-umeng` 的两段式初始化、平台检测、分享、Analytics 与原生回调接线。它不是可发布应用，也不保存真实 appkey、secret、URL Scheme、Associated Domain 或 AASA 内容。
 
 ## 1. 安装依赖
 
@@ -48,11 +48,11 @@ yarn add @unif/react-native-umeng \
   '@sbaiahmed1/react-native-blur@>=4' \
   '@unif/react-native-design@>=0.26.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
-  'react-native-reanimated@^4.5.3' \
+  'react-native-reanimated@>=4.5.3 <4.7.0' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
   'react-native-safe-area-context@>=5' \
   'react-native-svg@>=15' \
-  'react-native-worklets@^0.11.3'
+  'react-native-worklets@>=0.11.3 <0.13.0'
 ```
 
 React 与 React Native 由消费者宿主提供；本 example 验证的组合见仓库
