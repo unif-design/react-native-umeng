@@ -9,16 +9,26 @@ import assert from 'node:assert/strict';
  *     等于把上游每次 minor 都变成 breaking。
  */
 export const sharedDependencyRanges = {
+  '@sbaiahmed1/react-native-blur': {
+    peer: '>=4',
+    install: '6.0.1',
+  },
   '@unif/react-native-design': {
     peer: '>=0.26.0',
-    install: '^0.26.0',
+    install: '^0.30.0',
   },
-  'react-native-reanimated': '^4.5.3',
-  'react-native-worklets': '^0.11.3',
+  'react-native-reanimated': {
+    peer: '>=4.5.3 <4.7.0',
+    install: '^4.6.0',
+  },
+  'react-native-worklets': {
+    peer: '>=0.11.3 <0.13.0',
+    install: '^0.12.1',
+  },
 };
 
 export const requiredReactNativeLockResolution =
-  'react-native@npm:0.86.2';
+  'react-native@npm:0.86.3';
 
 export function assertReactNativeLockfileResolution(lockfile) {
   const packageDescriptors = [

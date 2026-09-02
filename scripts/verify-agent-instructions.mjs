@@ -36,9 +36,16 @@ const activeMarkdownEntries = [
  *     等于把每次 minor 都变成 breaking。
  */
 const expectedDependencyRanges = {
-  '@unif/react-native-design': { peer: '>=0.26.0', dev: '^0.26.0' },
-  'react-native-reanimated': '^4.5.3',
-  'react-native-worklets': '^0.11.3',
+  '@sbaiahmed1/react-native-blur': { peer: '>=4', dev: '6.0.1' },
+  '@unif/react-native-design': { peer: '>=0.26.0', dev: '^0.30.0' },
+  'react-native-reanimated': {
+    peer: '>=4.5.3 <4.7.0',
+    dev: '^4.6.0',
+  },
+  'react-native-worklets': {
+    peer: '>=0.11.3 <0.13.0',
+    dev: '^0.12.1',
+  },
 };
 const requiredInstructionRoutes = [
   'AGENTS.md',

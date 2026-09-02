@@ -28,7 +28,7 @@ npx skills add unif-design/skills --skill rn-library --skill umeng-share --globa
 
 ## 仓库定位
 
-`@unif/react-native-umeng` —— 友盟 RN 新架构桥,做两件事:**U-Share**(微信会话 + 钉钉分享)与 **U-App 移动统计**。当前仓库开发/example 验证基线：RN 0.86.2、React 19.2.3、Design 0.26.0。Design 的 peer 是 `>=0.26.0`(下限对齐验证基线;不设上限 —— peer 写窄会把 design 每次 minor 都变成 breaking),dev 与 example 跟到 `^0.26.0`。`react-native` 的 peer 是 `>=0.86.0`,同样不设上限。TypeScript 6。UI 文案中文。首版只支持微信会话 + 钉钉(无朋友圈 / QQ / 微博)。
+`@unif/react-native-umeng` —— 友盟 RN 新架构桥,做两件事:**U-Share**(微信会话 + 钉钉分享)与 **U-App 移动统计**。当前仓库开发/example 验证基线：RN 0.86.3、React 19.2.3、Design 0.30.0、Blur 6.0.1。Design 的 peer 保持 `>=0.26.0`,dev 与 example 跟到 `^0.30.0`;`react-native` 的 peer 保持 `>=0.86.0`。Reanimated / Worklets 的 public peers 同时覆盖已验证的 RN 0.86 旧组合和 RN 0.86 当前组合。TypeScript 6。UI 文案中文。首版只支持微信会话 + 钉钉(无朋友圈 / QQ / 微博)。
 
 turbo-module 库(`create-react-native-library` `kotlin-objc`):JS 在 `src/`,原生在 `android/`(Kotlin)+ `ios/`(Objective-C++ `.mm`)。yarn workspaces 单仓库:库本体在根目录,`example/` 是宿主 RN app,`website/` 是 Docusaurus 文档站。
 

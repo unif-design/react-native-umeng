@@ -3,7 +3,7 @@
  *   - `react-native` → `react-native-web` 别名
  *   - `@unif/react-native-umeng$` → `<repo>/src/index.ts`(显式 alias 兜底,
  *      webpack 5 不识 package.json 的 `exports.source` 条件;同时保持源码 hot reload)
- *   - `@unif/react-native-design` 走 node_modules(已发布的 0.3.0 lib/module),不 alias
+ *   - `@unif/react-native-design` 走 node_modules(当前验证 0.30.0),不 alias
  *   - 把 `<repo>/src/**` 与 ESM-shipped 的几个 RN 库纳入 babel-loader 处理范围
  *   - reanimated 4 需要 `react-native-worklets/plugin`,必须放在 babel plugins 链最后
  *
@@ -16,9 +16,10 @@ const path = require('path');
 const webpack = require('webpack');
 
 module.exports = function reactNativeWebPlugin(context) {
-  // context.siteDir = <repo>/website ; 上一级是 <repo>(design 仓根)。
+  // context.siteDir = <repo>/website ; 上一级是 <repo>(umeng 仓根)。
   const projectRoot = path.resolve(context.siteDir, '..');
   const srcDir = path.join(projectRoot, 'src');
+  const animationFrameShim = path.join(__dirname, 'shims/AnimationFrame.js');
   const rnghPressableShim = path.join(__dirname, 'shims/RnghPressable.js');
 
   // 几个 ESM-shipped 且带 Flow / TS 注解的 RN 库要让 babel-loader 处理（默认 node_modules 不走 babel）。
@@ -38,6 +39,15 @@ module.exports = function reactNativeWebPlugin(context) {
           new webpack.DefinePlugin({
             __DEV__: JSON.stringify(!isServer ? process.env.NODE_ENV !== 'production' : false),
             'process.env.JEST_WORKER_ID': JSON.stringify(undefined),
+          }),
+          // Worklets 0.12 的 Web 调度器在 Docusaurus SSG 的 Node runtime
+          // 中也会调用动画帧 API；浏览器委托原生实现，SSR 才使用定时器兜底。
+          new webpack.ProvidePlugin({
+            requestAnimationFrame: [
+              animationFrameShim,
+              'requestAnimationFrame',
+            ],
+            cancelAnimationFrame: [animationFrameShim, 'cancelAnimationFrame'],
           }),
           // RNGH 的 Pressable 实现依赖 GestureDetector + reanimated worklets + Gesture objects 链，
           // 在 react-native-web 环境里 onPress 完全不触发（实测：原生 click / pointerdown / mousedown 都无效）。

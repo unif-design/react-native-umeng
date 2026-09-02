@@ -18,7 +18,7 @@ description: "用 Yarn 安装 @unif/react-native-umeng 的 10 个 peerDependenci
 | Android | minSdk 24;Gradle SDK build 与真机矩阵须在具备 Android SDK 的环境验证 |
 
 :::info 仅支持新架构
-本库是 TurboModule 桥,当前只验证 **React Native 0.85 New Architecture**。旧架构(Bridge)不在目标范围；“当前在 0.85.3 通过”不等于所有后续 RN 版本都自动兼容。
+本库是 TurboModule 桥,当前验证 **React Native 0.86.3 New Architecture**。旧架构(Bridge)不在目标范围；公开 peer 仍兼容 RN 0.86 的已验证组合。
 :::
 
 ---
@@ -29,14 +29,14 @@ description: "用 Yarn 安装 @unif/react-native-umeng 的 10 个 peerDependenci
 
 ```sh
 yarn add @unif/react-native-umeng \
-  '@sbaiahmed1/react-native-blur@>=4' \
-  '@unif/react-native-design@>=0.26.0' \
+  '@sbaiahmed1/react-native-blur@6.0.1' \
+  '@unif/react-native-design@^0.30.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
-  'react-native-reanimated@^4.5.3' \
+  'react-native-reanimated@^4.6.0' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
   'react-native-safe-area-context@>=5' \
   'react-native-svg@>=15' \
-  'react-native-worklets@^0.11.3'
+  'react-native-worklets@^0.12.1'
 ```
 
 各包的作用与版本约束:
@@ -46,13 +46,13 @@ yarn add @unif/react-native-umeng \
 | `@sbaiahmed1/react-native-blur` | `>=4` | design 根入口的静态依赖 |
 | `@unif/react-native-design` | `>=0.26.0` | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`) |
 | `react` | `*` | RN 工程已有 |
-| `react-native` | `>=0.86.0` | RN 工程已有;本仓验证基线为 RN 0.86.2 |
+| `react-native` | `>=0.86.0` | RN 工程已有;本仓当前验证基线为 RN 0.86.3 |
 | `react-native-gesture-handler` | `>=3.0.0 <4.0.0` | design 手势底层与 ShareSheet Modal 内部 root |
-| `react-native-reanimated` | `^4.5.3` | design 根入口运行时依赖 |
+| `react-native-reanimated` | `>=4.5.3 <4.7.0` | design 根入口运行时依赖;当前验证 4.6.x |
 | `react-native-reanimated-carousel` | `>=5.0.0 <6.0.0` | design 根入口静态依赖 |
 | `react-native-safe-area-context` | `>=5` | design 根入口静态依赖 |
 | `react-native-svg` | `>=15` | 面板平台图标与 design 图标 |
-| `react-native-worklets` | `^0.11.3` | Reanimated / design 运行时与 Babel 转换 |
+| `react-native-worklets` | `>=0.11.3 <0.13.0` | Reanimated / design 运行时与 Babel 转换;当前验证 0.12.x |
 
 范围以安装版本的 `package.json#peerDependencies` 为唯一真相源,不要从旧文档猜版本。
 
