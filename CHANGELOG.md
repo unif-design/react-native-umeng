@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.8.0](https://github.com/unif-design/react-native-umeng/compare/v0.7.0...v0.8.0) (2026-09-02)
+
+### Features
+
+* 兼容 Reanimated 4.6 与 RN 0.86.3 ([#95](https://github.com/unif-design/react-native-umeng/issues/95)) ([8f5885d](https://github.com/unif-design/react-native-umeng/commit/8f5885dc7e865aa37bf773982743a4cda16e913b))
+
 # [0.7.0](https://github.com/unif-design/react-native-umeng/compare/v0.6.1...v0.7.0) (2026-08-14)
 
 ### Bug Fixes
