@@ -1,5 +1,11 @@
 # Changelog
 
+# [0.9.0](https://github.com/unif-design/react-native-umeng/compare/v0.8.0...v0.9.0) (2026-09-04)
+
+### Features
+
+* 支持浮动分享面板生命周期 ([5bb6cef](https://github.com/unif-design/react-native-umeng/commit/5bb6cef12410181656e88d38b5b7eff571295615))
+
 # [0.8.0](https://github.com/unif-design/react-native-umeng/compare/v0.7.0...v0.8.0) (2026-09-02)
 
 ### Features
