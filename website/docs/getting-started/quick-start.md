@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: 快速上手
-description: "5 分钟跑通 @unif/react-native-umeng：App 根挂 <ShareSheetHost />，启动时 Common.preInit(config)，用户同意后 Common.init()（无参），再 await Share.openSheet(payload) 拉起分享面板。"
+description: '5 分钟跑通 @unif/react-native-umeng：App 根挂 <ShareSheetHost />，启动时 Common.preInit(config)，用户同意后 Common.init()（无参），再 await Share.openSheet(payload) 拉起分享面板。'
 ---
 
 # 快速上手
@@ -20,7 +20,7 @@ description: "5 分钟跑通 @unif/react-native-umeng：App 根挂 <ShareSheetHo
 
 ## ① 在 App 根挂 `<ShareSheetHost />` {#mount-host}
 
-`<ShareSheetHost />` 是命令式分享面板的宿主,**必须在 App 根挂一次**,且位于 design 的 `ThemeProvider` 内。示例保留 App 外层 `GestureHandlerRootView` 供其余 RNGH UI 使用:
+`<ShareSheetHost />` 是命令式分享面板的宿主，**至少挂载一个**且位于 design 的 `ThemeProvider` 内。默认 `modal` 推荐放 App 根；若页面使用 `floating` 并需要面板外触摸留在当前页面，可在页面内再挂一个 Host，最新挂载者会承载新 session。示例保留 App 外层 `GestureHandlerRootView` 供其余 RNGH UI 使用:
 
 ```tsx title="App.tsx（或根组件）"
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -32,14 +32,15 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <YourNavigationStack />
-        <ShareSheetHost />{/* 根上挂一次,位置不影响显示(打开时全屏覆盖) */}
+        <ShareSheetHost />
+        {/* 根上挂一次,位置不影响显示(打开时全屏覆盖) */}
       </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
 ```
 
-不挂 Host,`Share.openSheet()` 会立即 reject(`No <ShareSheetHost /> mounted`)。Host 自己会在 RN `Modal` 内容里创建另一层 `GestureHandlerRootView`;Modal 是独立 native root,App 外层 root 不能替代内部这一层。消费者无需手工再包 Modal 内容。
+不挂 Host,`Share.openSheet()` 会立即 reject(`No <ShareSheetHost /> mounted`)。在 `modal` 模式下，Host 会在 RN `Modal` 内容里创建另一层 `GestureHandlerRootView`;Modal 是独立 native root,App 外层 root 不能替代内部这一层。消费者无需手工再包 Modal 内容。
 
 ## ② App 启动后立刻 `preInit`(此时不上报) {#preinit}
 
@@ -49,9 +50,9 @@ export default function App() {
 import { Common } from '@unif/react-native-umeng';
 
 await Common.preInit({
-  appkey: 'YOUR_UMENG_APPKEY',          // 必填
-  channel: 'App Store',                  // 可选,默认 iOS='App Store' / Android='default'
-  wechatAppId: 'YOUR_WECHAT_APP_ID',     // 使用平台分配的原值
+  appkey: 'YOUR_UMENG_APPKEY', // 必填
+  channel: 'App Store', // 可选,默认 iOS='App Store' / Android='default'
+  wechatAppId: 'YOUR_WECHAT_APP_ID', // 使用平台分配的原值
   wechatAppSecret: 'YOUR_WECHAT_APP_SECRET',
   wechatUniversalLink: 'https://your.host/', // 微信 1.8.6+(iOS)要求
   dingtalkAppId: 'YOUR_DINGTALK_APP_ID', // 使用平台分配的原值
@@ -64,7 +65,7 @@ iOS 启用微信时 `wechatAppId`、`wechatAppSecret`、绝对 HTTPS `wechatUniv
 
 ```ts
 // 仅在用户点「同意《隐私协议》」之后调用
-await Common.init();   // ⚠️ 无参 —— config 已给 preInit
+await Common.init(); // ⚠️ 无参 —— config 已给 preInit
 ```
 
 `Common.init()` **不接收 config**(配置已给 `preInit`)。没先 `preInit` 直接 `init` 会 reject `E_NOT_INITIALIZED`。用户同意后调用时,Android 才依次执行 vendor preInit、平台注册、FileProvider 与正式 init；iOS 才执行 Universal Link 配置、微信 / 钉钉注册与 `UMConfigure.initWithAppkey`。两段式合规细节见[隐私合规(PIPL)](../guides/privacy-pipl)。
@@ -93,6 +94,19 @@ async function onShareTap() {
 }
 ```
 
+需要让长图等下层内容继续滚动时，改用无遮罩浮层；`onSheetLayout` 可回传真实高度，`onDismiss` 在浮层完全移除（或打开前失败）时调用一次：
+
+```ts
+await Share.openSheet(
+  { type: 'image', image: 'https://example.com/order.png' },
+  {
+    presentation: 'floating',
+    onSheetLayout: (height) => setBottomInset(height),
+    onDismiss: () => setSharing(false),
+  }
+);
+```
+
 :::danger 取消 / 失败走 reject,不走 resolve
 `Share.openSheet()` **只有成功才 resolve**(`r.code` 恒为 `'success'`);用户取消、分享失败都会**抛 `UmengError`**。务必 try/catch,**不要写 `if (r.code === 'cancel')`**(永远到不了)。详见[分享指南](../guides/sharing)。
 :::
@@ -107,7 +121,7 @@ async function onShareTap() {
 import { Analytics } from '@unif/react-native-umeng';
 
 Analytics.onEvent('share_click', { source: 'detail', count: 1 }); // 数字自动转字符串
-Analytics.signIn('user-123', 'WX');  // provider 可选
+Analytics.signIn('user-123', 'WX'); // provider 可选
 Analytics.signOut();
 ```
 

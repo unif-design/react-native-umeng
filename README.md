@@ -14,7 +14,7 @@
 ## 特性
 
 - **U-Share** — 微信会话 + 钉钉，支持文本 / 图片 / 链接。
-- **命令式分享面板** — 根上挂一次 `<ShareSheetHost />`，调用 `Share.openSheet()` 即可拉起 RN `Modal` 面板。
+- **命令式分享面板** — `<ShareSheetHost />` 同时支持默认 `Modal` 与无遮罩、可嵌入当前页面的 `floating` 面板。
 - **U-App 统计** — 同步的 `Analytics.onEvent` / `signIn` / `signOut`。
 - **PIPL 合规** — `Common.preInit(config)` 只保存 JS 快照；用户同意后，无参 `Common.init()` 才进入 native/vendor 初始化。
 - **稳定错误契约** — 分享只在成功时 resolve；取消、失败和未安装平台均 reject `UmengError`。
@@ -56,7 +56,7 @@ module.exports = {
 
 ## 快速开始
 
-`<ShareSheetHost />` 必须在 App 根挂一次，并位于 design 的 `<ThemeProvider>` 内。Host 已在自己的 `Modal` 内容里创建 `GestureHandlerRootView`；App 外层 root 只按其他 UI 的需要保留，不是 Host 生效的硬前提。
+至少挂载一个 `<ShareSheetHost />`，并放在 design 的 `<ThemeProvider>` 内。默认 `modal` 模式可使用 App 根 Host；需要让下层长图继续滚动时，可在当前页面再挂一个 Host，并使用 `presentation: 'floating'`。多个 Host 同时存在时，最新挂载者承载新 session。
 
 ```tsx
 import { ThemeProvider } from '@unif/react-native-design';
@@ -90,11 +90,14 @@ await Common.init();
 
 // 3. 只有成功才 resolve；取消 / 失败都在 catch 中处理
 try {
-  const result = await Share.openSheet({
-    type: 'link',
-    title: '标题',
-    url: 'https://example.com',
-  });
+  const result = await Share.openSheet(
+    {
+      type: 'link',
+      title: '标题',
+      url: 'https://example.com',
+    },
+    { presentation: 'floating' }
+  );
   // result.code === 'success'
 } catch (error) {
   if (error instanceof UmengError && error.code === 'E_USER_CANCEL') {
@@ -114,11 +117,11 @@ iOS 启用微信时 `wechatAppId`、`wechatAppSecret`、绝对 HTTPS `wechatUniv
 
 ## 平台与验证边界
 
-| 平台 | 当前证据 | 仍需验证 |
-| --- | --- | --- |
-| iOS | native contract、simulator build、31/31 XCTest、三个 TurboModule provider | 真机微信 / 钉钉分享、URL Scheme、Universal Link/AASA |
-| Android | native contract、JVM tests、minified release build、merged manifest | 真机微信 / 钉钉回跳、真机 R8 运行 |
-| Web / 模拟器 | JS、文档站和 native 单测可运行 | 不能代替第三方 App 真分享 |
+| 平台         | 当前证据                                                                  | 仍需验证                                             |
+| ------------ | ------------------------------------------------------------------------- | ---------------------------------------------------- |
+| iOS          | native contract、simulator build、31/31 XCTest、三个 TurboModule provider | 真机微信 / 钉钉分享、URL Scheme、Universal Link/AASA |
+| Android      | native contract、JVM tests、minified release build、merged manifest       | 真机微信 / 钉钉回跳、真机 R8 运行                    |
+| Web / 模拟器 | JS、文档站和 native 单测可运行                                            | 不能代替第三方 App 真分享                            |
 
 ## License
 

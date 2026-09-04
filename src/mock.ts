@@ -70,9 +70,11 @@ export const Share = {
   openSheet: jest.fn(
     (
       _payload: ShareSheetPayload,
-      _options?: ShareSheetOptions
-    ): Promise<ShareResult> =>
-      Promise.resolve(shareSuccess(Platform.WECHAT_SESSION))
+      options?: ShareSheetOptions
+    ): Promise<ShareResult> => {
+      options?.onDismiss?.();
+      return Promise.resolve(shareSuccess(Platform.WECHAT_SESSION));
+    }
   ),
   isInstalled: jest.fn(
     (_platform: Platform): Promise<boolean> => Promise.resolve(true)

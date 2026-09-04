@@ -19,6 +19,7 @@ export type SheetDraft = ShareContentDraft & {
     readonly wechatSubtitle: string;
     readonly dingtalkSubtitle: string;
     readonly hideUninstalled: boolean;
+    readonly presentation: 'modal' | 'floating';
   };
 };
 
@@ -295,5 +296,6 @@ export function buildShareSheetOptions(draft: SheetDraft): ShareSheetOptions {
       [Platform.DINGTALK]: draft.options.dingtalkSubtitle,
     },
     hideUninstalled: draft.options.hideUninstalled,
+    presentation: draft.options.presentation,
   };
 }

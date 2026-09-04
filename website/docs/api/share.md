@@ -14,14 +14,14 @@ description: "Share API 全量参考：openSheet(payload, options?) 命令式面
 import { Share } from '@unif/react-native-umeng';
 ```
 
-| 方法 | 签名 | 返回 |
-| --- | --- | --- |
-| [`openSheet`](#opensheet) | `openSheet(payload, options?)` | `Promise<ShareResult>` |
-| [`shareText`](#sharetext) | `shareText(options: ShareTextOptions)` | `Promise<ShareResult>` |
-| [`shareImage`](#shareimage) | `shareImage(options: ShareImageOptions)` | `Promise<ShareResult>` |
-| [`shareLink`](#sharelink) | `shareLink(options: ShareLinkOptions)` | `Promise<ShareResult>` |
-| [`isInstalled`](#isinstalled) | `isInstalled(platform: Platform)` | `Promise<boolean>` |
-| [`listPlatforms`](#listplatforms) | `listPlatforms()` | `Promise<PlatformInfo[]>` |
+| 方法                              | 签名                                     | 返回                      |
+| --------------------------------- | ---------------------------------------- | ------------------------- |
+| [`openSheet`](#opensheet)         | `openSheet(payload, options?)`           | `Promise<ShareResult>`    |
+| [`shareText`](#sharetext)         | `shareText(options: ShareTextOptions)`   | `Promise<ShareResult>`    |
+| [`shareImage`](#shareimage)       | `shareImage(options: ShareImageOptions)` | `Promise<ShareResult>`    |
+| [`shareLink`](#sharelink)         | `shareLink(options: ShareLinkOptions)`   | `Promise<ShareResult>`    |
+| [`isInstalled`](#isinstalled)     | `isInstalled(platform: Platform)`        | `Promise<boolean>`        |
+| [`listPlatforms`](#listplatforms) | `listPlatforms()`                        | `Promise<PlatformInfo[]>` |
 
 :::danger 取消 / 失败走 reject，不走 resolve
 `openSheet` 与所有 `shareXxx` **只有成功才 resolve**（resolve 到手的 `ShareResult.code` 恒为 `'success'`）；用户取消、分享失败、目标未安装都会**抛 `UmengError`**。永远 `try/catch`，详见[取消与失败的处理](#reject-on-cancel)。
@@ -48,43 +48,63 @@ function openSheet(
 type ShareSheetPayload =
   | { type: 'text'; text: string }
   | { type: 'image'; image: string; thumb?: string }
-  | { type: 'link'; title: string; url: string; description?: string; thumb?: string };
+  | {
+      type: 'link';
+      title: string;
+      url: string;
+      description?: string;
+      thumb?: string;
+    };
 ```
 
-| `type` | 字段 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `'text'` | `text: string` | ✅ | 纯文字内容 |
-| `'image'` | `image: string` | ✅ | 图片网络 URL(本地路径 / base64 暂不支持) |
-|  | `thumb?: string` | — | 缩略图 |
-| `'link'` | `title: string` | ✅ | 链接标题 |
-|  | `url: string` | ✅ | 链接 URL |
-|  | `description?: string` | — | 链接描述 |
-|  | `thumb?: string` | — | 缩略图 |
+| `type`    | 字段                   | 必填 | 说明                                     |
+| --------- | ---------------------- | ---- | ---------------------------------------- |
+| `'text'`  | `text: string`         | ✅   | 纯文字内容                               |
+| `'image'` | `image: string`        | ✅   | 图片网络 URL(本地路径 / base64 暂不支持) |
+|           | `thumb?: string`       | —    | 缩略图                                   |
+| `'link'`  | `title: string`        | ✅   | 链接标题                                 |
+|           | `url: string`          | ✅   | 链接 URL                                 |
+|           | `description?: string` | —    | 链接描述                                 |
+|           | `thumb?: string`       | —    | 缩略图                                   |
 
 ### `ShareSheetOptions` {#sharesheetoptions}
 
-| 字段 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `title` | `string` | `'分享至'` | 面板标题 |
-| `cancelText` | `string` | `'取消'` | 取消按钮文案 |
-| `subtitles` | `Partial<Record<Platform, string>>` | 见 `PLATFORM_DEFAULT_SUBTITLES` | 各平台副标题覆盖 |
-| `hideUninstalled` | `boolean` | `false` | `true` 完全隐藏未安装平台；`false` 时仍显示且可点击 |
+| 字段              | 类型                                | 默认值                          | 说明                                                      |
+| ----------------- | ----------------------------------- | ------------------------------- | --------------------------------------------------------- |
+| `title`           | `string`                            | `'分享至'`                      | 面板标题                                                  |
+| `cancelText`      | `string`                            | `'取消'`                        | 取消按钮文案                                              |
+| `subtitles`       | `Partial<Record<Platform, string>>` | 见 `PLATFORM_DEFAULT_SUBTITLES` | 各平台副标题覆盖                                          |
+| `hideUninstalled` | `boolean`                           | `false`                         | `true` 完全隐藏未安装平台；`false` 时仍显示且可点击       |
+| `presentation`    | `'modal' \| 'floating'`             | `'modal'`                       | `floating` 不显示遮罩，面板外触摸穿透，可继续滚动下层内容 |
+| `onSheetLayout`   | `(height: number) => void`          | —                               | 面板高度变化时回调，便于给下层滚动内容预留空间            |
+| `onDismiss`       | `() => void`                        | —                               | 面板完全退场后回调；未展示成功的早期失败也会回调一次      |
 
 `hideUninstalled=false` 时，点击未安装的平台不会调用 native share；`openSheet`
 返回的 Promise 会 reject `UmengError`，code 为
 `E_PLATFORM_NOT_INSTALLED`。只有 `hideUninstalled=true` 才会完全隐藏未安装平台。
 
-`openSheet` 先进入 `loadingPlatforms` 并调用 `listPlatforms()`。查询失败时 Modal 不会伪装成“全部未安装”,而是用原错误结束当前 Promise。多个 Host 同时挂载时,最早注册者成为本次 owner;owner 在 loading / ready / sharing 任一阶段卸载都会 reject `E_UNKNOWN`,message 为 `The active <ShareSheetHost /> unmounted before the share completed.`。非 owner 卸载不影响当前 session。
+`openSheet` 先进入 `loadingPlatforms` 并调用 `listPlatforms()`。查询失败时面板不会伪装成“全部未安装”,而是用原错误结束当前 Promise。多个 Host 同时挂载时,最新注册者成为本次 owner，便于页面内 Host 覆盖 App 根 Host；owner 在 loading / ready / sharing 任一阶段卸载都会 reject `E_UNKNOWN`,message 为 `The active <ShareSheetHost /> unmounted before the share completed.`。非 owner 卸载不影响当前 session。
 
-controller 用递增 `sessionId` 隔离会话。当前 session 开始 sharing 后，遮罩/返回键 dismiss 不会抢先结算；平台回调才决定成功或失败。旧 session 的迟到 callback、重复 callback 或旧 Host 事件不能结算后续 session。
+`modal` 在发起原生分享时退场；`floating` 在 sharing 期间仍保留面板和取消按钮。此时取消会 reject `E_USER_CANCEL`，随后到达的旧原生 callback 会被忽略。controller 会等当前呈现层完全退场后才允许下一次 `openSheet`；`onDismiss` 正是这个时点的单次通知。
 
 ```tsx
 import { Share, UmengError } from '@unif/react-native-umeng';
 
 try {
   const r = await Share.openSheet(
-    { type: 'link', title: '问问看', url: 'https://example.com', description: '一句话描述' },
-    { title: '分享到', hideUninstalled: true }
+    {
+      type: 'link',
+      title: '问问看',
+      url: 'https://example.com',
+      description: '一句话描述',
+    },
+    {
+      title: '分享到',
+      hideUninstalled: true,
+      presentation: 'floating',
+      onSheetLayout: (height) => reserveBottomSpace(height),
+      onDismiss: () => setSharing(false),
+    }
   );
   // r.code === 'success'
 } catch (e) {
@@ -104,10 +124,10 @@ try {
 function shareText(options: ShareTextOptions): Promise<ShareResult>;
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `platform` | `Platform` | ✅ | 目标平台（[`Platform` 枚举](./platform-sharesheethost#platform-enum)） |
-| `text` | `string` | ✅ | 文字内容 |
+| 字段       | 类型       | 必填 | 说明                                                                   |
+| ---------- | ---------- | ---- | ---------------------------------------------------------------------- |
+| `platform` | `Platform` | ✅   | 目标平台（[`Platform` 枚举](./platform-sharesheethost#platform-enum)） |
+| `text`     | `string`   | ✅   | 文字内容                                                               |
 
 `text` 为空时抛 `E_INVALID_OPTIONS`。
 
@@ -121,11 +141,11 @@ function shareText(options: ShareTextOptions): Promise<ShareResult>;
 function shareImage(options: ShareImageOptions): Promise<ShareResult>;
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `platform` | `Platform` | ✅ | 目标平台 |
-| `image` | `string` | ✅ | 图片网络 URL(本地路径 / base64 暂不支持) |
-| `thumb` | `string` | — | 缩略图 URL |
+| 字段       | 类型       | 必填 | 说明                                     |
+| ---------- | ---------- | ---- | ---------------------------------------- |
+| `platform` | `Platform` | ✅   | 目标平台                                 |
+| `image`    | `string`   | ✅   | 图片网络 URL(本地路径 / base64 暂不支持) |
+| `thumb`    | `string`   | —    | 缩略图 URL                               |
 
 `image` 为空时抛 `E_INVALID_OPTIONS`。本地图(截图 / 相册路径 / base64)传不进原生层 —— 需先上传拿到 `https://` URL 再分享。
 
@@ -139,13 +159,13 @@ function shareImage(options: ShareImageOptions): Promise<ShareResult>;
 function shareLink(options: ShareLinkOptions): Promise<ShareResult>;
 ```
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `platform` | `Platform` | ✅ | 目标平台 |
-| `title` | `string` | ✅ | 链接标题 |
-| `url` | `string` | ✅ | 链接 URL |
-| `description` | `string` | — | 链接描述 |
-| `thumb` | `string` | — | 缩略图 URL |
+| 字段          | 类型       | 必填 | 说明       |
+| ------------- | ---------- | ---- | ---------- |
+| `platform`    | `Platform` | ✅   | 目标平台   |
+| `title`       | `string`   | ✅   | 链接标题   |
+| `url`         | `string`   | ✅   | 链接 URL   |
+| `description` | `string`   | —    | 链接描述   |
+| `thumb`       | `string`   | —    | 缩略图 URL |
 
 `title` 或 `url` 为空时抛 `E_INVALID_OPTIONS`。
 
@@ -173,11 +193,11 @@ function listPlatforms(): Promise<PlatformInfo[]>;
 
 返回 `PlatformInfo[]`：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `platform` | `Platform` | 平台枚举值 |
-| `installed` | `boolean` | 是否已安装 |
-| `displayName` | `string` | 平台显示名称（如 `'微信'` / `'钉钉'`） |
+| 字段          | 类型       | 说明                                   |
+| ------------- | ---------- | -------------------------------------- |
+| `platform`    | `Platform` | 平台枚举值                             |
+| `installed`   | `boolean`  | 是否已安装                             |
+| `displayName` | `string`   | 平台显示名称（如 `'微信'` / `'钉钉'`） |
 
 ---
 
@@ -202,7 +222,9 @@ interface ShareResult {
 ```ts
 // ❌ Incorrect:取消 / 失败不会 resolve，判别分支永远到不了
 const r = await Share.openSheet(payload);
-if (r.code === 'cancel') { /* 永远到不了 */ }
+if (r.code === 'cancel') {
+  /* 永远到不了 */
+}
 ```
 
 ```ts
@@ -212,9 +234,12 @@ try {
 } catch (e) {
   if (e instanceof UmengError) {
     switch (e.code) {
-      case 'E_USER_CANCEL':            /* 用户取消，静默 */ break;
-      case 'E_PLATFORM_NOT_INSTALLED': /* 目标 App 未安装 */ break;
-      case 'E_SHARE_FAILED':           /* 分享失败，查 e.message */ break;
+      case 'E_USER_CANCEL':
+        /* 用户取消，静默 */ break;
+      case 'E_PLATFORM_NOT_INSTALLED':
+        /* 目标 App 未安装 */ break;
+      case 'E_SHARE_FAILED':
+        /* 分享失败，查 e.message */ break;
     }
   }
 }
@@ -222,15 +247,15 @@ try {
 
 可能抛出的 `UmengError.code`：
 
-| `code` | 触发 |
-| --- | --- |
-| `E_USER_CANCEL` | 用户点取消 / 点遮罩 / 平台侧取消 |
-| `E_SHARE_FAILED` | 分享失败（未配 URL Scheme、网络错、内容不合规等） |
-| `E_PLATFORM_NOT_INSTALLED` | 目标微信 / 钉钉未安装（面板内点击未安装平台时） |
-| `E_PLATFORM_NOT_SUPPORTED` | 传了不在 `SUPPORTED_PLATFORMS` 的平台 |
-| `E_INVALID_OPTIONS` | 必填字段缺失（`shareText` 缺 `text`、`shareLink` 缺 `title`/`url` 等） |
-| `E_NOT_INITIALIZED` | 尚未完成 `Common.init()` 就调用 `shareXxx` / `isInstalled` / `listPlatforms`;`openSheet` 在 loading 阶段传播此错误 |
-| `E_UNKNOWN` | 未挂 Host、面板重入、owner Host 卸载、平台查询失败或 SDK 未知错 |
+| `code`                     | 触发                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `E_USER_CANCEL`            | 用户点取消 / 点遮罩 / 平台侧取消                                                                                   |
+| `E_SHARE_FAILED`           | 分享失败（未配 URL Scheme、网络错、内容不合规等）                                                                  |
+| `E_PLATFORM_NOT_INSTALLED` | 目标微信 / 钉钉未安装（面板内点击未安装平台时）                                                                    |
+| `E_PLATFORM_NOT_SUPPORTED` | 传了不在 `SUPPORTED_PLATFORMS` 的平台                                                                              |
+| `E_INVALID_OPTIONS`        | 必填字段缺失（`shareText` 缺 `text`、`shareLink` 缺 `title`/`url` 等）                                             |
+| `E_NOT_INITIALIZED`        | 尚未完成 `Common.init()` 就调用 `shareXxx` / `isInstalled` / `listPlatforms`;`openSheet` 在 loading 阶段传播此错误 |
+| `E_UNKNOWN`                | 未挂 Host、面板重入、owner Host 卸载、平台查询失败或 SDK 未知错                                                    |
 
 完整错误码表见[常见问题 → 错误码速查](../troubleshooting#error-codes)。
 
@@ -238,12 +263,12 @@ try {
 
 ## 平台支持 {#platform-support}
 
-| API | iOS | Android |
-| --- | --- | --- |
-| `openSheet` | ✅ UI/controller；真分享待真机 | ✅ UI/controller；真分享待真机 |
+| API                                      | iOS                                | Android                                 |
+| ---------------------------------------- | ---------------------------------- | --------------------------------------- |
+| `openSheet`                              | ✅ UI/controller；真分享待真机     | ✅ UI/controller；真分享待真机          |
 | `shareText` / `shareImage` / `shareLink` | ✅ init gate / first-settle XCTest | ✅ native contract / JVM callback tests |
-| `isInstalled` | ✅ init gate XCTest | ✅ native contract / JVM tests |
-| `listPlatforms` | ✅ | ✅ |
+| `isInstalled`                            | ✅ init gate XCTest                | ✅ native contract / JVM tests          |
+| `listPlatforms`                          | ✅                                 | ✅                                      |
 
 > iOS simulator/XCTest 与 Android native contract/JVM tests 已验证桥接、门禁和结算语义；两类自动化证据都不能替代微信 / 钉钉真实 App 的拉起与回包。
 

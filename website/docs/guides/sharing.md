@@ -16,7 +16,7 @@ description: "用 @unif/react-native-umeng 分享到微信会话 / 钉钉：命�
 
 ## 命令式面板(推荐) {#open-sheet}
 
-`Share.openSheet(payload, options?)` 拉起 RN `Modal` + design 组件组成的分享面板,用户选平台后发起分享:
+`Share.openSheet(payload, options?)` 拉起 design 组件组成的分享面板；默认使用 RN `Modal`，也可嵌入当前页面作为无遮罩浮层:
 
 ```tsx
 import { Share, UmengError } from '@unif/react-native-umeng';
@@ -41,22 +41,41 @@ async function onShareTap() {
 
 面板的外观文案可用第二参 `options` 覆盖:
 
-| 字段 | 类型 | 默认 | 说明 |
-| --- | --- | --- | --- |
-| `title` | `string` | `'分享至'` | 面板标题 |
-| `cancelText` | `string` | `'取消'` | 取消按钮文案 |
-| `subtitles` | `Partial<Record<Platform, string>>` | 内置 | 各平台副标题覆盖 |
-| `hideUninstalled` | `boolean` | `false` | `true` 完全隐藏未安装平台；`false` 时仍显示且可点击 |
+| 字段              | 类型                                | 默认       | 说明                                                |
+| ----------------- | ----------------------------------- | ---------- | --------------------------------------------------- |
+| `title`           | `string`                            | `'分享至'` | 面板标题                                            |
+| `cancelText`      | `string`                            | `'取消'`   | 取消按钮文案                                        |
+| `subtitles`       | `Partial<Record<Platform, string>>` | 内置       | 各平台副标题覆盖                                    |
+| `hideUninstalled` | `boolean`                           | `false`    | `true` 完全隐藏未安装平台；`false` 时仍显示且可点击 |
+| `presentation`    | `'modal' \| 'floating'`             | `'modal'`  | 浮层模式无遮罩，面板外触摸穿透给当前页面            |
+| `onSheetLayout`   | `(height: number) => void`          | —          | 回传面板高度，供下层滚动内容预留空间                |
+| `onDismiss`       | `() => void`                        | —          | 呈现层完全退场或早期打开失败时回调一次              |
 
 `hideUninstalled=false` 时，点击未安装的平台不会调用 native share；`openSheet`
 返回的 Promise 会 reject `UmengError`，code 为
 `E_PLATFORM_NOT_INSTALLED`。只有 `hideUninstalled=true` 才会完全隐藏未安装平台。
 
-> `<ShareSheetHost />` 必须先在 App 根挂一次,否则 `openSheet` 立即 reject。挂载方式见[快速上手](../getting-started/quick-start#mount-host)。
+> 必须先挂载 `<ShareSheetHost />`,否则 `openSheet` 立即 reject。多个 Host 中最新挂载者承载新 session；因此 `floating` 可以在需要覆盖的页面内就近挂 Host。挂载方式见[快速上手](../getting-started/quick-start#mount-host)。
 
 面板打开前会先加载平台安装状态。该查询失败(包括尚未 `Common.init()`)时,Promise 直接 reject且不显示 Modal;承载本 session 的 owner Host 卸载也会以 `E_UNKNOWN` 结束 Promise,不会永久 pending。
 
-一次只能有一个 active session,重入会以 busy 错误 reject。进入 sharing 后,遮罩/返回键 dismiss 不再抢先取消；底层平台回调决定最终结算。controller 的递增 `sessionId` 会忽略旧 session 的迟到/重复 callback,防止它们误结算下一次分享。
+一次只能有一个 session，且前一呈现层完全退场前重入会以 busy 错误 reject。`floating` 在 sharing 期间保留取消按钮；用户取消后旧平台 callback 即使迟到也不会误结算下一次分享。
+
+```tsx
+<View style={{ flex: 1 }}>
+  <ScrollablePreview />
+  <ShareSheetHost />
+</View>;
+
+await Share.openSheet(
+  { type: 'image', image: remoteImageUrl },
+  {
+    presentation: 'floating',
+    onSheetLayout: (height) => setBottomInset(height),
+    onDismiss: () => setShareVisible(false),
+  }
+);
+```
 
 ---
 
@@ -72,7 +91,7 @@ await Share.shareLink({
   platform: Platform.WECHAT_SESSION,
   title: '标题',
   url: 'https://example.com',
-  description: '描述',   // 可选
+  description: '描述', // 可选
   thumb: 'https://example.com/thumb.png', // 可选
 });
 
@@ -95,11 +114,11 @@ await Share.shareImage({
 
 `openSheet` 的 `payload` 是一个判别联合,`type` 取 `'text' | 'image' | 'link'`:
 
-| `type` | 字段 | 说明 |
-| --- | --- | --- |
-| `'text'` | `text` | 纯文本 |
-| `'image'` | `image`、`thumb?` | 图片(**仅网络 URL**;本地路径 / base64 传不进原生层,暂不支持) |
-| `'link'` | `title`、`url`、`description?`、`thumb?` | 图文链接 |
+| `type`    | 字段                                     | 说明                                                         |
+| --------- | ---------------------------------------- | ------------------------------------------------------------ |
+| `'text'`  | `text`                                   | 纯文本                                                       |
+| `'image'` | `image`、`thumb?`                        | 图片(**仅网络 URL**;本地路径 / base64 传不进原生层,暂不支持) |
+| `'link'`  | `title`、`url`、`description?`、`thumb?` | 图文链接                                                     |
 
 直拉变体一一对应:`shareText({ platform, text })`、`shareImage({ platform, image, thumb? })`、`shareLink({ platform, title, url, description?, thumb? })`。完整参数表见 [Share API](../api/share)。
 
@@ -112,8 +131,12 @@ await Share.shareImage({
 ```ts
 // ❌ Incorrect:取消 / 失败不会 resolve,这样永远判不到
 const r = await Share.openSheet(payload);
-if (r.code === 'cancel') { /* 永远到不了 */ }
-if (r.code === 'failed') { /* 永远到不了 */ }
+if (r.code === 'cancel') {
+  /* 永远到不了 */
+}
+if (r.code === 'failed') {
+  /* 永远到不了 */
+}
 ```
 
 ```ts
@@ -126,9 +149,12 @@ try {
 } catch (e) {
   if (e instanceof UmengError) {
     switch (e.code) {
-      case 'E_USER_CANCEL':            /* 用户取消,静默 */ break;
-      case 'E_PLATFORM_NOT_INSTALLED': /* 目标 App 未安装 */ break;
-      case 'E_SHARE_FAILED':           /* 分享失败,查 e.message */ break;
+      case 'E_USER_CANCEL':
+        /* 用户取消,静默 */ break;
+      case 'E_PLATFORM_NOT_INSTALLED':
+        /* 目标 App 未安装 */ break;
+      case 'E_SHARE_FAILED':
+        /* 分享失败,查 e.message */ break;
       // 其它见下表
     }
   }
@@ -137,15 +163,15 @@ try {
 
 可能抛出的 `UmengError.code`:
 
-| `code` | 触发 |
-| --- | --- |
-| `E_USER_CANCEL` | 用户点取消 / 点遮罩 / 平台侧取消 |
-| `E_SHARE_FAILED` | 分享失败(未配 URL Scheme、网络错、内容不合规等) |
-| `E_PLATFORM_NOT_INSTALLED` | 目标微信 / 钉钉未安装 |
-| `E_PLATFORM_NOT_SUPPORTED` | 传了不在白名单的平台 |
-| `E_INVALID_OPTIONS` | 必填字段缺失(如 `shareLink` 缺 `title` / `url`) |
-| `E_NOT_INITIALIZED` | 尚未完成 `Common.init()` 就查询平台或发起分享 |
-| `E_UNKNOWN` | 未挂 Host、面板重入、owner Host 卸载、平台查询失败或无法归类的错误 |
+| `code`                     | 触发                                                               |
+| -------------------------- | ------------------------------------------------------------------ |
+| `E_USER_CANCEL`            | 用户点取消 / 点遮罩 / 平台侧取消                                   |
+| `E_SHARE_FAILED`           | 分享失败(未配 URL Scheme、网络错、内容不合规等)                    |
+| `E_PLATFORM_NOT_INSTALLED` | 目标微信 / 钉钉未安装                                              |
+| `E_PLATFORM_NOT_SUPPORTED` | 传了不在白名单的平台                                               |
+| `E_INVALID_OPTIONS`        | 必填字段缺失(如 `shareLink` 缺 `title` / `url`)                    |
+| `E_NOT_INITIALIZED`        | 尚未完成 `Common.init()` 就查询平台或发起分享                      |
+| `E_UNKNOWN`                | 未挂 Host、面板重入、owner Host 卸载、平台查询失败或无法归类的错误 |
 
 完整错误码与排障见[常见问题](../troubleshooting)。
 
@@ -179,14 +205,17 @@ umeng 的 `Platform` 是**分享目标枚举**(`wechat_session` / `dingtalk`),**
 ```ts
 // ❌ Incorrect:这不是 react-native 的 Platform
 import { Platform } from '@unif/react-native-umeng';
-if (Platform.OS === 'ios') {} // 没有 .OS
+if (Platform.OS === 'ios') {
+} // 没有 .OS
 ```
 
 ```ts
 // ✅ Correct:判 OS 用 RN 的;分享目标用 umeng 的,混用时起别名
-import { Platform } from 'react-native';                           // OS 判断
+import { Platform } from 'react-native'; // OS 判断
 import { Platform as ShareTarget } from '@unif/react-native-umeng'; // 分享目标
-if (Platform.OS === 'ios') { /* ... */ }
+if (Platform.OS === 'ios') {
+  /* ... */
+}
 await Share.shareText({ platform: ShareTarget.WECHAT_SESSION, text: '…' });
 ```
 

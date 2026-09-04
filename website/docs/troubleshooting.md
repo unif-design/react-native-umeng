@@ -1,7 +1,7 @@
 ---
 sidebar_position: 8
 title: 常见问题
-description: "@unif/react-native-umeng 排障决策树：分享无回调（取消/失败是 reject 非 resolve）、未挂 ShareSheetHost、init 顺序与无参、模拟器不能真分享需真机，以及 iOS / Android 原生回调注册与完整错误码表。"
+description: '@unif/react-native-umeng 排障决策树：分享无回调（取消/失败是 reject 非 resolve）、未挂 ShareSheetHost、init 顺序与无参、模拟器不能真分享需真机，以及 iOS / Android 原生回调注册与完整错误码表。'
 ---
 
 # 常见问题
@@ -17,7 +17,9 @@ description: "@unif/react-native-umeng 排障决策树：分享无回调（取�
 ```ts
 // ❌ Incorrect:取消 / 失败不会 resolve,判别分支永远到不了,还可能抛未捕获错误
 const r = await Share.openSheet(payload);
-if (r.code === 'cancel') { /* 永远到不了 */ }
+if (r.code === 'cancel') {
+  /* 永远到不了 */
+}
 ```
 
 ```ts
@@ -25,7 +27,9 @@ if (r.code === 'cancel') { /* 永远到不了 */ }
 try {
   const r = await Share.openSheet(payload); // r.code === 'success'
 } catch (e) {
-  if (e instanceof UmengError && e.code === 'E_USER_CANCEL') { /* 取消 */ }
+  if (e instanceof UmengError && e.code === 'E_USER_CANCEL') {
+    /* 取消 */
+  }
   // E_SHARE_FAILED / E_PLATFORM_NOT_INSTALLED 等见下表
 }
 ```
@@ -57,6 +61,20 @@ try {
 
 > Host 已在 Modal 内容里创建自己的 `GestureHandlerRootView`;外层 root 不能替代内部边界。若 message 是 `Another ShareSheet is already open`,说明前一个 session 还没结束;若是 `The active <ShareSheetHost /> unmounted...`,说明承载当前 session 的 owner Host 被卸载。两者都使用 `E_UNKNOWN`。
 
+## 症状:从微信 / 钉钉返回后面板消失，页面无法继续操作 {#floating-return}
+
+需要在返回 App 后仍保留取消入口和下层长图滚动时，应使用 `presentation: 'floating'`，并在当前页面内挂载 `<ShareSheetHost />`。浮动面板无遮罩，sharing 期间不会先消失；点击取消会 reject `E_USER_CANCEL`，迟到的原生 callback 会被忽略。
+
+```ts
+await Share.openSheet(payload, {
+  presentation: 'floating',
+  onSheetLayout: (height) => setBottomInset(height),
+  onDismiss: () => setSharing(false),
+});
+```
+
+不要仅根据 `openSheet` 的 Promise 结束就立即拉起下一张面板；若后续动作依赖呈现层已经完全退场，以 `onDismiss` 为准。
+
 ---
 
 ## 症状:`Common.init()` reject / 统计不上报 {#init-order}
@@ -70,8 +88,8 @@ await Common.init({ appkey: '...' });
 
 ```ts
 // ✅ Correct:config 给 preInit;用户同意后调无参 init
-await Common.preInit({ appkey: '...', /* ... */ }); // App 启动
-await Common.init();                                 // 用户同意后,无参
+await Common.preInit({ appkey: '...' /* ... */ }); // App 启动
+await Common.init(); // 用户同意后,无参
 ```
 
 统计不上报最常见原因:`init` 还没完成(用户未同意《隐私协议》)。Android 与 iOS 的 `Analytics.*` 都会在 init 前同步 no-op,且不会缓存或补发。两段式见[隐私合规(PIPL)](./guides/privacy-pipl)。
@@ -128,14 +146,14 @@ await Common.init();                                 // 用户同意后,无参
 
 `UmengError.code` 全量含义:
 
-| `code` | 含义 | 触发场景 | 处理 |
-| --- | --- | --- | --- |
-| `E_USER_CANCEL` | 用户取消 | 点取消 / 点遮罩 / 平台侧取消 | 通常静默 |
-| `E_SHARE_FAILED` | 分享失败 | 未配 URL Scheme、网络错、内容不合规等 | 查 `message`;核对原生回调配置 |
-| `E_PLATFORM_NOT_INSTALLED` | 目标 App 未安装 | 微信 / 钉钉未装 | `isInstalled()` 预检,或 `hideUninstalled: true` |
-| `E_PLATFORM_NOT_SUPPORTED` | 平台不在白名单 | 传了非 `WECHAT_SESSION` / `DINGTALK` 的值 | 用 `Platform` 枚举值 |
-| `E_INVALID_OPTIONS` | 参数缺失 / 非法 | `shareLink` 缺 `title`/`url`、`preInit` config 非法或 init 开始后换 config | 检查必填字段 / config 一致性 |
-| `E_NOT_INITIALIZED` | 尚未初始化 | 没 `preInit` 就 `init`,或在完成 init 前调用要求初始化的 native API | 按 `preInit` → 用户同意 → `init` 顺序调用 |
-| `E_UNKNOWN` | 未归类错误 | 未挂 Host、面板重入、owner Host 卸载、直拉时 Android 无前台 Activity、SDK 未知错 | 看 `message` / `nativeError` 区分 |
+| `code`                     | 含义            | 触发场景                                                                         | 处理                                            |
+| -------------------------- | --------------- | -------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `E_USER_CANCEL`            | 用户取消        | 点取消 / 点遮罩 / 平台侧取消                                                     | 通常静默                                        |
+| `E_SHARE_FAILED`           | 分享失败        | 未配 URL Scheme、网络错、内容不合规等                                            | 查 `message`;核对原生回调配置                   |
+| `E_PLATFORM_NOT_INSTALLED` | 目标 App 未安装 | 微信 / 钉钉未装                                                                  | `isInstalled()` 预检,或 `hideUninstalled: true` |
+| `E_PLATFORM_NOT_SUPPORTED` | 平台不在白名单  | 传了非 `WECHAT_SESSION` / `DINGTALK` 的值                                        | 用 `Platform` 枚举值                            |
+| `E_INVALID_OPTIONS`        | 参数缺失 / 非法 | `shareLink` 缺 `title`/`url`、`preInit` config 非法或 init 开始后换 config       | 检查必填字段 / config 一致性                    |
+| `E_NOT_INITIALIZED`        | 尚未初始化      | 没 `preInit` 就 `init`,或在完成 init 前调用要求初始化的 native API               | 按 `preInit` → 用户同意 → `init` 顺序调用       |
+| `E_UNKNOWN`                | 未归类错误      | 未挂 Host、面板重入、owner Host 卸载、直拉时 Android 无前台 Activity、SDK 未知错 | 看 `message` / `nativeError` 区分               |
 
 > `UmengError` 还带 `nativeError` 字段(原始错误)。错误码在 JS 层的判别用法见[分享指南](./guides/sharing#reject-on-cancel)。

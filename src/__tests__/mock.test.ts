@@ -32,6 +32,21 @@ describe('mock', () => {
     ).resolves.toEqual({ code: 'success', platform: Platform.WECHAT_SESSION });
   });
 
+  it('Share.openSheet 默认 success 并完成呈现生命周期', async () => {
+    const onDismiss = jest.fn();
+
+    await expect(
+      Share.openSheet(
+        { type: 'text', text: 'hi' },
+        { presentation: 'floating', onDismiss }
+      )
+    ).resolves.toEqual({
+      code: 'success',
+      platform: Platform.WECHAT_SESSION,
+    });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
   it('结果可按单次调用覆盖', async () => {
     const error = shareCancel(Platform.DINGTALK);
     expect(error).toBeInstanceOf(UmengError);

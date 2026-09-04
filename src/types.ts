@@ -115,4 +115,10 @@ export interface ShareSheetOptions {
   subtitles?: Partial<Record<Platform, string>>;
   /** 未安装平台隐藏；默认 false（仍显示且可点击，点击后 reject 未安装错误） */
   hideUninstalled?: boolean;
+  /** 面板呈现方式；floating 无遮罩且允许面板外触摸穿透，默认 modal。 */
+  presentation?: 'modal' | 'floating';
+  /** 面板布局高度变化时回调，可用于为下层可滚动内容预留真实空间。 */
+  onSheetLayout?: (height: number) => void;
+  /** 面板完全退场后回调；未展示面板的失败会直接回调。 */
+  onDismiss?: () => void;
 }
