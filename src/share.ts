@@ -183,6 +183,24 @@ function validateSheetOptions(options: unknown): ShareSheetOptions {
   ) {
     return invalidOptions('`hideUninstalled` must be a boolean');
   }
+  if (
+    input.presentation !== undefined &&
+    input.presentation !== 'modal' &&
+    input.presentation !== 'floating'
+  ) {
+    return invalidOptions(
+      '`presentation` must be one of "modal" or "floating"'
+    );
+  }
+  if (input.onDismiss !== undefined && typeof input.onDismiss !== 'function') {
+    return invalidOptions('`onDismiss` must be a function');
+  }
+  if (
+    input.onSheetLayout !== undefined &&
+    typeof input.onSheetLayout !== 'function'
+  ) {
+    return invalidOptions('`onSheetLayout` must be a function');
+  }
   if (input.subtitles !== undefined) {
     const subtitles = requireObject(input.subtitles, 'subtitles');
     for (const [platform, subtitle] of Object.entries(subtitles)) {
@@ -304,12 +322,25 @@ export async function openSheet(
   options?: ShareSheetOptions
 ): Promise<ShareResult> {
   const fallbackMessage = 'Failed to open share sheet';
+  let validatedPayload: ShareSheetPayload;
+  let validatedOptions: ShareSheetOptions;
 
   try {
-    return await shareSheetController.show(
-      validateSheetPayload(payload),
-      validateSheetOptions(options)
-    );
+    validatedPayload = validateSheetPayload(payload);
+    validatedOptions = validateSheetOptions(options);
+  } catch (error) {
+    const rawOptions =
+      typeof options === 'object' && options !== null
+        ? (options as Record<string, unknown>)
+        : null;
+    if (typeof rawOptions?.onDismiss === 'function') {
+      rawOptions.onDismiss();
+    }
+    throw normalizeError(error, 'E_UNKNOWN', fallbackMessage);
+  }
+
+  try {
+    return await shareSheetController.show(validatedPayload, validatedOptions);
   } catch (error) {
     throw normalizeError(error, 'E_UNKNOWN', fallbackMessage);
   }

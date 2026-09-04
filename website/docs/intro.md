@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: 介绍
-description: "@unif/react-native-umeng 是友盟 RN 新架构桥，做两件事：U-Share（首版仅微信会话 + 钉钉分享）与 U-App 移动统计；命令式 Share.openSheet() 拉起分享面板，PIPL 两段式 preInit→init 合规初始化。"
+description: '@unif/react-native-umeng 是友盟 RN 新架构桥，做两件事：U-Share（首版仅微信会话 + 钉钉分享）与 U-App 移动统计；命令式 Share.openSheet() 拉起分享面板，PIPL 两段式 preInit→init 合规初始化。'
 slug: /intro
 ---
 
@@ -27,7 +27,7 @@ iOS 的 `initialize(config)` 状态机、Share/Analytics 门禁、TurboModule �
 - **`Analytics`** —— `onEvent` / `signIn` / `signOut`,自定义事件与账号埋点。
 - **`<ShareSheetHost />`** —— 命令式分享面板的宿主组件,在 App 根挂一次。
 
-分享面板用 RN `Modal` 承载,内部复用 [`@unif/react-native-design`](https://www.npmjs.com/package/@unif/react-native-design) 的 `Cell` / `Button`,与 design 的命令式 API 一样采用「单例 controller + Host」模式。
+分享面板默认用 RN `Modal` 承载，也支持无遮罩、允许下层交互的 `floating` 呈现；内部复用 [`@unif/react-native-design`](https://www.npmjs.com/package/@unif/react-native-design) 的 `Cell` / `Button`,与 design 的命令式 API 一样采用「单例 controller + Host」模式。
 
 ## 解决什么问题
 
@@ -37,24 +37,30 @@ iOS 的 `initialize(config)` 状态机、Share/Analytics 门禁、TurboModule �
 import { Share, UmengError } from '@unif/react-native-umeng';
 
 try {
-  const r = await Share.openSheet({ type: 'link', title: '问问看', url: 'https://example.com' });
+  const r = await Share.openSheet({
+    type: 'link',
+    title: '问问看',
+    url: 'https://example.com',
+  });
   // 只有成功才走到这里:r.code 恒为 'success'
 } catch (e) {
-  if (e instanceof UmengError && e.code === 'E_USER_CANCEL') { /* 用户取消 */ }
+  if (e instanceof UmengError && e.code === 'E_USER_CANCEL') {
+    /* 用户取消 */
+  }
 }
 ```
 
 ## 核心概念
 
 - **首版只支持微信会话 + 钉钉** —— `Platform` 枚举只有 `WECHAT_SESSION` 与 `DINGTALK` 两个成员。**没有朋友圈、QQ、微博**;传未支持的平台会抛 `E_PLATFORM_NOT_SUPPORTED`。
-- **分享面板 = session controller + Host 组件** —— `Share.openSheet()` 是推荐用法,它经模块级 controller 拉起 `<ShareSheetHost />` 渲染的 RN `Modal`。**Host 必须在 App 根挂一次**,否则立即 reject;一次只能有一个 session,迟到 callback 不能结算新 session,owner Host 卸载会 reject active Promise。
+- **分享面板 = session controller + Host 组件** —— `Share.openSheet()` 是推荐用法，支持 `modal` / `floating` 两种呈现。至少挂一个 `<ShareSheetHost />`,否则立即 reject；多个 Host 时最新挂载者承载新 session，迟到 callback 不能结算新 session。
 - **取消 / 失败走 reject,不走 resolve** —— `openSheet` 与 `shareText/shareImage/shareLink` 在用户取消或分享失败时**抛 `UmengError`**(`E_USER_CANCEL` / `E_SHARE_FAILED`)。**resolve 到手的结果 `code` 恒为 `'success'`** —— 永远 try/catch,别去判 `r.code === 'cancel'`(到不了)。
 - **PIPL 两段式:`preInit`(JS-only)→ 同意 →`init`(native 初始化与采集)** —— `Common.preInit(config)` 在 App 启动后只校验并保存 JS config 快照,不调用 native、不注册平台;用户同意《隐私协议》后再调**无参**的 `Common.init()`,native 才执行各平台对应的 vendor bootstrap。
 - **统计是同步 `void`** —— `Analytics.onEvent / signIn / signOut` 没有 Promise,**不要 await**。
 
 ## 能力
 
-- **命令式分享面板** —— `Share.openSheet({ type, ... })` 一行拉起 RN `Modal` 底部面板,用户选平台,Promise resolve 成功 / reject 取消失败。
+- **命令式分享面板** —— `Share.openSheet({ type, ... }, { presentation })` 一行拉起模态或浮动底部面板,用户选平台,Promise resolve 成功 / reject 取消失败。
 - **三种分享内容** —— 文本(`'text'`)、图片(`'image'`)、链接(`'link'`),面板与直拉变体共用同一套 `payload`。
 - **直拉单平台** —— 不需要面板时,`Share.shareText / shareImage / shareLink` 跳过 UI 直接发到指定平台。
 - **PIPL 合规初始化** —— `preInit` / `init` 两段式,满足「用户同意前不采集」。
@@ -63,20 +69,20 @@ try {
 
 ## 何时使用
 
-| 适用 | 不适用 |
-| --- | --- |
-| 分享到**微信会话**或**钉钉**(文本 / 图片 / 链接) | 分享到**朋友圈 / QQ / 微博** —— 首版不支持 |
-| 需要一套现成的中文分享面板 UI | 完全自定义的分享 UI(可直拉 `shareXxx` 自绘) |
-| 友盟自定义事件 / 账号登录登出埋点 | 非友盟的统计后端 |
-| PIPL 两段式合规采集启停 | —— |
+| 适用                                             | 不适用                                      |
+| ------------------------------------------------ | ------------------------------------------- |
+| 分享到**微信会话**或**钉钉**(文本 / 图片 / 链接) | 分享到**朋友圈 / QQ / 微博** —— 首版不支持  |
+| 需要一套现成的中文分享面板 UI                    | 完全自定义的分享 UI(可直拉 `shareXxx` 自绘) |
+| 友盟自定义事件 / 账号登录登出埋点                | 非友盟的统计后端                            |
+| PIPL 两段式合规采集启停                          | ——                                          |
 
 ## 平台支持
 
-| 平台 | 支持 |
-| --- | --- |
-| iOS | ✅ native contract / simulator / XCTest；真实平台回跳待真机 |
-| Android | ✅ native contract / JVM tests / minified release build / merged manifest；真实回跳与真机 R8 运行待验收 |
-| Web / 模拟器 | 文档、JS 与 native 单测可运行；不能完成真分享 |
+| 平台         | 支持                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| iOS          | ✅ native contract / simulator / XCTest；真实平台回跳待真机                                             |
+| Android      | ✅ native contract / JVM tests / minified release build / merged manifest；真实回跳与真机 R8 运行待验收 |
+| Web / 模拟器 | 文档、JS 与 native 单测可运行；不能完成真分享                                                           |
 
 :::info 仅支持新架构
 本库是 TurboModule 桥,当前只验证 **React Native 0.85 New Architecture**、React 19。旧架构(Bridge)不在目标范围,也不能把当前证据外推到其他 RN 版本。

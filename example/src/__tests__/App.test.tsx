@@ -140,6 +140,7 @@ it('分享面板切换三种 payload，并提交全部公开 options', async () 
   fireEvent.changeText(screen.getByLabelText('取消按钮文案'), '稍后');
   fireEvent.changeText(screen.getByLabelText('微信副标题'), '发给微信好友');
   fireEvent.changeText(screen.getByLabelText('钉钉副标题'), '发给钉钉联系人');
+  fireEvent.press(screen.getByRole('tab', { name: '浮动' }));
   fireEvent.press(screen.getByRole('switch', { name: '隐藏未安装平台' }));
   fireEvent.press(screen.getByRole('button', { name: '打开分享面板' }));
 
@@ -154,6 +155,7 @@ it('分享面板切换三种 payload，并提交全部公开 options', async () 
           [Platform.DINGTALK]: '发给钉钉联系人',
         },
         hideUninstalled: true,
+        presentation: 'floating',
       }
     )
   );

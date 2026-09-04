@@ -243,7 +243,7 @@ describe('ShareSheetHost', () => {
     });
   });
 
-  it('closes the Modal before native sharing and ignores every sheet cancellation path', async () => {
+  it('closes the modal while sharing and accepts a cancellation callback', async () => {
     const nativeShare = deferred<ShareResult>();
     (Share.shareText as jest.Mock).mockReturnValue(nativeShare.promise);
     const screen = render(<ShareSheetHost />);
@@ -257,17 +257,104 @@ describe('ShareSheetHost', () => {
     });
     expect(screen.UNSAFE_getByType(Modal).props.visible).toBe(false);
 
-    act(() => {
+    const rejection = expectRejectsWith(promise, {
+      code: 'E_USER_CANCEL',
+    });
+    await act(async () => {
       modal.props.onRequestClose();
       fireEvent.press(cancel);
       fireEvent.press(backdrop);
+      await rejection;
+      nativeShare.resolve(WECHAT_SUCCESS);
+      await Promise.resolve();
+    });
+  });
+
+  it('renders floating presentation without a scrim and reports its height', async () => {
+    const onSheetLayout = jest.fn();
+    const onDismiss = jest.fn();
+    const screen = render(<ShareSheetHost />);
+    const { pending: promise } = await show(TEXT_PAYLOAD, {
+      presentation: 'floating',
+      onSheetLayout,
+      onDismiss,
     });
 
-    const resolution = expectResolvesTo(promise, WECHAT_SUCCESS);
-    await act(async () => {
-      nativeShare.resolve(WECHAT_SUCCESS);
-      await resolution;
+    expect(() => screen.UNSAFE_getByType(Modal)).toThrow();
+    expect(screen.queryByLabelText('关闭')).toBeNull();
+    expect(screen.getByTestId('umeng-share-floating-root')).toHaveProp(
+      'pointerEvents',
+      'box-none'
+    );
+
+    fireEvent(screen.getByTestId('umeng-share-sheet'), 'layout', {
+      nativeEvent: {
+        layout: { x: 0, y: 0, width: 390, height: 260 },
+      },
     });
+    expect(onSheetLayout).toHaveBeenCalledWith(260);
+
+    const rejection = expectRejectsWith(promise, {
+      code: 'E_USER_CANCEL',
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
+      await rejection;
+    });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps floating controls available while native sharing is in flight', async () => {
+    const nativeShare = deferred<ShareResult>();
+    const onDismiss = jest.fn();
+    (Share.shareText as jest.Mock).mockReturnValue(nativeShare.promise);
+    const screen = render(<ShareSheetHost />);
+    const { pending: promise } = await show(TEXT_PAYLOAD, {
+      presentation: 'floating',
+      onDismiss,
+    });
+
+    act(() => {
+      fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
+    });
+    expect(screen.getByTestId('umeng-share-floating-root')).toBeTruthy();
+    expect(screen.getByTestId('umeng-share-cancel')).toBeTruthy();
+
+    const rejection = expectRejectsWith(promise, {
+      code: 'E_USER_CANCEL',
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
+      await rejection;
+      nativeShare.resolve(WECHAT_SUCCESS);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('umeng-share-floating-root')).toBeNull();
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires modal onDismiss only after the native modal finishes closing', async () => {
+    const onDismiss = jest.fn();
+    const screen = render(<ShareSheetHost />);
+    const { pending: promise } = await show(TEXT_PAYLOAD, { onDismiss });
+    act(() => {
+      screen.UNSAFE_getByType(Modal).props.onShow();
+    });
+
+    const rejection = expectRejectsWith(promise, {
+      code: 'E_USER_CANCEL',
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
+      await rejection;
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    act(() => {
+      screen.UNSAFE_getByType(Modal).props.onDismiss();
+    });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
   it('does not let a late native result from unmounted session A settle session B', async () => {
@@ -320,7 +407,7 @@ describe('ShareSheetHost', () => {
     await rejection;
   });
 
-  it('renders the active sheet only in the earliest registered Host', async () => {
+  it('renders the active sheet only in the latest registered Host', async () => {
     const screen = render(
       <>
         <ShareSheetHost />

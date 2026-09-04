@@ -33,12 +33,18 @@ const TYPE_ITEMS = [
   { id: 'link', label: '链接' },
 ];
 
+const PRESENTATION_ITEMS = [
+  { id: 'modal', label: '模态' },
+  { id: 'floating', label: '浮动' },
+];
+
 const DEFAULT_OPTIONS: SheetDraft['options'] = {
   title: '分享到',
   cancelText: '取消',
   wechatSubtitle: '微信会话',
   dingtalkSubtitle: '钉钉',
   hideUninstalled: false,
+  presentation: 'modal',
 };
 
 const makeStyles = (_colors: ColorTokens) => ({
@@ -139,6 +145,13 @@ export function SheetScreen() {
               accessibilityLabel="隐藏未安装平台"
               value={options.hideUninstalled}
               onChange={(value) => updateOption('hideUninstalled', value)}
+            />
+          </FormRow>
+          <FormRow label="呈现方式">
+            <Segmented
+              value={options.presentation}
+              items={PRESENTATION_ITEMS}
+              onChange={(value) => updateOption('presentation', value)}
             />
           </FormRow>
         </FormGroup>

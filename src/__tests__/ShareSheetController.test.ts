@@ -50,6 +50,16 @@ describe('ShareSheetController', () => {
     });
   });
 
+  it('notifies onDismiss when no host can present the sheet', async () => {
+    const onDismiss = jest.fn();
+
+    await expect(controller.show(PAYLOAD, { onDismiss })).rejects.toMatchObject(
+      { code: 'E_UNKNOWN', message: NO_HOST_MESSAGE }
+    );
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
   it('recovers after the owner listener throws synchronously', async () => {
     const listenerError = new Error('listener failed');
     let shouldThrow = true;
@@ -63,7 +73,11 @@ describe('ShareSheetController', () => {
       sessionId = event.sessionId;
     });
 
-    await expect(controller.show(PAYLOAD)).rejects.toBe(listenerError);
+    const onDismiss = jest.fn();
+    await expect(controller.show(PAYLOAD, { onDismiss })).rejects.toBe(
+      listenerError
+    );
+    expect(onDismiss).toHaveBeenCalledTimes(1);
 
     const second = controller.show(PAYLOAD);
     const secondOutcome = second.then(
@@ -78,36 +92,29 @@ describe('ShareSheetController', () => {
     });
   });
 
-  it('preserves a reentrant session when the previous listener later throws', async () => {
-    const listenerError = new Error('listener failed after re-entry');
-    let showCount = 0;
-    let sessionB!: Promise<ShareResult>;
-    let sessionBId: number | undefined;
-    controller.registerHost((event) => {
-      if (event.kind !== 'show') return;
-      showCount += 1;
-      if (showCount === 1) {
-        controller.settle(event.sessionId, WECHAT_SUCCESS);
-        sessionB = controller.show({ type: 'text', text: 'B' });
-        throw listenerError;
-      }
-      if (showCount === 2) {
-        sessionBId = event.sessionId;
-        return;
-      }
-      throw new Error('Unexpected third listener call');
+  it('does not replay onDismiss when a listener throws after settling', async () => {
+    const listenerError = new Error('listener failed after settle');
+    const onDismiss = jest.fn();
+    let first = true;
+    const listener = jest.fn((event: ControllerEvent) => {
+      if (event.kind !== 'show' || !first) return;
+      first = false;
+      controller.settle(event.sessionId, WECHAT_SUCCESS);
+      controller.completeDismiss(event.sessionId);
+      throw listenerError;
     });
+    controller.registerHost(listener);
 
-    await expect(controller.show(PAYLOAD)).resolves.toEqual(WECHAT_SUCCESS);
-    await expect(
-      controller.show({ type: 'text', text: 'C' })
-    ).rejects.toMatchObject({
-      code: 'E_UNKNOWN',
-      message: BUSY_MESSAGE,
-    });
+    await expect(controller.show(PAYLOAD, { onDismiss })).resolves.toEqual(
+      WECHAT_SUCCESS
+    );
+    expect(onDismiss).toHaveBeenCalledTimes(1);
 
-    controller.settle(sessionBId ?? -1, DINGTALK_SUCCESS);
-    await expect(sessionB).resolves.toEqual(DINGTALK_SUCCESS);
+    listener.mockClear();
+    const next = controller.show(PAYLOAD);
+    const nextSessionId = showEvent(listener).sessionId;
+    controller.settle(nextSessionId, DINGTALK_SUCCESS);
+    await expect(next).resolves.toEqual(DINGTALK_SUCCESS);
   });
 
   it('rejects a concurrent show with the stable busy error', async () => {
@@ -116,23 +123,27 @@ describe('ShareSheetController', () => {
     const first = controller.show(PAYLOAD);
     const sessionId = showEvent(listener).sessionId;
 
-    await expect(controller.show(PAYLOAD)).rejects.toMatchObject({
-      code: 'E_UNKNOWN',
-      message: BUSY_MESSAGE,
-    });
+    const onDismiss = jest.fn();
+    await expect(controller.show(PAYLOAD, { onDismiss })).rejects.toMatchObject(
+      {
+        code: 'E_UNKNOWN',
+        message: BUSY_MESSAGE,
+      }
+    );
+    expect(onDismiss).toHaveBeenCalledTimes(1);
 
     controller.dismiss(sessionId);
     await expect(first).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
   });
 
-  it('chooses the earliest registered host and keeps standby hosts idle', async () => {
-    const owner = jest.fn();
-    const standby = jest.fn();
-    controller.registerHost(owner);
-    controller.registerHost(standby);
+  it('chooses the latest registered host so a colocated host owns the sheet', async () => {
+    const appRoot = jest.fn();
+    const colocated = jest.fn();
+    controller.registerHost(appRoot);
+    controller.registerHost(colocated);
 
     const promise = controller.show(PAYLOAD, { title: '分享至 X' });
-    const event = showEvent(owner);
+    const event = showEvent(colocated);
 
     expect(event).toEqual({
       kind: 'show',
@@ -140,23 +151,23 @@ describe('ShareSheetController', () => {
       payload: PAYLOAD,
       options: { title: '分享至 X' },
     });
-    expect(standby).not.toHaveBeenCalled();
+    expect(appRoot).not.toHaveBeenCalled();
 
     controller.settle(event.sessionId, WECHAT_SUCCESS);
     await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
   });
 
-  it('promotes the next registered host only after the owner unregisters', async () => {
+  it('falls back to the previous host after the latest host unregisters', async () => {
     const first = jest.fn();
     const second = jest.fn();
-    const firstRegistration = controller.registerHost(first);
-    controller.registerHost(second);
+    controller.registerHost(first);
+    const secondRegistration = controller.registerHost(second);
 
-    firstRegistration.unregister();
+    secondRegistration.unregister();
     const promise = controller.show(PAYLOAD);
-    const event = showEvent(second);
+    const event = showEvent(first);
 
-    expect(first).not.toHaveBeenCalled();
+    expect(second).not.toHaveBeenCalled();
     expect(event.kind).toBe('show');
 
     controller.settle(event.sessionId, WECHAT_SUCCESS);
@@ -178,10 +189,10 @@ describe('ShareSheetController', () => {
   });
 
   it('keeps the active session pending when a standby host unregisters', async () => {
-    const owner = jest.fn();
     const standby = jest.fn();
-    controller.registerHost(owner);
+    const owner = jest.fn();
     const standbyRegistration = controller.registerHost(standby);
+    controller.registerHost(owner);
     const promise = controller.show(PAYLOAD);
     const sessionId = showEvent(owner).sessionId;
     const settlement = deferred<ShareResult>();
@@ -201,6 +212,7 @@ describe('ShareSheetController', () => {
     const sessionAId = showEvent(owner).sessionId;
     controller.settle(sessionAId, WECHAT_SUCCESS);
     await expect(sessionA).resolves.toEqual(WECHAT_SUCCESS);
+    controller.completeDismiss(sessionAId);
 
     owner.mockClear();
     const sessionB = controller.show({
@@ -269,20 +281,61 @@ describe('ShareSheetController', () => {
     await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
   });
 
-  it('ignores dismiss after sharing begins', async () => {
+  it('allows cancelling while native sharing is in flight and ignores its late result', async () => {
     const listener = jest.fn();
     controller.registerHost(listener);
     const promise = controller.show(PAYLOAD);
     const sessionId = showEvent(listener).sessionId;
     controller.markReady(sessionId);
     controller.beginSharing(sessionId);
-    listener.mockClear();
 
     controller.dismiss(sessionId);
 
-    expect(listener).not.toHaveBeenCalled();
+    await expect(promise).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
     controller.settle(sessionId, WECHAT_SUCCESS);
+    expect(listener).toHaveBeenCalledWith({ kind: 'dismiss', sessionId });
+  });
+
+  it('waits for presentation dismissal before allowing another sheet', async () => {
+    const listener = jest.fn();
+    const onDismiss = jest.fn();
+    controller.registerHost(listener);
+    const promise = controller.show(PAYLOAD, { onDismiss });
+    const sessionId = showEvent(listener).sessionId;
+    controller.markReady(sessionId);
+    controller.dismiss(sessionId);
+    await expect(promise).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
+
+    await expect(controller.show(PAYLOAD)).rejects.toMatchObject({
+      code: 'E_UNKNOWN',
+      message: BUSY_MESSAGE,
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    controller.completeDismiss(sessionId);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+
+    listener.mockClear();
+    const next = controller.show(PAYLOAD);
+    const nextSessionId = showEvent(listener).sessionId;
+    controller.settle(nextSessionId, WECHAT_SUCCESS);
+    controller.completeDismiss(nextSessionId);
+    await expect(next).resolves.toEqual(WECHAT_SUCCESS);
+  });
+
+  it('reports dismissal exactly once when presentation already disappeared', async () => {
+    const listener = jest.fn();
+    const onDismiss = jest.fn();
+    controller.registerHost(listener);
+    const promise = controller.show(PAYLOAD, { onDismiss });
+    const sessionId = showEvent(listener).sessionId;
+
+    controller.completeDismiss(sessionId);
+    controller.completeDismiss(sessionId);
+    controller.settle(sessionId, WECHAT_SUCCESS);
+
     await expect(promise).resolves.toEqual(WECHAT_SUCCESS);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
   it.each([

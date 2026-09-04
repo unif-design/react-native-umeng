@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: 测试（Mock）
-description: "在 Jest 中用官方 mock 替换 @unif/react-native-umeng：share* 默认 resolve success；shareCancel / shareFailed 返回 UmengError，须配 mockRejectedValueOnce；Analytics.* 是同步 jest.fn，ShareSheetHost 渲染 null。"
+description: '在 Jest 中用官方 mock 替换 @unif/react-native-umeng：share* 默认 resolve success；shareCancel / shareFailed 返回 UmengError，须配 mockRejectedValueOnce；Analytics.* 是同步 jest.fn，ShareSheetHost 渲染 null。'
 ---
 
 # 测试（Mock）
@@ -22,7 +22,7 @@ jest.mock('@unif/react-native-umeng', () =>
 
 替换后:
 
-- **`Share.*` 默认走 happy-path** —— `shareText` / `shareImage` / `shareLink` / `openSheet` 默认 **resolve 成功**(`{ code: 'success', platform }`)。`isInstalled` 默认 `true`,`listPlatforms` 默认全平台已安装。
+- **`Share.*` 默认走 happy-path** —— `shareText` / `shareImage` / `shareLink` / `openSheet` 默认 **resolve 成功**(`{ code: 'success', platform }`)；`openSheet` 还会调用传入的 `onDismiss`，避免依赖呈现生命周期的消费方测试悬挂。`isInstalled` 默认 `true`,`listPlatforms` 默认全平台已安装。
 - **`Analytics.*` 是同步 `jest.fn()`** —— `onEvent` / `signIn` / `signOut` 与真实实现一致(同步 `void`)。
 - **`Common.*` 是 `jest.fn()`** —— `preInit` / `init` 默认 `resolve()`,`isInited` 默认 `resolve(false)`。
 - **`<ShareSheetHost />` 渲染 `null`** —— 不引 design,无需在测试里挂任何 Provider。
@@ -30,17 +30,17 @@ jest.mock('@unif/react-native-umeng', () =>
 
 完整 mock 行为:
 
-| 模块 | 默认行为 |
-| --- | --- |
-| `Common.preInit` / `init` | `jest.fn()`,`Promise.resolve()` |
-| `Common.isInited` | `jest.fn()`,`Promise.resolve(false)` |
-| `Share.shareText` / `shareImage` / `shareLink` | `jest.fn()`,resolve `{ code: 'success', platform }` |
-| `Share.openSheet` | `jest.fn()`,resolve `{ code: 'success', platform: WECHAT_SESSION }` |
-| `Share.isInstalled` | `jest.fn()`,`Promise.resolve(true)` |
-| `Share.listPlatforms` | `jest.fn()`,全平台 `installed: true` |
-| `Analytics.onEvent` / `signIn` / `signOut` | `jest.fn()`(同步 void) |
-| `ShareSheetHost` | 渲染 `null` |
-| `Platform` / `UmengError` / 常量 | 真实值(不 mock) |
+| 模块                                           | 默认行为                                                                                           |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `Common.preInit` / `init`                      | `jest.fn()`,`Promise.resolve()`                                                                    |
+| `Common.isInited`                              | `jest.fn()`,`Promise.resolve(false)`                                                               |
+| `Share.shareText` / `shareImage` / `shareLink` | `jest.fn()`,resolve `{ code: 'success', platform }`                                                |
+| `Share.openSheet`                              | `jest.fn()`,调用 `options.onDismiss?()` 后 resolve `{ code: 'success', platform: WECHAT_SESSION }` |
+| `Share.isInstalled`                            | `jest.fn()`,`Promise.resolve(true)`                                                                |
+| `Share.listPlatforms`                          | `jest.fn()`,全平台 `installed: true`                                                               |
+| `Analytics.onEvent` / `signIn` / `signOut`     | `jest.fn()`(同步 void)                                                                             |
+| `ShareSheetHost`                               | 渲染 `null`                                                                                        |
+| `Platform` / `UmengError` / 常量               | 真实值(不 mock)                                                                                    |
 
 ---
 
@@ -105,7 +105,9 @@ describe('分享', () => {
     (Share.openSheet as jest.Mock).mockRejectedValueOnce(
       new UmengError('E_USER_CANCEL', 'User cancelled')
     );
-    await expect(Share.openSheet({ type: 'text', text: 'hi' })).rejects.toMatchObject({
+    await expect(
+      Share.openSheet({ type: 'text', text: 'hi' })
+    ).rejects.toMatchObject({
       code: 'E_USER_CANCEL',
     });
   });

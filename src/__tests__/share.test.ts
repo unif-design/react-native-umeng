@@ -494,5 +494,53 @@ describe('Share', () => {
         { title: 'X' }
       );
     });
+
+    it('forwards floating presentation lifecycle callbacks', async () => {
+      const onSheetLayout = jest.fn();
+      const onDismiss = jest.fn();
+
+      await Share.openSheet(
+        { type: 'image', image: 'https://example.com/order.png' },
+        {
+          presentation: 'floating',
+          onSheetLayout,
+          onDismiss,
+        }
+      );
+
+      expect(shareSheetController.show).toHaveBeenCalledWith(
+        { type: 'image', image: 'https://example.com/order.png' },
+        {
+          presentation: 'floating',
+          onSheetLayout,
+          onDismiss,
+        }
+      );
+    });
+
+    it.each([
+      [{ presentation: 'drawer' }, '`presentation`'],
+      [{ onSheetLayout: 'not-a-function' }, '`onSheetLayout`'],
+      [{ onDismiss: 'not-a-function' }, '`onDismiss`'],
+    ])('rejects invalid presentation options %#', async (options, field) => {
+      await expect(
+        Share.openSheet({ type: 'text', text: 'hi' }, options as never)
+      ).rejects.toMatchObject({
+        code: 'E_INVALID_OPTIONS',
+        message: expect.stringContaining(field),
+      });
+      expect(shareSheetController.show).not.toHaveBeenCalled();
+    });
+
+    it('calls onDismiss when validation prevents the sheet from opening', async () => {
+      const onDismiss = jest.fn();
+
+      await expect(
+        Share.openSheet({ type: 'text', text: '   ' }, { onDismiss })
+      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
+
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+      expect(shareSheetController.show).not.toHaveBeenCalled();
+    });
   });
 });

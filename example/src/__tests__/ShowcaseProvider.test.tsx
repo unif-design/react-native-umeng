@@ -48,6 +48,7 @@ const sheetOptions = {
   wechatSubtitle: 'sensitive WeChat subtitle',
   dingtalkSubtitle: 'sensitive DingTalk subtitle',
   hideUninstalled: true,
+  presentation: 'floating',
 } as const;
 const defaultPlatformItems: readonly PlatformInfo[] = [
   {
@@ -925,6 +926,7 @@ describe('ShowcaseProvider share operations', () => {
           [Platform.DINGTALK]: 'sensitive DingTalk subtitle',
         },
         hideUninstalled: true,
+        presentation: 'floating',
       });
       expect(current().state.logs[0]?.message).toBe(
         `success@${Platform.WECHAT_SESSION}`

@@ -22,8 +22,16 @@ interface ActiveSession {
   sessionId: number;
   ownerHostId: number;
   phase: SessionPhase;
+  presentationDismissed: boolean;
+  onDismiss?: () => void;
   resolve: (result: ShareResult) => void;
   reject: (error: UmengError) => void;
+}
+
+interface DismissingSession {
+  sessionId: number;
+  ownerHostId: number;
+  onDismiss?: () => void;
 }
 
 const NO_HOST_MESSAGE =
@@ -36,6 +44,7 @@ const OWNER_UNMOUNTED_MESSAGE =
 export class ShareSheetController {
   private hosts = new Map<number, ControllerListener>();
   private active: ActiveSession | null = null;
+  private dismissing: DismissingSession | null = null;
   private nextHostId = 1;
   private nextSessionId = 1;
 
@@ -52,12 +61,16 @@ export class ShareSheetController {
         if (!this.hosts.delete(hostId)) return;
 
         const active = this.active;
-        if (active?.ownerHostId !== hostId) return;
-
-        this.settleError(
-          active.sessionId,
-          new UmengError('E_UNKNOWN', OWNER_UNMOUNTED_MESSAGE)
-        );
+        if (active?.ownerHostId === hostId) {
+          this.settleError(
+            active.sessionId,
+            new UmengError('E_UNKNOWN', OWNER_UNMOUNTED_MESSAGE)
+          );
+        }
+        const dismissing = this.dismissing;
+        if (dismissing?.ownerHostId === hostId) {
+          this.completeDismiss(dismissing.sessionId);
+        }
       },
     };
   }
@@ -66,15 +79,17 @@ export class ShareSheetController {
     payload: ShareSheetPayload,
     options: ShareSheetOptions = {}
   ): Promise<ShareResult> {
-    const owner = this.hosts.entries().next();
-    if (owner.done) {
+    const owner = Array.from(this.hosts.entries()).pop();
+    if (!owner) {
+      options.onDismiss?.();
       return Promise.reject(new UmengError('E_UNKNOWN', NO_HOST_MESSAGE));
     }
-    if (this.active !== null) {
+    if (this.active !== null || this.dismissing !== null) {
+      options.onDismiss?.();
       return Promise.reject(new UmengError('E_UNKNOWN', BUSY_MESSAGE));
     }
 
-    const [ownerHostId, listener] = owner.value;
+    const [ownerHostId, listener] = owner;
     const sessionId = this.nextSessionId++;
 
     return new Promise<ShareResult>((resolve, reject) => {
@@ -82,6 +97,8 @@ export class ShareSheetController {
         sessionId,
         ownerHostId,
         phase: 'loadingPlatforms',
+        presentationDismissed: false,
+        onDismiss: options.onDismiss,
         resolve,
         reject,
       };
@@ -89,7 +106,9 @@ export class ShareSheetController {
         listener({ kind: 'show', sessionId, payload, options });
       } catch (error) {
         if (this.active?.sessionId === sessionId) {
+          const onDismiss = this.active.onDismiss;
           this.active = null;
+          onDismiss?.();
         }
         reject(error);
       }
@@ -123,23 +142,58 @@ export class ShareSheetController {
     const active = this.active;
     if (active?.sessionId !== sessionId) return;
 
-    this.active = null;
+    this.prepareDismiss(active);
     active.resolve(result);
-    this.hosts.get(active.ownerHostId)?.({ kind: 'dismiss', sessionId });
+    this.notifyHostDismiss(active);
   }
 
   settleError(sessionId: number, error: UmengError): void {
     const active = this.active;
     if (active?.sessionId !== sessionId) return;
 
-    this.active = null;
+    this.prepareDismiss(active);
     active.reject(error);
-    this.hosts.get(active.ownerHostId)?.({ kind: 'dismiss', sessionId });
+    this.notifyHostDismiss(active);
+  }
+
+  completeDismiss(sessionId: number): void {
+    const active = this.active;
+    if (active?.sessionId === sessionId) {
+      active.presentationDismissed = true;
+      const onDismiss = active.onDismiss;
+      active.onDismiss = undefined;
+      onDismiss?.();
+      return;
+    }
+
+    const dismissing = this.dismissing;
+    if (dismissing?.sessionId !== sessionId) return;
+    this.dismissing = null;
+    dismissing.onDismiss?.();
+  }
+
+  private prepareDismiss(active: ActiveSession): void {
+    this.active = null;
+    if (active.presentationDismissed) return;
+    this.dismissing = {
+      sessionId: active.sessionId,
+      ownerHostId: active.ownerHostId,
+      onDismiss: active.onDismiss,
+    };
+  }
+
+  private notifyHostDismiss(active: ActiveSession): void {
+    const listener = this.hosts.get(active.ownerHostId);
+    if (listener) {
+      listener({ kind: 'dismiss', sessionId: active.sessionId });
+    } else {
+      this.completeDismiss(active.sessionId);
+    }
   }
 
   dismiss(sessionId: number, reason: 'cancel' = 'cancel'): void {
     const active = this.active;
-    if (active?.sessionId !== sessionId || active.phase === 'sharing') return;
+    if (active?.sessionId !== sessionId) return;
 
     this.settleError(
       sessionId,
