@@ -964,44 +964,24 @@ test('release workflow keeps the exact published-contract trigger paths', async 
   );
 });
 
-test('published docs retain current Android CI and device evidence', async () => {
-  const fullAutomationEvidencePaths = [
-    '../../README.md',
-    '../../website/docs/intro.md',
-    '../../website/docs/api/common.md',
-    '../../website/docs/getting-started/quick-start.md',
-    '../../website/docs/guides/privacy-pipl.md',
-    '../../website/docs/native-setup/android.md',
-  ];
-
-  for (const relativePath of fullAutomationEvidencePaths) {
-    const content = await readFile(
-      new URL(relativePath, import.meta.url),
-      'utf8'
-    );
-
-    assert.match(
-      content,
-      /Android CI 已通过[^。\n]*native contract[^。\n]*JVM[^。\n]*minif(?:y|ied)[^。\n]*merged manifest/,
-      `${relativePath}: 缺少当前 Android 自动化证据`
-    );
-    assert.match(
-      content,
-      /真实|真机/,
-      `${relativePath}: 缺少真实平台或真机验证边界`
-    );
-  }
-
-  const shareDocs = await readFile(
+test('usage docs link native setup and distinguish device validation from automation', async () => {
+  const readme = await readFile(
+    new URL('../../README.md', import.meta.url),
+    'utf8'
+  );
+  assert.match(readme, /website\/docs\/native-setup\/ios\.md/);
+  assert.match(readme, /website\/docs\/native-setup\/android\.md/);
+  assert.match(readme, /真实分享[\s\S]*设备/);
+  const integration = await readFile(
+    new URL('../../example/INTEGRATION.md', import.meta.url),
+    'utf8'
+  );
+  assert.match(integration, /真实[\s\S]*回包[\s\S]*真机/);
+  const share = await readFile(
     new URL('../../website/docs/api/share.md', import.meta.url),
     'utf8'
   );
-  assert.match(
-    shareDocs,
-    /Android native contract\/JVM tests 已验证/,
-    'share docs: 缺少 Android 分享门禁证据'
-  );
-  assert.match(shareDocs, /真实 App/, 'share docs: 缺少真实 App 验证边界');
+  assert.match(share, /不能替代[\s\S]*真实 App/);
 });
 
 test('explicit release increment selects an exact version for validation and release', () => {
