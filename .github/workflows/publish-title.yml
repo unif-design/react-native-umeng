@@ -1,0 +1,27 @@
+name: Publish title contract
+on:
+  pull_request:
+    branches: [main]
+    types: [edited]
+
+permissions:
+  contents: read
+
+jobs:
+  publish-title:
+    if: github.event.changes.title != null
+    concurrency:
+      group: publish-title-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Setup
+        uses: ./.github/actions/setup
+      - name: Verify publish contract
+        env:
+          SQUASH_TITLE: ${{ github.event.pull_request.title }}
+        run: yarn verify:publish-contract --squash-title "$SQUASH_TITLE"
