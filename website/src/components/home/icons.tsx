@@ -5,10 +5,7 @@ import React from 'react';
 
 type IconProps = { s?: number };
 
-const _svg = (
-  s: number,
-  children: React.ReactNode,
-): React.JSX.Element => (
+const _svg = (s: number, children: React.ReactNode): React.JSX.Element => (
   <svg
     width={s}
     height={s}
@@ -25,38 +22,50 @@ const _svg = (
 
 // mark icon — Share (umeng site logo)
 export function IconShare({ s = 24 }: IconProps): React.JSX.Element {
-  return _svg(s, <>
-    <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
-    <path d="M12 3v13" />
-    <path d="M8 7l4-4 4 4" />
-  </>);
+  return _svg(
+    s,
+    <>
+      <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+      <path d="M12 3v13" />
+      <path d="M8 7l4-4 4 4" />
+    </>
+  );
 }
 
 // feature: 友盟移动统计
 export function IconChart({ s = 24 }: IconProps): React.JSX.Element {
-  return _svg(s, <>
-    <path d="M4 20V4" />
-    <path d="M4 20h16" />
-    <rect x={7} y={12} width={3} height={5} />
-    <rect x={12} y={8} width={3} height={9} />
-    <rect x={17} y={5} width={3} height={12} />
-  </>);
+  return _svg(
+    s,
+    <>
+      <path d="M4 20V4" />
+      <path d="M4 20h16" />
+      <rect x={7} y={12} width={3} height={5} />
+      <rect x={12} y={8} width={3} height={9} />
+      <rect x={17} y={5} width={3} height={12} />
+    </>
+  );
 }
 
-// feature: 合规初始化
+// feature: 初始化时机
 export function IconShield({ s = 24 }: IconProps): React.JSX.Element {
-  return _svg(s, <>
-    <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
-    <path d="M9 12l2 2 4-4" />
-  </>);
+  return _svg(
+    s,
+    <>
+      <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+      <path d="M9 12l2 2 4-4" />
+    </>
+  );
 }
 
 // ShareScreen: close button
 export function IconClose({ s = 24 }: IconProps): React.JSX.Element {
-  return _svg(s, <>
-    <path d="M6 6l12 12" />
-    <path d="M18 6L6 18" />
-  </>);
+  return _svg(
+    s,
+    <>
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </>
+  );
 }
 
 // ShareScreen: chevron right (cell arrow)
@@ -66,18 +75,24 @@ export function IconChevronRight({ s = 24 }: IconProps): React.JSX.Element {
 
 // CTA: arrow right
 export function IconArrowRight({ s = 24 }: IconProps): React.JSX.Element {
-  return _svg(s, <>
-    <path d="M5 12h14" />
-    <path d="M13 5l7 7-7 7" />
-  </>);
+  return _svg(
+    s,
+    <>
+      <path d="M5 12h14" />
+      <path d="M13 5l7 7-7 7" />
+    </>
+  );
 }
 
 // install copy button
 export function IconCopy({ s = 24 }: IconProps): React.JSX.Element {
-  return _svg(s, <>
-    <rect x={8} y={8} width={13} height={13} rx={2} />
-    <path d="M4 16V5a2 2 0 0 1 2-2h11" />
-  </>);
+  return _svg(
+    s,
+    <>
+      <rect x={8} y={8} width={13} height={13} rx={2} />
+      <path d="M4 16V5a2 2 0 0 1 2-2h11" />
+    </>
+  );
 }
 
 // install copy button: copied state
@@ -88,7 +103,11 @@ export function IconCheck({ s = 24 }: IconProps): React.JSX.Element {
 // ── Brand glyphs (social share targets) ──
 
 // WeChat brand glyph — green #07C160
-export function WeChatGlyph({ size = 32 }: { size?: number }): React.JSX.Element {
+export function WeChatGlyph({
+  size = 32,
+}: {
+  size?: number;
+}): React.JSX.Element {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">
       <rect x="0" y="0" width="24" height="24" rx="6" fill="#07C160" />
@@ -101,7 +120,11 @@ export function WeChatGlyph({ size = 32 }: { size?: number }): React.JSX.Element
 }
 
 // DingTalk brand glyph — blue #1677FF
-export function DingTalkGlyph({ size = 32 }: { size?: number }): React.JSX.Element {
+export function DingTalkGlyph({
+  size = 32,
+}: {
+  size?: number;
+}): React.JSX.Element {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24">
       <rect x="0" y="0" width="24" height="24" rx="6" fill="#1677FF" />

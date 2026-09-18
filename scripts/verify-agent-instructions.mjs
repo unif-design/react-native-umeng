@@ -25,15 +25,14 @@ const activeMarkdownEntries = [
   'README.md',
   'CONTRIBUTING.md',
   'example/README.md',
+  'example/INTEGRATION.md',
   'website/docs',
 ];
 /**
  * 关键依赖的 range 契约。值有两种写法:
  *   - 字符串:peer 与 dev 同值
- *   - `{ peer, dev }`:两者分开 —— 语义本就不同。**peer 是对外兼容范围(该宽)**,
- *     写窄了会把下游卡在旧版上;**dev 是开发验证基线(该窄且确定)**。
- *     ⚠️ peer 里别用 `^`:0.x 下它锁 minor(`^0.21.1` 不含 0.22),
- *     等于把每次 minor 都变成 breaking。
+ *   - `{ peer, dev }`:两者分开 —— 语义本就不同。peer 是已声明的支持范围，dev 是实际验证基线。
+ *     新版本按其目标支持矩阵同步本表、manifest 与消费验证，不继承旧下限。
  */
 const expectedDependencyRanges = {
   '@sbaiahmed1/react-native-blur': { peer: '>=4', dev: '6.0.1' },
@@ -53,6 +52,7 @@ const requiredInstructionRoutes = [
   'README.md',
   'CONTRIBUTING.md',
   'example/README.md',
+  'example/INTEGRATION.md',
   'website/docs/**',
   'package.json',
   'scripts/verify-agent-instructions.mjs',
@@ -228,13 +228,11 @@ function proseBlocks(markdown, sourcePath) {
 }
 
 function positivelyRequiresSkill(markdown, skillName) {
-  const canonicalDirective = `查找并读取 rn-library 与 ${skillName} Skill,两者叠加使用。`;
+  const canonicalDirective = `必须使用 ${skillName}。`;
 
   return proseBlocks(markdown, 'AGENTS.md').some(
     (block) =>
-      block
-        .trim()
-        .replace(/^\d+(?:[.)、]|：)\s*/u, '') === canonicalDirective
+      block.trim().replace(/^\d+(?:[.)、]|：)\s*/u, '') === canonicalDirective
   );
 }
 
@@ -247,13 +245,16 @@ function isExternalOrRouteTarget(target) {
   );
 }
 
-function linksToUmengShareSkill(links) {
+function linksToDevelopmentSkills(links) {
   return links.some(({ type, url }) => {
     if (type === 'image') {
       return false;
     }
     const targetWithoutQuery = url.split(/[?#]/u, 1)[0].replace(/\/+$/u, '');
-    return /(?:^|\/)skills\/umeng-share$/u.test(targetWithoutQuery);
+    return (
+      targetWithoutQuery ===
+      'https://github.com/unif-skill/unif-portal-dev-skills'
+    );
   });
 }
 
@@ -281,9 +282,7 @@ async function localTargetExists({
     pathWithoutQuery
   );
   if (!isInside(repositoryRoot, absoluteTarget)) {
-    throw new Error(
-      `${sourcePath} link escapes repository root: ${target}`
-    );
+    throw new Error(`${sourcePath} link escapes repository root: ${target}`);
   }
 
   const candidates = [
@@ -381,8 +380,15 @@ export async function verifyAgentInstructions(
   if (/CLAUDE\.md/iu.test(agentsInstructions)) {
     failures.push('AGENTS.md must not reference CLAUDE.md');
   }
-  if (!positivelyRequiresSkill(agentsInstructions, 'umeng-share')) {
-    failures.push('AGENTS.md must positively require the umeng-share Skill');
+  if (
+    !positivelyRequiresSkill(
+      agentsInstructions,
+      'unif-portal-dev-skills:code-development'
+    )
+  ) {
+    failures.push(
+      'AGENTS.md must positively require the unif-portal-dev-skills:code-development Skill'
+    );
   }
 
   const manifest = JSON.parse(
@@ -409,11 +415,7 @@ export async function verifyAgentInstructions(
   const activeMarkdownFiles = (
     await Promise.all(
       activeMarkdownEntries.map((entry) =>
-        collectMarkdownFiles(
-          repositoryRoot,
-          canonicalRepositoryRoot,
-          entry
-        )
+        collectMarkdownFiles(repositoryRoot, canonicalRepositoryRoot, entry)
       )
     )
   )
@@ -431,11 +433,13 @@ export async function verifyAgentInstructions(
   let hasSkillLink = false;
   for (const [relativePath, markdown] of activeMarkdown) {
     if (markdown.includes('unif-umeng')) {
-      failures.push(`${relativePath} references obsolete Skill name unif-umeng`);
+      failures.push(
+        `${relativePath} references obsolete Skill name unif-umeng`
+      );
     }
 
     const links = linkNodes(markdown, relativePath);
-    hasSkillLink ||= linksToUmengShareSkill(links);
+    hasSkillLink ||= linksToDevelopmentSkills(links);
     for (const { url: target } of links) {
       if (isExternalOrRouteTarget(target)) {
         continue;
@@ -454,16 +458,14 @@ export async function verifyAgentInstructions(
           );
         }
       } catch (error) {
-        failures.push(
-          error instanceof Error ? error.message : String(error)
-        );
+        failures.push(error instanceof Error ? error.message : String(error));
       }
     }
   }
 
   if (!hasSkillLink) {
     failures.push(
-      'Active repository guidance must hyperlink to the skills/umeng-share path'
+      'Active repository guidance must hyperlink to the unif-portal-dev-skills repository'
     );
   }
 
@@ -481,14 +483,9 @@ export async function verifyAgentInstructions(
       );
     }
   }
-  const javascriptRoutes = pathFilterRoutes(
-    validationWorkflow,
-    'javascript'
-  );
+  const javascriptRoutes = pathFilterRoutes(validationWorkflow, 'javascript');
   for (const requiredInput of requiredJavaScriptValidationInputs) {
-    if (
-      !javascriptRoutes.some((route) => matchesGlob(requiredInput, route))
-    ) {
+    if (!javascriptRoutes.some((route) => matchesGlob(requiredInput, route))) {
       failures.push(
         `project-validation javascript filter must cover ${requiredInput}`
       );

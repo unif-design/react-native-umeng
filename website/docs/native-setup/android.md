@@ -1,26 +1,23 @@
 ---
 sidebar_position: 2
 title: Android 原生配置
-description: "Android 原生接入:宿主提供 WXEntryActivity : WXCallbackActivity 与 DDShareActivity : DingCallBack 两个可编译空类，必须放在最终宿主包名的 .wxapi / .ddshare 下；library Manifest 以 disabled 状态声明组件，授权后的 init 才按平台动态启用。Activity 不硬编码 appId。"
+description: '配置 Android 分享依赖、平台回调与 R8。'
 ---
 
 # Android 原生配置
 
-分享后能否跳回 App 全靠回调 Activity 的注册。**模板别凭记忆编**，逐项核对本页。
-
-:::info 当前验证边界
-Android CI 已通过 native contract、bootstrap/callback state machine 与 module JVM tests、启用 minify 的 release 构建和 merged manifest 核对。真实微信/钉钉回跳以及 minified release 在真机上的运行仍未验收，因此本页仍要求消费者实际构建与真机验证。
-:::
+分享回执通过回调 Activity 返回应用。按下列步骤配置宿主包名、依赖与回调入口。
 
 ---
 
 ## `android/app/src/main/AndroidManifest.xml` {#manifest}
 
 :::tip 不需要写的内容（已自动合并）
+
 - **`<uses-permission>` 与 `<queries>`** —— `@unif/react-native-umeng` 的 library Manifest 已声明 `INTERNET` / `ACCESS_NETWORK_STATE` / `ACCESS_WIFI_STATE` 权限，以及 `<queries>`（`com.tencent.mm` 微信、`com.alibaba.android.rimet` 钉钉）；Android manifest merger 自动合并到宿主。
 - **友盟相关 `<meta-data>`** —— appkey 等由 JS [`Common.preInit(config)`](../api/common#preinit) 保存,用户授权后 `Common.init()` 才交给 native。
 - **回调 Activity manifest 节点** —— library Manifest 已按 `${applicationId}.wxapi.WXEntryActivity` / `${applicationId}.ddshare.DDShareActivity` 声明为 `android:enabled="false"`;完整授权初始化成功后才动态启用已配置平台。宿主只需提供下面两个 class,无需重复注册节点。
-:::
+  :::
 
 微信 / 钉钉 SDK 按 `getPackageName() + ".wxapi.WXEntryActivity"` / `+ ".ddshare.DDShareActivity"` 反射查找,所以 class **不能放在 library 包或任意自定义路径**。
 
@@ -148,17 +145,17 @@ fun disableUmengCallbackActivities(context: Context) {
 
 ## 平台支持 {#platform-support}
 
-| 配置项 | iOS | Android |
-| --- | --- | --- |
-| AndroidManifest 回调 Activity | — | ✅ library 自动合并为 disabled |
-| `WXEntryActivity.kt` | — | ✅ 必填 |
-| `DDShareActivity.kt` | — | ✅ 必填 |
-| 宿主 `build.gradle` 声明钉钉/微信 SDK | — | ✅ 必填(**不自动**,见 [#sdk-deps](#sdk-deps)) |
-| 权限 / `<queries>` | — | ✅ 自动合并 |
-| FileProvider | — | ✅ library 合并;宿主需验 merged Manifest |
-| MainActivity override | — | ❌ 不需要 |
-| 手工复制 Proguard rules | — | 通常不需要;仍须验 minified release |
-| 撤回同意 | — | 禁用回调 Activity + 完整进程重启 |
+| 配置项                                | iOS | Android                                       |
+| ------------------------------------- | --- | --------------------------------------------- |
+| AndroidManifest 回调 Activity         | —   | ✅ library 自动合并为 disabled                |
+| `WXEntryActivity.kt`                  | —   | ✅ 必填                                       |
+| `DDShareActivity.kt`                  | —   | ✅ 必填                                       |
+| 宿主 `build.gradle` 声明钉钉/微信 SDK | —   | ✅ 必填(**不自动**,见 [#sdk-deps](#sdk-deps)) |
+| 权限 / `<queries>`                    | —   | ✅ 自动合并                                   |
+| FileProvider                          | —   | ✅ library 合并;宿主需验 merged Manifest      |
+| MainActivity override                 | —   | ❌ 不需要                                     |
+| 手工复制 Proguard rules               | —   | 通常不需要;仍须验 minified release            |
+| 撤回同意                              | —   | 禁用回调 Activity + 完整进程重启              |
 
 ## 相关 {#related}
 

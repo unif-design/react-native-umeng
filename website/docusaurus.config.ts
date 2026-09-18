@@ -8,7 +8,7 @@ const navbarVersion = pkg.version.split('.').slice(0, 2).join('.');
 
 const config: Config = {
   title: 'Unif Umeng',
-  tagline: '@unif/react-native-umeng · 友盟 RN 桥 (U-Share + U-App)',
+  tagline: 'Unif React Native 友盟接入：微信会话、钉钉分享和应用统计',
   favicon: 'img/logo.png',
 
   // 部署到 GitHub Pages 默认域名:https://unif-design.github.io/react-native-umeng/

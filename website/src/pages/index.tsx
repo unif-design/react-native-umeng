@@ -202,11 +202,11 @@ const FEATURES: Feature[] = [
   {
     Icon: IconChart,
     title: '友盟移动统计',
-    desc: 'U-App 页面与自定义事件埋点，会话 / 渠道分析打通友盟后台数据看板。',
+    desc: '提供自定义事件及统计用户标识接口，调用前完成 SDK 初始化。',
   },
   {
     Icon: IconShield,
-    title: '合规初始化',
+    title: '初始化时机',
     desc: 'preInit 只保存 JS 配置快照；用户同意隐私协议后，无参 init 才进入 native/vendor 并开始采集。',
   },
 ];
@@ -216,7 +216,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout
       title="Unif Umeng — 社会化分享 微信·钉钉·统计"
-      description="@unif/react-native-umeng — 友盟+ U-Share + U-App 的 React Native 封装：微信会话 / 钉钉分享，叠加友盟移动统计，内置合规初始化与隐私授权时机控制。"
+      description="@unif/react-native-umeng — 友盟+ U-Share + U-App 的 React Native 封装：微信会话 / 钉钉分享，叠加友盟移动统计，由应用控制用户同意后的初始化时机。"
     >
       <main className="unif-home">
         {/* ── Hero ── */}
@@ -232,7 +232,7 @@ export default function Home(): React.JSX.Element {
               </h1>
               <p className="hp-tagline">
                 友盟+ U-Share + U-App 的 React Native 封装：微信会话 /
-                钉钉分享，叠加友盟移动统计，内置合规初始化与隐私授权时机控制。
+                钉钉分享，叠加友盟移动统计，由应用控制用户同意后的初始化时机。
               </p>
               <div className="hp-cta-row">
                 <Link to="/docs/intro" className="hp-btn hp-btn-primary">
@@ -255,7 +255,7 @@ export default function Home(): React.JSX.Element {
                   U-Share
                 </span>
                 <span className="hp-chip">U-App 统计</span>
-                <span className="hp-chip">合规初始化</span>
+                <span className="hp-chip">初始化时机</span>
               </div>
             </div>
 

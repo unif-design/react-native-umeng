@@ -1,16 +1,12 @@
 ---
 sidebar_position: 1
 title: iOS 原生配置
-description: "iOS 原生接入：URL Types 使用平台分配原值，配置 queries、Associated Domains/AASA，并让 AppDelegate/SceneDelegate 分别调用 Umeng 与 RCTLinkingManager 后再 OR。"
+description: '配置 iOS 分享回调、URL Scheme 和 Universal Link。'
 ---
 
 # iOS 原生配置
 
 分享后能否跳回 App，取决于 URL Scheme、Universal Link 与宿主 lifecycle 转发。友盟 appkey、微信 App Secret、Universal Link 等凭据不写进 plist；它们先由 JS `Common.preInit(config)` 保存，用户同意后调用 `Common.init()` 才跨入 native/vendor。
-
-:::info 当前验证边界
-仓库已经通过 `ReactNativeUmeng` Swift module、三个 Codegen modulesProvider、Common bootstrap、Share/Analytics init gate、AppDelegate/Scene compile fixture、simulator build 与 31/31 XCTest。模拟器没有真实微信 / 钉钉；平台拉起、回包、URL Scheme、Universal Link 与生产 AASA 仍须带真实凭据在真机验证。
-:::
 
 ## `ios/<App>/Info.plist` {#info-plist}
 
@@ -49,10 +45,10 @@ description: "iOS 原生接入：URL Types 使用平台分配原值，配置 que
 </array>
 ```
 
-| 键 | 说明 |
-| --- | --- |
-| `LSApplicationQueriesSchemes` | `isInstalled` / 第三方跳转所需的查询白名单 |
-| `CFBundleURLTypes` | 微信 App ID 与钉钉 AppKey / Client ID 的**平台分配原值** |
+| 键                            | 说明                                                     |
+| ----------------------------- | -------------------------------------------------------- |
+| `LSApplicationQueriesSchemes` | `isInstalled` / 第三方跳转所需的查询白名单               |
+| `CFBundleURLTypes`            | 微信 App ID 与钉钉 AppKey / Client ID 的**平台分配原值** |
 
 微信 App ID 本身通常以 `wx` 开头，钉钉旧 AppKey 也可能包含 `dingoa`；“使用原值”表示不要在平台分配值之外再手工拼一次前缀。
 
@@ -252,14 +248,14 @@ iOS 没有公开 vendor preInit API。用户授权后的 `Common.init()` 在主�
 
 ## 平台支持 {#platform-support}
 
-| 配置/门禁 | 当前仓库证据 | 消费者仍需验证 |
-| --- | --- | --- |
-| `ReactNativeUmeng` module + Codegen provider | simulator build / provider scan PASS | 自己的 Pod 图与 runtime lookup |
-| Common/Share/Analytics native gate | 31/31 XCTest PASS | 真实 vendor 行为 |
-| AppDelegate URL/UL 双路转发 | example compile + XCTest PASS | 真实 URL Scheme 回跳 |
-| Scene warm/cold 双路转发 | compile fixture PASS | 真实 Scene lifecycle 注册与回跳 |
-| queries / URL Types / entitlement | example plist/entitlement lint PASS | 替换真实平台原值与域名 |
-| AASA / Universal Link | 配置契约已文档化 | HTTPS、无重定向、TeamID.BundleID/path/domain 与真机 |
+| 配置/门禁                                    | 当前仓库证据                         | 消费者仍需验证                                      |
+| -------------------------------------------- | ------------------------------------ | --------------------------------------------------- |
+| `ReactNativeUmeng` module + Codegen provider | simulator build / provider scan PASS | 自己的 Pod 图与 runtime lookup                      |
+| Common/Share/Analytics native gate           | 31/31 XCTest PASS                    | 真实 vendor 行为                                    |
+| AppDelegate URL/UL 双路转发                  | example compile + XCTest PASS        | 真实 URL Scheme 回跳                                |
+| Scene warm/cold 双路转发                     | compile fixture PASS                 | 真实 Scene lifecycle 注册与回跳                     |
+| queries / URL Types / entitlement            | example plist/entitlement lint PASS  | 替换真实平台原值与域名                              |
+| AASA / Universal Link                        | 配置契约已文档化                     | HTTPS、无重定向、TeamID.BundleID/path/domain 与真机 |
 
 ## 相关 {#related}
 

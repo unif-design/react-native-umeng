@@ -1,7 +1,7 @@
 ---
 sidebar_position: 8
 title: 常见问题
-description: '@unif/react-native-umeng 排障决策树：分享无回调（取消/失败是 reject 非 resolve）、未挂 ShareSheetHost、init 顺序与无参、模拟器不能真分享需真机，以及 iOS / Android 原生回调注册与完整错误码表。'
+description: '按使用场景排查接入、平台和结果处理问题。'
 ---
 
 # 常见问题
@@ -92,7 +92,7 @@ await Common.preInit({ appkey: '...' /* ... */ }); // App 启动
 await Common.init(); // 用户同意后,无参
 ```
 
-统计不上报最常见原因:`init` 还没完成(用户未同意《隐私协议》)。Android 与 iOS 的 `Analytics.*` 都会在 init 前同步 no-op,且不会缓存或补发。两段式见[隐私合规(PIPL)](./guides/privacy-pipl)。
+统计不上报最常见原因:`init` 还没完成(用户未同意《隐私协议》)。Android 与 iOS 的 `Analytics.*` 都会在 init 前同步 no-op,且不会缓存或补发。两段式见[初始化与用户同意](./guides/privacy-pipl)。
 
 ---
 
@@ -101,7 +101,7 @@ await Common.init(); // 用户同意后,无参
 真实微信 / 钉钉分享必须用真机,但**模拟器编译失败不是可以直接忽略的预期结果**。
 
 - 模拟器没有真微信 / 钉钉,**无法完成回调跳转**,分享链路测不通。
-- 仓库 iOS simulator Pod/Codegen/build/XCTest 已通过。消费者若编译失败,应核对自己的 Pod 图、New Architecture、Worklets plugin 与原生配置,不能把任意编译错误归因于“模拟器不能真分享”。
+- 模拟器的编译问题与真实分享能力分开排查。编译失败时核对 Pod 依赖、新架构、Worklets 配置与原生接线。
 
 :::tip 在 CI / 模拟器里测逻辑
 不要在模拟器里测真实分享。单元测试用[测试(Mock)](./testing)页的 `jest.mock` 方案,在无原生环境跑通分享流程逻辑。
@@ -122,11 +122,11 @@ await Common.init(); // 用户同意后,无参
 
 ## 症状:分享后回调不跳回 App（原生未注册） {#native-callback}
 
-分享后跳回 App 全靠原生侧 URL Scheme / 回调 Activity。**模板别凭记忆编**,按平台逐项核对:
+分享后跳回 App 全靠原生侧 URL Scheme / 回调 Activity。**按本页配置**,按平台逐项核对:
 
 ### iOS
 
-- 仓库已通过 `initialize(config)`、module map/Codegen、AppDelegate/Scene compile fixture 与 XCTest；这些证据不代表消费者的真实 scheme/domain 已配置。
+- 核对当前应用的初始化、Codegen、AppDelegate／SceneDelegate 转发与真实 scheme／domain；库的编译检查不代表应用配置正确。
 - `Info.plist` 缺 `CFBundleURLTypes`,误在开放平台分配原值之外再拼 `wx` / `dingoa`,或缺 `LSApplicationQueriesSchemes` 白名单。
 - AppDelegate / SceneDelegate 对 URL 与 Universal Link 必须**分别调用** Umeng 和 `RCTLinkingManager`,两者都执行后再 OR;不能用短路表达式漏掉第二个 handler。
 - Universal Link 还要核对 Associated Domains、无重定向 AASA、`TeamID.BundleID`、path 与 `wechatUniversalLink` host。

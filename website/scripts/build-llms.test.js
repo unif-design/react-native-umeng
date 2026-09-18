@@ -4,7 +4,9 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const b = require('./build-llms.js');
+const b = { ...require('./llms/bundle'), ...require('./llms/markdown'), stripMdxNoise: require('./llms/markdown').convertMdxBody };
+require('./build-llms-core.test.js');
+require('./build-llms-site.test.js');
 
 const failures = [];
 
@@ -44,11 +46,8 @@ test('同一行闭合的 LiveDemo 不会吞掉后文', () => {
   assert(output.includes('```\n\n## 后文\n正文'), '后文必须位于代码块之后');
 });
 
-test('自闭合 LiveDemo 被移除且不会吞掉后文', () => {
-  const output = b.stripMdxNoise('<LiveDemo />\n\n## 后文\n正文\n');
-  assert(!output.includes('LiveDemo'), '应移除自闭合组件噪音');
-  assert(output.includes('## 后文\n正文'), '不得吞掉自闭合组件后的正文');
-  assert(!output.includes('```tsx'), '无组件用法时不应生成空代码块');
+test('自闭合 LiveDemo 缺少示例内容时明确失败', () => {
+  assert.throws(() => b.stripMdxNoise('<LiveDemo />\n\n## 后文\n正文\n'), /LiveDemo/);
 });
 
 test('formatIndexLine 正确处理 description', () => {
@@ -83,7 +82,7 @@ test('全文目录包含标题', () => {
   assert(b.buildToc(['A', 'B']).includes('- A'));
 });
 
-test('main 生成带 baseUrl 的索引与当前 Common/Share 契约', () => {
+test('main 生成保留项目子路径的索引与当前 Common/Share 契约', () => {
   const websiteRoot = path.join(__dirname, '..');
   execFileSync(process.execPath, [path.join(__dirname, 'build-llms.js')], {
     cwd: websiteRoot,
@@ -105,8 +104,8 @@ test('main 生成带 baseUrl 的索引与当前 Common/Share 契约', () => {
     'llms-full.txt 标题应来自站点配置'
   );
   assert(
-    llms.includes('](/react-native-umeng/md/intro.md)'),
-    '索引链接必须包含 Docusaurus baseUrl'
+    llms.includes('](md/intro.md)'),
+    '相对索引链接应保留部署项目路径'
   );
   assert(!llms.includes('](/md/'), '索引中不得出现部署后失效的根路径链接');
   assert(

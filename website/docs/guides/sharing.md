@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: 分享
-description: "用 @unif/react-native-umeng 分享到微信会话 / 钉钉：命令式 Share.openSheet(payload) 拉面板或直拉 shareText/shareImage/shareLink，payload type 为 'text'|'image'|'link'；取消与失败 reject（E_USER_CANCEL / E_SHARE_FAILED），resolve 的 r.code 恒为 success。"
+description: '选择分享方式，准备内容并处理取消与失败。'
 ---
 
 # 分享
@@ -41,7 +41,7 @@ async function onShareTap() {
 
 面板的外观文案可用第二参 `options` 覆盖:
 
-| 字段              | 类型                                | 默认       | 说明                                                |
+| 字段              | 类型                                | 默认值     | 说明                                                |
 | ----------------- | ----------------------------------- | ---------- | --------------------------------------------------- |
 | `title`           | `string`                            | `'分享至'` | 面板标题                                            |
 | `cancelText`      | `string`                            | `'取消'`   | 取消按钮文案                                        |
@@ -177,7 +177,7 @@ try {
 
 ---
 
-## 易错点(Incorrect / Correct) {#gotchas}
+## 注意事项 {#gotchas}
 
 ### 1. 没挂 `<ShareSheetHost />` {#no-host}
 

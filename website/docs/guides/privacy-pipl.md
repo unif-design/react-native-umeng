@@ -1,25 +1,21 @@
 ---
 sidebar_position: 3
-title: 隐私合规（PIPL）
-description: "@unif/react-native-umeng 的 PIPL 两段式初始化：Common.preInit(config) 启动时只在 JS 校验并保存配置、零 native 调用；用户同意《隐私协议》后再调无参 Common.init()，才执行各平台对应的 vendor bootstrap。"
+title: 初始化与用户同意
+description: '配置准备与用户同意后的 SDK 初始化顺序。'
 ---
 
-# 隐私合规（PIPL）
+# 初始化与用户同意
 
-本库的公共契约采用 **preInit → init** 两段式,用于满足 PIPL(个人信息保护法)对「用户同意前不采集」的要求。本页讲清两段职责与时序。
-
-:::info 验证边界
-Android 与 iOS 都已实现本页边界。iOS simulator/XCTest/native contract 已验证授权前模块构造、Share/Analytics gate 与 bootstrap 顺序；Android CI 已通过 native contract、JVM 状态机测试、启用 minify 的 release 构建与 merged manifest 核对。真实 vendor 网络、平台回跳、Android 真机 R8 运行与数据后台仍需对应真机/测试账号验证。
-:::
+本库将配置准备与原生 SDK 初始化分开。`preInit` 只保存配置，应用取得用户同意后再调用 `init`；本页说明调用责任与顺序。
 
 ---
 
 ## 两段式设计 {#two-phase}
 
-| 阶段 | 调用时机 | 行为 |
-| --- | --- | --- |
-| `Common.preInit(config)` | App 启动后立刻,**可在用户同意之前** | 仅 JS 校验、标准化并保存 config 快照,**零 native 调用** |
-| `Common.init()` | 用户点「同意《隐私协议》」之后 | 首次把快照交给 native，并在对应平台执行全部 vendor bootstrap |
+| 阶段                     | 调用时机                       | 行为                                                         |
+| ------------------------ | ------------------------------ | ------------------------------------------------------------ |
+| `Common.preInit(config)` | 首次 init 前，可在用户同意之前 | 仅 JS 校验、标准化并保存 config 快照,**零 native 调用**      |
+| `Common.init()`          | 用户点「同意《隐私协议》」之后 | 首次把快照交给 native，并在对应平台执行全部 vendor bootstrap |
 
 ```ts
 import { Common } from '@unif/react-native-umeng';
@@ -34,13 +30,13 @@ await Common.preInit({
 });
 
 // 2) 用户同意《隐私协议》之后:开始采集
-await Common.init();   // ⚠️ 无参 —— config 已给 preInit
+await Common.init(); // ⚠️ 无参 —— config 已给 preInit
 ```
 
 > 相同 config 的 `preInit` 与成功后的 `init` 都可安全重复；并发 `init` 复用同一个 Promise。native 初始化开始后更换 config 会 reject `E_INVALID_OPTIONS`。
 
 :::danger init 必须在用户同意之后
-`Common.init()` **必须在用户明确同意《隐私协议》之后**才能调用。隐私弹窗弹出前、或用户拒绝时,不可调 `init()`。违反将导致合规风险。
+`Common.init()` **必须在用户明确同意《隐私协议》之后**才能调用。隐私弹窗弹出前、或用户拒绝时,不可调 `init()`。应用负责展示协议、记录同意状态并安排调用。
 :::
 
 ---
@@ -49,7 +45,7 @@ await Common.init();   // ⚠️ 无参 —— config 已给 preInit
 
 ```
 App 启动
-  └─▶ Common.preInit(config)   // 立刻调,仅存 JS 快照,零 native 调用
+  └─▶ Common.preInit(config)   // 准备配置，不调用原生 SDK
 
 用户进入隐私协议弹窗
   └─▶ 用户点「同意」
@@ -67,7 +63,7 @@ App 启动
 
 ---
 
-## 易错点(Incorrect / Correct) {#gotchas}
+## 注意事项 {#gotchas}
 
 ### 1. `init` 带参 {#init-args}
 
@@ -80,7 +76,7 @@ await Common.init({ appkey: '...' });
 
 ```ts
 // ✅ Correct:config 给 preInit,init 无参
-await Common.preInit({ appkey: '...', /* ... */ });
+await Common.preInit({ appkey: '...' /* ... */ });
 await Common.init();
 ```
 
@@ -89,15 +85,15 @@ await Common.init();
 `init` 前必须先 `preInit`,否则会 reject(`E_NOT_INITIALIZED`):
 
 ```ts
-// ❌ Incorrect:没 preInit 直接 init —— reject;或在用户同意前就 init —— 违规
+// ❌ Incorrect:没 preInit 直接 init —— reject;或在用户同意前就 init —— 调用时机错误
 await Common.init();
 ```
 
 ```ts
 // ✅ Correct:启动 preInit;用户同意后才 init
-await Common.preInit({ appkey: '...' });  // App 启动
+await Common.preInit({ appkey: '...' }); // App 启动
 // …… 展示隐私弹窗,用户点「同意」……
-await Common.init();                       // 同意后
+await Common.init(); // 同意后
 ```
 
 ---
