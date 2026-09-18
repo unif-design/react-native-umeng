@@ -27,21 +27,31 @@ async function write(relativeRoot, relativePath, content) {
   await writeFile(absolutePath, content);
 }
 
-function workflowWithInstructionRoutes(
+function actionWithInstructionRoutes(
   routes,
   javascriptRoutes = ['example/**']
 ) {
-  return `jobs:
-  changes:
-    steps:
-      - uses: dorny/paths-filter@example
-        with:
-          filters: |
-            javascript:
-${javascriptRoutes.map((route) => `              - '${route}'`).join('\n')}
-            instructions:
-${routes.map((route) => `              - '${route}'`).join('\n')}
-`;
+  return [
+    'name: Scope',
+    'outputs:',
+    '  instructions:',
+    '    value: ${{ steps.paths.outputs.instructions }}',
+    '  example:',
+    '    value: ${{ steps.paths.outputs.example }}',
+    'runs:',
+    '  using: composite',
+    '  steps:',
+    '    - uses: dorny/paths-filter@example',
+    '      id: paths',
+    '      with:',
+    '        predicate-quantifier: some-with-excludes',
+    '        filters: |',
+    '          example:',
+    ...javascriptRoutes.map((route) => `            - '${route}'`),
+    '          instructions:',
+    ...routes.map((route) => `            - '${route}'`),
+    '',
+  ].join('\n');
 }
 
 async function createValidRepository() {
@@ -53,6 +63,21 @@ async function createValidRepository() {
 
   await Promise.all([
     write(fixtureRoot, 'CLAUDE.md', '@AGENTS.md\r\n'),
+    write(
+      fixtureRoot,
+      '.github/workflows/project-validation.yml',
+      [
+        'jobs:',
+        '  changes:',
+        '    outputs:',
+        "      instructions: ${{ steps.scope.outputs.instructions == 'true' }}",
+        "      javascript: ${{ steps.scope.outputs.example == 'true' }}",
+        '    steps:',
+        '      - id: scope',
+        '        uses: ./.github/actions/changes',
+        '',
+      ].join('\n')
+    ),
     write(
       fixtureRoot,
       'AGENTS.md',
@@ -84,8 +109,8 @@ async function createValidRepository() {
     write(fixtureRoot, 'package.json', `${JSON.stringify(packageJson)}\n`),
     write(
       fixtureRoot,
-      '.github/workflows/project-validation.yml',
-      workflowWithInstructionRoutes([
+      '.github/actions/changes/action.yml',
+      actionWithInstructionRoutes([
         'AGENTS.md',
         'CLAUDE.md',
         'README.md',
@@ -285,8 +310,8 @@ test('requires CI instruction routes for every scanned input group', async () =>
   try {
     await write(
       fixtureRoot,
-      '.github/workflows/project-validation.yml',
-      workflowWithInstructionRoutes([
+      '.github/actions/changes/action.yml',
+      actionWithInstructionRoutes([
         'AGENTS.md',
         'CLAUDE.md',
         'README.md',
@@ -323,8 +348,8 @@ test('requires JavaScript validation routes for example tests and contracts', as
   try {
     await write(
       fixtureRoot,
-      '.github/workflows/project-validation.yml',
-      workflowWithInstructionRoutes(instructionRoutes, ['example/src/**'])
+      '.github/actions/changes/action.yml',
+      actionWithInstructionRoutes(instructionRoutes, ['example/src/**'])
     );
     await assert.rejects(verifyAgentInstructions(fixtureRoot), (error) => {
       assert.match(
@@ -340,8 +365,8 @@ test('requires JavaScript validation routes for example tests and contracts', as
 
     await write(
       fixtureRoot,
-      '.github/workflows/project-validation.yml',
-      workflowWithInstructionRoutes(instructionRoutes, [
+      '.github/actions/changes/action.yml',
+      actionWithInstructionRoutes(instructionRoutes, [
         'example/jest.config.js',
         'example/jest.setup.ts',
       ])
@@ -352,5 +377,22 @@ test('requires JavaScript validation routes for example tests and contracts', as
     );
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('rejects a shared output that the consumer does not adopt', async () => {
+  const root = await createValidRepository();
+  try {
+    await write(
+      root,
+      '.github/workflows/project-validation.yml',
+      'jobs:\n  changes:\n    steps:\n      - id: scope\n        uses: ./.github/actions/changes\n'
+    );
+    await assert.rejects(
+      verifyAgentInstructions(root),
+      /must consume shared instructions output/
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });

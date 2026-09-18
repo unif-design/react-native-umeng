@@ -473,8 +473,31 @@ export async function verifyAgentInstructions(
     resolve(repositoryRoot, '.github/workflows/project-validation.yml'),
     'utf8'
   );
+  const sharedAction = await readFile(
+    resolve(repositoryRoot, '.github/actions/changes/action.yml'),
+    'utf8'
+  );
+  if (
+    !/id: scope\n\s+uses: \.\/\.github\/actions\/changes/u.test(
+      validationWorkflow
+    )
+  ) {
+    failures.push(
+      'project-validation must call the shared classification action'
+    );
+  }
+  for (const name of ['instructions', 'example']) {
+    if (!validationWorkflow.includes(`steps.scope.outputs.${name} == 'true'`)) {
+      failures.push(`project-validation must consume shared ${name} output`);
+    }
+    if (
+      !sharedAction.includes('value: ${{ steps.paths.outputs.' + name + ' }}')
+    ) {
+      failures.push(`shared action must expose the ${name} path result`);
+    }
+  }
   const instructionRoutes = new Set(
-    pathFilterRoutes(validationWorkflow, 'instructions')
+    pathFilterRoutes(sharedAction, 'instructions')
   );
   for (const requiredRoute of requiredInstructionRoutes) {
     if (!instructionRoutes.has(requiredRoute)) {
@@ -483,9 +506,15 @@ export async function verifyAgentInstructions(
       );
     }
   }
-  const javascriptRoutes = pathFilterRoutes(validationWorkflow, 'javascript');
+  const javascriptRoutes = pathFilterRoutes(sharedAction, 'example');
   for (const requiredInput of requiredJavaScriptValidationInputs) {
-    if (!javascriptRoutes.some((route) => matchesGlob(requiredInput, route))) {
+    const included = javascriptRoutes
+      .filter((route) => !route.startsWith('!'))
+      .some((route) => matchesGlob(requiredInput, route));
+    const excluded = javascriptRoutes
+      .filter((route) => route.startsWith('!'))
+      .some((route) => matchesGlob(requiredInput, route.slice(1)));
+    if (!included || excluded) {
       failures.push(
         `project-validation javascript filter must cover ${requiredInput}`
       );

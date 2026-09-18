@@ -1,3 +1,4 @@
+import { matchesGlob } from 'node:path';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -92,4 +93,22 @@ test('native obligations execute in standard required jobs even on a Turbo hit',
     'android:enabled="false"',
   ])
     assert.ok(android.includes(input), input);
+});
+
+test('changing the shared action selects the real instructions validator', () => {
+  const action = read('.github/actions/changes/action.yml');
+  const block = action.match(/\n {10}instructions:\n((?: {12}- .*\n)+)/)?.[1];
+  assert.ok(block);
+  const patterns = [...block.matchAll(/- '([^']+)'/g)].map((match) => match[1]);
+  const file = '.github/actions/changes/action.yml';
+  const included = patterns
+    .filter((pattern) => !pattern.startsWith('!'))
+    .some((pattern) => matchesGlob(file, pattern));
+  const excluded = patterns
+    .filter((pattern) => pattern.startsWith('!'))
+    .some((pattern) => matchesGlob(file, pattern.slice(1)));
+  assert.equal(
+    selected('instructions', { instructions: included && !excluded }),
+    true
+  );
 });
