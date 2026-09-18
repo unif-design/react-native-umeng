@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: 安装
-description: "用 Yarn 安装 @unif/react-native-umeng 的 10 个 peerDependencies，配置最后一项 react-native-worklets/plugin，并完成 Android/iOS 原生接线。"
+description: '安装依赖，配置原生权限、构建环境与宿主接线。'
 ---
 
 # 安装
@@ -10,15 +10,15 @@ description: "用 Yarn 安装 @unif/react-native-umeng 的 10 个 peerDependenci
 
 ## 环境要求
 
-| 要求 | 版本 |
-| --- | --- |
-| React Native | 当前只验证 **0.85 New Architecture**(Fabric + TurboModules) |
-| React | 当前验证 19 |
-| iOS | RN 0.85 最低系统要求;仓库 simulator build/XCTest 已通过 |
-| Android | minSdk 24;Gradle SDK build 与真机矩阵须在具备 Android SDK 的环境验证 |
+| 要求         | 版本                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| React Native | 需要新架构；当前仓库开发基线为 **0.86.3**                            |
+| React        | 仓库开发基线为 19.2.3                                                |
+| iOS          | 采用当前 React Native 和依赖所要求的最低系统版本                     |
+| Android      | minSdk 24;Gradle SDK build 与真机矩阵须在具备 Android SDK 的环境验证 |
 
 :::info 仅支持新架构
-本库是 TurboModule 桥,当前验证 **React Native 0.86.3 New Architecture**。旧架构(Bridge)不在目标范围；公开 peer 仍兼容 RN 0.86 的已验证组合。
+本库是 TurboModule 桥,仓库开发基线为 **React Native 0.86.3 New Architecture**。旧架构(Bridge)不在目标范围；支持范围以本页依赖清单和包声明为准。
 :::
 
 ---
@@ -41,23 +41,23 @@ yarn add @unif/react-native-umeng \
 
 各包的作用与版本约束:
 
-| 包 | 版本约束 | 作用 |
-| --- | --- | --- |
-| `@sbaiahmed1/react-native-blur` | `>=4` | design 根入口的静态依赖 |
-| `@unif/react-native-design` | `>=0.26.0` | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`) |
-| `react` | `*` | RN 工程已有 |
-| `react-native` | `>=0.86.0` | RN 工程已有;本仓当前验证基线为 RN 0.86.3 |
-| `react-native-gesture-handler` | `>=3.0.0 <4.0.0` | design 手势底层与 ShareSheet Modal 内部 root |
-| `react-native-reanimated` | `>=4.5.3 <4.7.0` | design 根入口运行时依赖;当前验证 4.6.x |
-| `react-native-reanimated-carousel` | `>=5.0.0 <6.0.0` | design 根入口静态依赖 |
-| `react-native-safe-area-context` | `>=5` | design 根入口静态依赖 |
-| `react-native-svg` | `>=15` | 面板平台图标与 design 图标 |
-| `react-native-worklets` | `>=0.11.3 <0.13.0` | Reanimated / design 运行时与 Babel 转换;当前验证 0.12.x |
+| 包                                 | 版本约束           | 作用                                                    |
+| ---------------------------------- | ------------------ | ------------------------------------------------------- |
+| `@sbaiahmed1/react-native-blur`    | `>=4`              | design 根入口的静态依赖                                 |
+| `@unif/react-native-design`        | `>=0.26.0`         | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`)      |
+| `react`                            | `*`                | RN 工程已有                                             |
+| `react-native`                     | `>=0.86.0`         | RN 工程已有;本仓当前验证基线为 RN 0.86.3                |
+| `react-native-gesture-handler`     | `>=3.0.0 <4.0.0`   | design 手势底层与 ShareSheet Modal 内部 root            |
+| `react-native-reanimated`          | `>=4.5.3 <4.7.0`   | design 根入口运行时依赖;当前验证 4.6.x                  |
+| `react-native-reanimated-carousel` | `>=5.0.0 <6.0.0`   | design 根入口静态依赖                                   |
+| `react-native-safe-area-context`   | `>=5`              | design 根入口静态依赖                                   |
+| `react-native-svg`                 | `>=15`             | 面板平台图标与 design 图标                              |
+| `react-native-worklets`            | `>=0.11.3 <0.13.0` | Reanimated / design 运行时与 Babel 转换;当前验证 0.12.x |
 
-范围以安装版本的 `package.json#peerDependencies` 为唯一真相源,不要从旧文档猜版本。
+范围以安装版本的 `package.json#peerDependencies` 为准。
 
 :::note RNGH 3 + Carousel 5 的窄 peer 例外
-当前 design 0.20 组合使用 RNGH 3 与 Carousel 5。Carousel 5 发布 metadata 的 RNGH peer 为 `>=2.9 <3`,与当前组合没有交集,但仓库已通过 scoped override、窄 allowlist 与漂移检查管理该已验证例外。不要为了清掉 warning 降级 RNGH,也不要使用全局 override、`--force` 或 `--legacy-peer-deps`;Carousel 或 RNGH major 变化时再重新评估。
+当前依赖组合使用 RNGH 3 与 Carousel 5。Carousel 5 发布 metadata 的 RNGH peer 为 `>=2.9 <3`,与当前组合没有交集,但仓库已通过 scoped override、窄 allowlist 与漂移检查管理该已验证例外。不要为了清掉 warning 降级 RNGH,也不要使用全局 override、`--force` 或 `--legacy-peer-deps`;Carousel 或 RNGH major 变化时再重新评估。
 :::
 
 ### Worklets Babel plugin(React Native App 必配) {#worklets-babel}
@@ -114,7 +114,7 @@ Android 端依赖随 Gradle 自动同步,无需手动 link。使用项目已有�
 
 ## 4. 原生回调配置(必做)
 
-分享后能否跳回 App,完全取决于原生侧的 URL Scheme / 回调 Activity 注册。**模板不要凭记忆编**,按对应平台文档逐项配置:
+分享后能否跳回 App,完全取决于原生侧的 URL Scheme / 回调 Activity 注册。**配置方法见对应平台文档**,按对应平台文档逐项配置:
 
 - [iOS 原生配置](../native-setup/ios) —— `Info.plist` 的 `LSApplicationQueriesSchemes` / `CFBundleURLTypes`,`AppDelegate` 转发 `handleOpen(_:options:)`,微信 Universal Link。
 - [Android 原生配置](../native-setup/android) —— `WXEntryActivity` / `DDShareActivity` 必须在**宿主包名**下并直接继承 SDK 回调基类;Activity 不硬编码凭据。
@@ -125,8 +125,8 @@ Android 端依赖随 Gradle 自动同步,无需手动 link。使用项目已有�
 
 ## 下一步
 
-- [快速上手](./quick-start) —— 5 分钟跑通初始化 + 第一次分享
-- [指南 → 隐私合规(PIPL)](../guides/privacy-pipl) —— preInit / init 两段式时序
+- [快速上手](./quick-start) —— 完成初始化 + 第一次分享
+- [指南 → 初始化与用户同意](../guides/privacy-pipl) —— preInit / init 两段式时序
 - [API 参考 → Common](../api/common) —— preInit / init / isInited 完整参数
 
 ## 官方参考

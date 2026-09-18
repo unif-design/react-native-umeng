@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: 测试（Mock）
-description: '在 Jest 中用官方 mock 替换 @unif/react-native-umeng：share* 默认 resolve success；shareCancel / shareFailed 返回 UmengError，须配 mockRejectedValueOnce；Analytics.* 是同步 jest.fn，ShareSheetHost 渲染 null。'
+description: '在测试环境使用随包 mock 验证调用和结果处理。'
 ---
 
 # 测试（Mock）

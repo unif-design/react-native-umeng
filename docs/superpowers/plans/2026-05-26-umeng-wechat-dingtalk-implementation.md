@@ -221,7 +221,7 @@ git status -s | head -20
 {
   "name": "@unif/react-native-umeng",
   "version": "0.1.0",
-  "description": "友盟 React Native bridge: U-Share(WeChat/DingTalk) + U-App Analytics (@unif 私有)",
+  "description": "友盟 React Native bridge: U-Share(WeChat/DingTalk) + U-App Analytics",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
@@ -3122,7 +3122,7 @@ git commit -m "feat(example): full verification matrix (Common+Share+Analytics)"
 ```markdown
 # @unif/react-native-umeng
 
-友盟 React Native bridge：U-Share（微信会话 / 钉钉）+ U-App 移动统计。Unif 私有。
+友盟 React Native bridge：U-Share（微信会话 / 钉钉）+ U-App 移动统计。由 Unif 维护。
 
 ## 安装
 

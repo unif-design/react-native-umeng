@@ -1,7 +1,7 @@
 {
   "name": "@unif/react-native-umeng",
   "version": "0.9.0",
-  "description": "友盟 React Native bridge: U-Share(WeChat/DingTalk) + U-App Analytics (@unif 私有)",
+  "description": "Unif React Native 友盟接入：微信会话、钉钉分享和应用统计",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {

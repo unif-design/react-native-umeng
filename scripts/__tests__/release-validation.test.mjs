@@ -56,7 +56,11 @@ const iosExampleContractPaths = [
   'example/ios/ReactNativeUmengExample/AppDelegate.swift',
   'example/ios/ReactNativeUmengExample/SceneDelegateFixture.swift',
 ];
-const exampleDocsContractPaths = ['example/README.md', 'package.json'];
+const exampleDocsContractPaths = [
+  'example/README.md',
+  'example/INTEGRATION.md',
+  'package.json',
+];
 const androidExampleContractPaths = [
   'example/android/app/src/main/AndroidManifest.xml',
   'example/android/app/build.gradle',
@@ -99,9 +103,7 @@ async function createIosExampleContractFixture(mutate) {
   try {
     for (const relativePath of iosExampleContractPaths) {
       const source = await readFile(join(repositoryRoot, relativePath), 'utf8');
-      const fixtureSource = mutate
-        ? mutate({ relativePath, source })
-        : source;
+      const fixtureSource = mutate ? mutate({ relativePath, source }) : source;
       if (fixtureSource !== source) {
         mutationCount += 1;
       }
@@ -112,7 +114,10 @@ async function createIosExampleContractFixture(mutate) {
     }
 
     if (mutate) {
-      assert.ok(mutationCount > 0, 'fixture mutation must change a source file');
+      assert.ok(
+        mutationCount > 0,
+        'fixture mutation must change a source file'
+      );
     }
     return fixtureRoot;
   } catch (error) {
@@ -130,9 +135,7 @@ async function createExampleDocsContractFixture(mutate) {
   try {
     for (const relativePath of exampleDocsContractPaths) {
       const source = await readFile(join(repositoryRoot, relativePath), 'utf8');
-      const fixtureSource = mutate
-        ? mutate({ relativePath, source })
-        : source;
+      const fixtureSource = mutate ? mutate({ relativePath, source }) : source;
       if (fixtureSource !== source) {
         mutationCount += 1;
       }
@@ -143,7 +146,10 @@ async function createExampleDocsContractFixture(mutate) {
     }
 
     if (mutate) {
-      assert.ok(mutationCount > 0, 'fixture mutation must change a source file');
+      assert.ok(
+        mutationCount > 0,
+        'fixture mutation must change a source file'
+      );
     }
     return fixtureRoot;
   } catch (error) {
@@ -161,9 +167,7 @@ async function createAndroidExampleContractFixture(mutate) {
   try {
     for (const relativePath of androidExampleContractPaths) {
       const source = await readFile(join(repositoryRoot, relativePath), 'utf8');
-      const fixtureSource = mutate
-        ? mutate({ relativePath, source })
-        : source;
+      const fixtureSource = mutate ? mutate({ relativePath, source }) : source;
       if (fixtureSource !== source) {
         mutationCount += 1;
       }
@@ -174,7 +178,10 @@ async function createAndroidExampleContractFixture(mutate) {
     }
 
     if (mutate) {
-      assert.ok(mutationCount > 0, 'fixture mutation must change a source file');
+      assert.ok(
+        mutationCount > 0,
+        'fixture mutation must change a source file'
+      );
     }
     return fixtureRoot;
   } catch (error) {
@@ -197,9 +204,7 @@ function replaceOccurrence(source, search, replacement, occurrence = 1) {
   }
 
   return (
-    source.slice(0, index) +
-    replacement +
-    source.slice(index + search.length)
+    source.slice(0, index) + replacement + source.slice(index + search.length)
   );
 }
 
@@ -276,7 +281,11 @@ test('native runtime sources and new init helpers cannot bypass minor', () => {
   ];
 
   for (const relativePath of initializationPaths) {
-    assert.equal(isInitializationContractPath(relativePath), true, relativePath);
+    assert.equal(
+      isInitializationContractPath(relativePath),
+      true,
+      relativePath
+    );
     assert.equal(
       minimumReleaseLevel({
         changedInitialization: [relativePath],
@@ -337,7 +346,10 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
 
   // peer 与安装侧分段:装了 install range 的 manifest 冒充 peerDependencies 必须被拒,
   // 否则「peer 该宽 / 安装侧该窄」这条分段规则形同虚设。
-  assert.notEqual(designPeerRange, sharedRangesFor('dependencies')['@unif/react-native-design']);
+  assert.notEqual(
+    designPeerRange,
+    sharedRangesFor('dependencies')['@unif/react-native-design']
+  );
   const peerRangesWithInstallDesign = {
     ...sharedRangesFor('peerDependencies'),
     '@unif/react-native-design':
@@ -378,11 +390,8 @@ test('workspace development graph matches the React Native 0.86.3 fixture', asyn
       '../../package.json',
       '../../example/package.json',
       '../../website/package.json',
-    ].map(
-      async (relativePath) =>
-        JSON.parse(
-          await readFile(new URL(relativePath, import.meta.url), 'utf8')
-        )
+    ].map(async (relativePath) =>
+      JSON.parse(await readFile(new URL(relativePath, import.meta.url), 'utf8'))
     )
   );
 
@@ -395,18 +404,9 @@ test('workspace development graph matches the React Native 0.86.3 fixture', asyn
 
   assert.equal(example.dependencies.react, '19.2.3');
   assert.equal(example.dependencies['react-native'], '0.86.3');
-  assert.equal(
-    example.devDependencies['@react-native/babel-preset'],
-    '0.86.3'
-  );
-  assert.equal(
-    example.devDependencies['@react-native/jest-preset'],
-    '0.86.3'
-  );
-  assert.equal(
-    example.devDependencies['@react-native/metro-config'],
-    '0.86.3'
-  );
+  assert.equal(example.devDependencies['@react-native/babel-preset'], '0.86.3');
+  assert.equal(example.devDependencies['@react-native/jest-preset'], '0.86.3');
+  assert.equal(example.devDependencies['@react-native/metro-config'], '0.86.3');
   assert.equal(
     example.devDependencies['@react-native/typescript-config'],
     '0.86.3'
@@ -428,10 +428,7 @@ test('workspace development graph matches the React Native 0.86.3 fixture', asyn
   assert.equal(website.dependencies.react, '19.2.3');
   assert.equal(website.dependencies['react-dom'], '19.2.3');
   assert.equal(website.dependencies['react-native'], '0.86.3');
-  assert.equal(
-    website.devDependencies['@react-native/metro-config'],
-    '0.86.3'
-  );
+  assert.equal(website.devDependencies['@react-native/metro-config'], '0.86.3');
 });
 
 test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', async () => {
@@ -463,10 +460,7 @@ test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', a
       'dir'
     );
 
-    const lockfile = await readFile(
-      join(repositoryRoot, 'yarn.lock'),
-      'utf8'
-    );
+    const lockfile = await readFile(join(repositoryRoot, 'yarn.lock'), 'utf8');
     const reactNativePackageStanza =
       /^"react-native@npm:0\.86\.3":\n  version: 0\.86\.3\n  resolution: "react-native@npm:0\.86\.3"/m;
     assert.match(lockfile, reactNativePackageStanza);
@@ -482,10 +476,7 @@ test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', a
         encoding: 'utf8',
       });
 
-    await writeFile(
-      join(fixtureRoot, 'yarn.lock'),
-      lockfileWithUnrelated085
-    );
+    await writeFile(join(fixtureRoot, 'yarn.lock'), lockfileWithUnrelated085);
     const unrelatedResult = runVerifier();
     assert.equal(
       unrelatedResult.status,
@@ -515,14 +506,10 @@ test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', a
 test('versioned example Pod lock remains visible to Git maintenance', () => {
   const repositoryRoot = new URL('../../', import.meta.url);
   const lockfile = 'example/ios/Podfile.lock';
-  const tracked = spawnSync(
-    'git',
-    ['ls-files', '--error-unmatch', lockfile],
-    {
-      cwd: repositoryRoot,
-      encoding: 'utf8',
-    }
-  );
+  const tracked = spawnSync('git', ['ls-files', '--error-unmatch', lockfile], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  });
   assert.equal(
     tracked.status,
     0,
@@ -568,14 +555,30 @@ test('example native contract verifier is registered and executable', async () =
   );
 });
 
-test('example README includes an executable independent consumer copy guide', () => {
-  assert.deepEqual(
-    collectExampleDocsContractFailures({ repositoryRoot }),
-    []
-  );
+test('example README links to an executable independent consumer copy guide', () => {
+  assert.deepEqual(collectExampleDocsContractFailures({ repositoryRoot }), []);
 });
 
-test('example README consumer guide rejects contract mutations', async (t) => {
+test('example README must link to the independent consumer guide', async () => {
+  const fixtureRoot = await createExampleDocsContractFixture(
+    ({ relativePath, source }) =>
+      relativePath === 'example/README.md'
+        ? source.replace('](INTEGRATION.md)', '](missing.md)')
+        : source
+  );
+  try {
+    assert.match(
+      collectExampleDocsContractFailures({ repositoryRoot: fixtureRoot }).join(
+        '\n'
+      ),
+      /missing independent consumer guide link/
+    );
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('independent consumer guide rejects contract mutations', async (t) => {
   const mutations = [
     {
       name: 'workspace package in consumer install command',
@@ -614,7 +617,8 @@ test('example README consumer guide rejects contract mutations', async (t) => {
       name: 'AASA redirect allowed',
       search: '且不得重定向',
       replacement: '且可以重定向',
-      expectedFailure: /consumer guide is missing AASA endpoint must not redirect/,
+      expectedFailure:
+        /consumer guide is missing AASA endpoint must not redirect/,
     },
     {
       name: 'missing AASA appID format',
@@ -628,12 +632,8 @@ test('example README consumer guide rejects contract mutations', async (t) => {
     await t.test(mutation.name, async () => {
       const fixtureRoot = await createExampleDocsContractFixture(
         ({ relativePath, source }) =>
-          relativePath === 'example/README.md'
-            ? replaceOccurrence(
-                source,
-                mutation.search,
-                mutation.replacement
-              )
+          relativePath === 'example/INTEGRATION.md'
+            ? replaceOccurrence(source, mutation.search, mutation.replacement)
             : source
       );
 
@@ -659,8 +659,7 @@ test('example Android contract rejects equivalent host callback declarations', a
     {
       label: 'fully qualified',
       wx: 'unif.reactnativeumeng.example.wxapi.WXEntryActivity',
-      dingtalk:
-        'unif.reactnativeumeng.example.ddshare.DDShareActivity',
+      dingtalk: 'unif.reactnativeumeng.example.ddshare.DDShareActivity',
     },
     {
       label: 'applicationId placeholder',
@@ -674,8 +673,7 @@ test('example Android contract rejects equivalent host callback declarations', a
       const fixtureRoot = await createAndroidExampleContractFixture(
         ({ relativePath, source }) => {
           if (
-            relativePath !==
-            'example/android/app/src/main/AndroidManifest.xml'
+            relativePath !== 'example/android/app/src/main/AndroidManifest.xml'
           ) {
             return source;
           }
@@ -759,10 +757,7 @@ test('example iOS contract accepts a valid temporary fixture', async () => {
 test('example iOS contract rejects a prefixed scheme hidden in a duplicate URL type', async () => {
   const fixtureRoot = await createIosExampleContractFixture(
     ({ relativePath, source }) => {
-      if (
-        relativePath !==
-        'example/ios/ReactNativeUmengExample/Info.plist'
-      ) {
+      if (relativePath !== 'example/ios/ReactNativeUmengExample/Info.plist') {
         return source;
       }
 
@@ -817,8 +812,7 @@ test('example iOS contract rejects callback argument mutations', async (t) => {
     {
       name: 'AppDelegate URL uses callback URL and options',
       path: appDelegatePath,
-      search:
-        'UmengBootstrap.shared().handleOpen(url, options: options)',
+      search: 'UmengBootstrap.shared().handleOpen(url, options: options)',
       replacement:
         'UmengBootstrap.shared().handleOpen(URL(string: "https://invalid.example")!, options: [:])',
       expectedFailure: /AppDelegate\.swift URL callback.*Umeng arguments/,
@@ -827,17 +821,15 @@ test('example iOS contract rejects callback argument mutations', async (t) => {
       name: 'AppDelegate URL uses callback application',
       path: appDelegatePath,
       search: ['      application,', '      open: url,'].join('\n'),
-      replacement: [
-        '      UIApplication.shared,',
-        '      open: url,',
-      ].join('\n'),
+      replacement: ['      UIApplication.shared,', '      open: url,'].join(
+        '\n'
+      ),
       expectedFailure: /AppDelegate\.swift URL callback.*RCTLinking arguments/,
     },
     {
       name: 'AppDelegate Universal Link uses callback activity',
       path: appDelegatePath,
-      search:
-        'UmengBootstrap.shared().handleUniversalLink(userActivity)',
+      search: 'UmengBootstrap.shared().handleUniversalLink(userActivity)',
       replacement:
         'UmengBootstrap.shared().handleUniversalLink(NSUserActivity(activityType: "invalid"))',
       expectedFailure:
@@ -847,16 +839,14 @@ test('example iOS contract rejects callback argument mutations', async (t) => {
       name: 'Scene URL derives options from its current context',
       path: sceneDelegatePath,
       search: 'let options = applicationOptions(for: context)',
-      replacement:
-        'let options: [UIApplication.OpenURLOptionsKey: Any] = [:]',
+      replacement: 'let options: [UIApplication.OpenURLOptionsKey: Any] = [:]',
       expectedFailure: /SceneDelegateFixture\.swift URL callback.*context/,
     },
     {
       name: 'Scene Universal Link forwards its current activity',
       path: sceneDelegatePath,
       search: 'continue: userActivity',
-      replacement:
-        'continue: NSUserActivity(activityType: "invalid")',
+      replacement: 'continue: NSUserActivity(activityType: "invalid")',
       expectedFailure:
         /SceneDelegateFixture\.swift Universal Link callback.*RCTLinking arguments/,
     },
@@ -864,8 +854,7 @@ test('example iOS contract rejects callback argument mutations', async (t) => {
       name: 'Scene connection URL forwards its current context URL',
       path: sceneDelegatePath,
       search: 'open: context.url',
-      replacement:
-        'open: URL(string: "https://invalid.example")!',
+      replacement: 'open: URL(string: "https://invalid.example")!',
       occurrence: 2,
       expectedFailure:
         /SceneDelegateFixture\.swift connection callback.*RCTLinking arguments/,
@@ -873,8 +862,7 @@ test('example iOS contract rejects callback argument mutations', async (t) => {
     {
       name: 'Scene connection Universal Link forwards its current activity',
       path: sceneDelegatePath,
-      search:
-        'UmengBootstrap.shared().handleUniversalLink(userActivity)',
+      search: 'UmengBootstrap.shared().handleUniversalLink(userActivity)',
       replacement:
         'UmengBootstrap.shared().handleUniversalLink(NSUserActivity(activityType: "invalid"))',
       occurrence: 2,
@@ -1013,11 +1001,7 @@ test('published docs retain current Android CI and device evidence', async () =>
     /Android native contract\/JVM tests 已验证/,
     'share docs: 缺少 Android 分享门禁证据'
   );
-  assert.match(
-    shareDocs,
-    /真实 App/,
-    'share docs: 缺少真实 App 验证边界'
-  );
+  assert.match(shareDocs, /真实 App/, 'share docs: 缺少真实 App 验证边界');
 });
 
 test('explicit release increment selects an exact version for validation and release', () => {
@@ -1079,9 +1063,7 @@ test('squash title classification matches the Angular release floor', () => {
     'minor'
   );
   assert.equal(
-    publishContract.squashTitleReleaseLevel(
-      'feat(ci): enforce release floor'
-    ),
+    publishContract.squashTitleReleaseLevel('feat(ci): enforce release floor'),
     'minor'
   );
   assert.throws(
@@ -1152,7 +1134,9 @@ test('native package audit enumerates every Android main and Podspec iOS source'
     ]);
 
     const mutatedTarball = new Set(
-      expected.filter((relativePath) => relativePath !== 'ios/Nested/Adapter.mm')
+      expected.filter(
+        (relativePath) => relativePath !== 'ios/Nested/Adapter.mm'
+      )
     );
     assert.throws(
       () => assertProductionNativeFiles(mutatedTarball, expected),

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: Share
-description: "Share API 全量参考：openSheet(payload, options?) 命令式面板（推荐，需挂 ShareSheetHost）+ 直拉 shareText/shareImage/shareLink(options) + isInstalled / listPlatforms。payload type 为 'text'|'image'|'link'；取消与失败一律 reject（E_USER_CANCEL / E_SHARE_FAILED / E_PLATFORM_NOT_INSTALLED），resolve 到手的 ShareResult.code 恒为 'success'。"
+description: '分享面板、直接分享、平台查询和结果处理。'
 ---
 
 # Share

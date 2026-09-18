@@ -75,7 +75,10 @@ function consumerGuideNodes(markdown) {
 }
 
 function verifyConsumerGuide({ failures, source }) {
-  const readmePath = 'example/README.md';
+  const readmePath = 'example/INTEGRATION.md';
+  if (!source('example/README.md').includes('](INTEGRATION.md)')) {
+    failures.push('example/README.md: missing independent consumer guide link');
+  }
   const nodes = consumerGuideNodes(source(readmePath));
   if (nodes === null) {
     failures.push(
@@ -107,8 +110,7 @@ function verifyConsumerGuide({ failures, source }) {
 
   const installBlock = codeBlocks.find(
     (block) =>
-      /\byarn add\b/.test(block) &&
-      block.includes('@unif/react-native-umeng')
+      /\byarn add\b/.test(block) && block.includes('@unif/react-native-umeng')
   );
   if (installBlock === undefined) {
     failures.push(
@@ -161,13 +163,31 @@ function verifyConsumerGuide({ failures, source }) {
       'Worklets Babel plugin must be last',
       /react-native-worklets\/plugin[\s\S]*(最后一项|末尾)/,
     ],
-    ['Android callback package follows applicationId', /applicationId[\s\S]*\.wxapi[\s\S]*\.ddshare/],
-    ['library callback manifest must not be duplicated', /不要重复声明[\s\S]*callback Activity/],
-    ['AASA Associated Domain uses applinks host only', /applinks:[A-Za-z0-9.-]+[\s\S]*(不含|不要包含)[\s\S]*(scheme|path)/i],
-    ['AASA endpoint must not redirect', /apple-app-site-association[\s\S]*(不得|不能|不允许)重定向/],
+    [
+      'Android callback package follows applicationId',
+      /applicationId[\s\S]*\.wxapi[\s\S]*\.ddshare/,
+    ],
+    [
+      'library callback manifest must not be duplicated',
+      /不要重复声明[\s\S]*callback Activity/,
+    ],
+    [
+      'AASA Associated Domain uses applinks host only',
+      /applinks:[A-Za-z0-9.-]+[\s\S]*(不含|不要包含)[\s\S]*(scheme|path)/i,
+    ],
+    [
+      'AASA endpoint must not redirect',
+      /apple-app-site-association[\s\S]*(不得|不能|不允许)重定向/,
+    ],
     ['AASA appID format', /TEAM_ID\.BUNDLE_ID/],
-    ['AASA path and domain align with Universal Link', /wechatUniversalLink[\s\S]*(path|路径)[\s\S]*(domain|域名|host)[\s\S]*(一致|对齐)/i],
-    ['real callbacks require devices and online domain', /真实[\s\S]*(回包|回调)[\s\S]*真机[\s\S]*线上域名/],
+    [
+      'AASA path and domain align with Universal Link',
+      /wechatUniversalLink[\s\S]*(path|路径)[\s\S]*(domain|域名|host)[\s\S]*(一致|对齐)/i,
+    ],
+    [
+      'real callbacks require devices and online domain',
+      /真实[\s\S]*(回包|回调)[\s\S]*真机[\s\S]*线上域名/,
+    ],
   ];
   for (const [label, pattern] of requiredProse) {
     if (!pattern.test(prose)) {
@@ -195,9 +215,7 @@ function verifyConsumerGuide({ failures, source }) {
 
   for (const link of consumerGuideLinks) {
     if (!links.has(link)) {
-      failures.push(
-        `${readmePath}: consumer guide is missing link ${link}`
-      );
+      failures.push(`${readmePath}: consumer guide is missing link ${link}`);
     }
   }
 }
@@ -774,21 +792,14 @@ function verifyCallbackClass({
   }
 }
 
-function parseGradleStringProperty({
-  buildGradle,
-  failures,
-  path,
-  property,
-}) {
+function parseGradleStringProperty({ buildGradle, failures, path, property }) {
   const pattern = new RegExp(
     `^\\s*${property}\\s*(?:=\\s*)?(["'])([^"']+)\\1\\s*$`,
     'gm'
   );
   const values = [...buildGradle.matchAll(pattern)].map((match) => match[2]);
   if (values.length !== 1) {
-    failures.push(
-      `${path}: ${property} must be exactly one string literal`
-    );
+    failures.push(`${path}: ${property} must be exactly one string literal`);
     return '';
   }
   return values[0];

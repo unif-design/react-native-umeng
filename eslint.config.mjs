@@ -24,6 +24,10 @@ export default defineConfig([
     },
   },
   {
+    files: ['**/*.mjs'],
+    languageOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+  },
+  {
     ignores: ['node_modules/', 'lib/', 'website/'],
   },
 ]);

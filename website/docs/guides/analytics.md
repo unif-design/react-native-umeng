@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: 统计埋点
-description: "用 @unif/react-native-umeng 的 U-App 统计：Analytics.onEvent / signIn / signOut 都是同步 void（不要 await），onEvent 的 number 参数自动字符串化，数据上报需先 Common.init()。"
+description: '记录自定义事件与统计用户标识。'
 ---
 
 # 统计埋点
@@ -19,15 +19,15 @@ description: "用 @unif/react-native-umeng 的 U-App 统计：Analytics.onEvent 
 ```ts
 import { Analytics } from '@unif/react-native-umeng';
 
-Analytics.onEvent('login');                                  // 无参数
-Analytics.onEvent('share_click', { source: 'detail' });      // 字符串参数
+Analytics.onEvent('login'); // 无参数
+Analytics.onEvent('share_click', { source: 'detail' }); // 字符串参数
 Analytics.onEvent('page_view', { page: 'home', duration: 30 }); // 含数字参数
 ```
 
-| 参数 | 类型 | 说明 |
-| --- | --- | --- |
-| `eventId` | `string` | 事件 ID(需与友盟后台配置一致) |
-| `params` | `Record<string, string \| number>?` | 事件属性,可选 |
+| 参数      | 类型                                | 说明                          |
+| --------- | ----------------------------------- | ----------------------------- |
+| `eventId` | `string`                            | 事件 ID(需与友盟后台配置一致) |
+| `params`  | `Record<string, string \| number>?` | 事件属性,可选                 |
 
 :::note 数字参数自动字符串化
 `params` 里 value 为 `number` 时会自动 `String()` 转成字符串 —— 友盟 iOS 的 attributes 强制要求 `NSString`。所以 `{ duration: 30 }` 上报时是 `"30"`,你不必手动转。
@@ -38,12 +38,12 @@ Analytics.onEvent('page_view', { page: 'home', duration: 30 }); // 含数字参�
 ## 账号登录埋点 {#sign-in}
 
 ```ts
-Analytics.signIn('user-123', 'WX');  // provider 可选
+Analytics.signIn('user-123', 'WX'); // provider 可选
 ```
 
-| 参数 | 类型 | 说明 |
-| --- | --- | --- |
-| `userId` | `string` | 业务用户 ID |
+| 参数       | 类型      | 说明                            |
+| ---------- | --------- | ------------------------------- |
+| `userId`   | `string`  | 业务用户 ID                     |
 | `provider` | `string?` | 登录方式标识,如 `'WX'` / `'DD'` |
 
 ## 账号登出埋点 {#sign-out}
@@ -72,7 +72,7 @@ Analytics.signOut();
 ---
 
 :::warning 采集需先 `Common.init()`
-`Analytics.*` 的数据上报依赖 `Common.init()` 已完成。Android 与 iOS 在 init 前都会在 native adapter/vendor 之前同步 no-op，不缓存或补发该事件。两段式合规见[隐私合规(PIPL)](./privacy-pipl)。
+`Analytics.*` 的数据上报依赖 `Common.init()` 已完成。Android 与 iOS 在 init 前都会在 native adapter/vendor 之前同步 no-op，不缓存或补发该事件。初始化顺序见[初始化与用户同意](./privacy-pipl)。
 :::
 
 ## 相关

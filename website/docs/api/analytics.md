@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Analytics
-description: "Analytics API 全量参考：onEvent(eventId, params?) / signIn(userId, provider?) / signOut() —— U-App 移动统计。三个方法都是同步 void、不返回 Promise、不要 await；onEvent 的 number 值会自动 stringify（友盟 iOS attributes 强制 NSString）。"
+description: '统计事件及统计用户标识的公开接口。'
 ---
 
 # Analytics
@@ -14,11 +14,11 @@ U-App 移动统计 API。三个方法都是**同步 `void`**，不返回 Promise
 import { Analytics } from '@unif/react-native-umeng';
 ```
 
-| 方法 | 签名 | 返回 |
-| --- | --- | --- |
+| 方法                  | 签名                        | 返回   |
+| --------------------- | --------------------------- | ------ |
 | [`onEvent`](#onevent) | `onEvent(eventId, params?)` | `void` |
-| [`signIn`](#signin) | `signIn(userId, provider?)` | `void` |
-| [`signOut`](#signout) | `signOut()` | `void` |
+| [`signIn`](#signin)   | `signIn(userId, provider?)` | `void` |
+| [`signOut`](#signout) | `signOut()`                 | `void` |
 
 :::warning 同步 void，不要 await
 `Analytics.*` 全是同步方法，**没有 Promise**。`await Analytics.onEvent(...)` 只会 await 一个 `undefined`，没有意义。
@@ -37,10 +37,10 @@ function onEvent(
 ): void;
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `eventId` | `string` | ✅ | 友盟后台定义的事件 ID |
-| `params` | `Record<string, string \| number>` | — | 事件属性；`number` 值自动 `String()` stringify（友盟 iOS attributes 强制 `NSString`） |
+| 参数      | 类型                               | 必填 | 说明                                                                                  |
+| --------- | ---------------------------------- | ---- | ------------------------------------------------------------------------------------- |
+| `eventId` | `string`                           | ✅   | 友盟后台定义的事件 ID                                                                 |
+| `params`  | `Record<string, string \| number>` | —    | 事件属性；`number` 值自动 `String()` stringify（友盟 iOS attributes 强制 `NSString`） |
 
 ```ts
 Analytics.onEvent('share_tap', { source: 'detail', count: 1 }); // count 自动转 '1'
@@ -56,10 +56,10 @@ Analytics.onEvent('share_tap', { source: 'detail', count: 1 }); // count 自动�
 function signIn(userId: string, provider?: string): void;
 ```
 
-| 参数 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `userId` | `string` | ✅ | 业务用户 ID |
-| `provider` | `string` | — | 登录方式标识，如 `'WX'` / `'DD'` |
+| 参数       | 类型     | 必填 | 说明                             |
+| ---------- | -------- | ---- | -------------------------------- |
+| `userId`   | `string` | ✅   | 业务用户 ID                      |
+| `provider` | `string` | —    | 登录方式标识，如 `'WX'` / `'DD'` |
 
 ---
 
@@ -75,11 +75,11 @@ function signOut(): void;
 
 ## 平台支持 {#platform-support}
 
-| API | iOS | Android |
-| --- | --- | --- |
-| `onEvent` | ✅ | ✅ |
-| `signIn` | ✅ | ✅ |
-| `signOut` | ✅ | ✅ |
+| API       | iOS | Android |
+| --------- | --- | ------- |
+| `onEvent` | ✅  | ✅      |
+| `signIn`  | ✅  | ✅      |
+| `signOut` | ✅  | ✅      |
 
 > 埋点需要先完成 [`Common.init()`](./common#init) 才会真正上报。Android 与 iOS native 在未 init 时都同步 no-op，不缓存或补发这次事件；三个入口均在 vendor adapter 前执行门禁。
 

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: Platform & ShareSheetHost
-description: 'Platform & ShareSheetHost 参考：Platform 是分享目标枚举（wechat_session / dingtalk）；ShareSheetHost 支持 modal 与无遮罩 floating 呈现，须挂在 ThemeProvider 内。'
+description: '分享平台枚举与 ShareSheetHost 的挂载方式。'
 ---
 
 # Platform & ShareSheetHost

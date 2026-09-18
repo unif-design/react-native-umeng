@@ -1,11 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-  mkdtemp,
-  mkdir,
-  rm,
-  symlink,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -62,15 +56,16 @@ async function createValidRepository() {
     write(
       fixtureRoot,
       'AGENTS.md',
-      '查找并读取 `rn-library` 与 `umeng-share` Skill,两者叠加使用。\n'
+      '必须使用 `unif-portal-dev-skills:code-development`。\n'
     ),
     write(
       fixtureRoot,
       'README.md',
-      '[umeng-share Skill](https://github.com/unif-design/skills/tree/main/skills/umeng-share)\n'
+      '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)\n'
     ),
     write(fixtureRoot, 'CONTRIBUTING.md', '# Contributing\n'),
     write(fixtureRoot, 'example/README.md', '# Example\n'),
+    write(fixtureRoot, 'example/INTEGRATION.md', '# Integration\n'),
     write(
       fixtureRoot,
       'website/docs/guide.mdx',
@@ -96,6 +91,7 @@ async function createValidRepository() {
         'README.md',
         'CONTRIBUTING.md',
         'example/README.md',
+        'example/INTEGRATION.md',
         'website/docs/**',
         'package.json',
         'scripts/verify-agent-instructions.mjs',
@@ -110,7 +106,7 @@ test('accepts CRLF, MDX, reference links, balanced parentheses, and fenced examp
   const fixtureRoot = await createValidRepository();
   try {
     const result = await verifyAgentInstructions(fixtureRoot);
-    assert.equal(result.activeMarkdownFiles.length, 6);
+    assert.equal(result.activeMarkdownFiles.length, 7);
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }
@@ -122,7 +118,7 @@ test('rejects reverse CLAUDE delegation and negated Skill guidance', async () =>
     await write(
       fixtureRoot,
       'AGENTS.md',
-      '规范统一见 [CLAUDE.md](./CLAUDE.md)。\n读取并使用 `umeng-share` Skill。\n'
+      '规范统一见 [CLAUDE.md](./CLAUDE.md)。\n读取并使用 `unif-portal-dev-skills:code-development` Skill。\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
@@ -132,58 +128,58 @@ test('rejects reverse CLAUDE delegation and negated Skill guidance', async () =>
     await write(
       fixtureRoot,
       'AGENTS.md',
-      'Do not use the `umeng-share` Skill.\n'
+      'Do not use the `unif-portal-dev-skills:code-development` Skill.\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
-      /must positively require the umeng-share Skill/
+      /must positively require the unif-portal-dev-skills:code-development Skill/
     );
 
     await write(
       fixtureRoot,
       'AGENTS.md',
-      'Agents may use the `umeng-share` Skill if desired.\n'
+      'Agents may use the `unif-portal-dev-skills:code-development` Skill if desired.\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
-      /must positively require the umeng-share Skill/
+      /must positively require the unif-portal-dev-skills:code-development Skill/
     );
 
     await write(
       fixtureRoot,
       'AGENTS.md',
-      'Agents might use the `umeng-share` Skill.\n'
+      'Agents might use the `unif-portal-dev-skills:code-development` Skill.\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
-      /must positively require the umeng-share Skill/
+      /must positively require the unif-portal-dev-skills:code-development Skill/
     );
 
     await write(
       fixtureRoot,
       'AGENTS.md',
-      'Agent 可使用 `umeng-share` Skill。\n'
+      'Agent 可使用 `unif-portal-dev-skills:code-development` Skill。\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
-      /must positively require the umeng-share Skill/
+      /must positively require the unif-portal-dev-skills:code-development Skill/
     );
 
     for (const optionalGuidance of [
-      'Use the `umeng-share` Skill only if you feel like it.\n',
-      'Use cases for the `umeng-share` Skill are documented here.\n',
-      '使用场景：`umeng-share` Skill。\n',
-      '本仓不强制使用 `umeng-share` Skill。\n',
-      '是否必须使用 `umeng-share` Skill？\n',
-      'Must agents use the `umeng-share` Skill?\n',
-      'It is unclear whether the `umeng-share` Skill is required.\n',
-      'The `umeng-share` Skill is required only by legacy projects.\n',
-      'No agent must use the `umeng-share` Skill.\n',
+      'Use the `unif-portal-dev-skills:code-development` Skill only if you feel like it.\n',
+      'Use cases for the `unif-portal-dev-skills:code-development` Skill are documented here.\n',
+      '使用场景：`unif-portal-dev-skills:code-development` Skill。\n',
+      '本仓不强制使用 `unif-portal-dev-skills:code-development` Skill。\n',
+      '是否必须使用 `unif-portal-dev-skills:code-development` Skill？\n',
+      'Must agents use the `unif-portal-dev-skills:code-development` Skill?\n',
+      'It is unclear whether the `unif-portal-dev-skills:code-development` Skill is required.\n',
+      'The `unif-portal-dev-skills:code-development` Skill is required only by legacy projects.\n',
+      'No agent must use the `unif-portal-dev-skills:code-development` Skill.\n',
     ]) {
       await write(fixtureRoot, 'AGENTS.md', optionalGuidance);
       await assert.rejects(
         verifyAgentInstructions(fixtureRoot),
-        /must positively require the umeng-share Skill/
+        /must positively require the unif-portal-dev-skills:code-development Skill/
       );
     }
   } finally {
@@ -197,21 +193,21 @@ test('requires a real Skill hyperlink target instead of ordinary text', async ()
     await write(
       fixtureRoot,
       'README.md',
-      '`skills/umeng-share` is text, while [skills](https://github.com/unif-design/skills) is generic.\n'
+      '`skills/unif-portal-dev-skills:code-development` is text, while [skills](https://github.com/unif-skill) is generic.\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
-      /must hyperlink to the skills\/umeng-share path/
+      /must hyperlink to the unif-portal-dev-skills repository/
     );
 
     await write(
       fixtureRoot,
       'README.md',
-      '[unused]: https://github.com/unif-design/skills/tree/main/skills/umeng-share\n'
+      '[unused]: https://github.com/unif-skill/unif-portal-dev-skills\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
-      /must hyperlink to the skills\/umeng-share path/
+      /must hyperlink to the unif-portal-dev-skills repository/
     );
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
@@ -225,7 +221,7 @@ test('does not skip broken local links that contain braces', async () => {
       fixtureRoot,
       'README.md',
       [
-        '[umeng-share Skill](https://github.com/unif-design/skills/tree/main/skills/umeng-share)',
+        '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)',
         '[broken](./{missing}.md)',
         '',
       ].join('\n')
@@ -251,7 +247,7 @@ test('rejects lexical and symlink link escapes outside the repository', async ()
       fixtureRoot,
       'README.md',
       [
-        '[umeng-share Skill](https://github.com/unif-design/skills/tree/main/skills/umeng-share)',
+        '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)',
         '[escape](../outside-instructions.md)',
         '',
       ].join('\n')
@@ -265,12 +261,15 @@ test('rejects lexical and symlink link escapes outside the repository', async ()
       fixtureRoot,
       'README.md',
       [
-        '[umeng-share Skill](https://github.com/unif-design/skills/tree/main/skills/umeng-share)',
+        '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)',
         '[symlink](./website/docs/outside-link.md)',
         '',
       ].join('\n')
     );
-    await symlink(outsideFile, join(fixtureRoot, 'website/docs/outside-link.md'));
+    await symlink(
+      outsideFile,
+      join(fixtureRoot, 'website/docs/outside-link.md')
+    );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
       /escapes repository root/
@@ -293,6 +292,7 @@ test('requires CI instruction routes for every scanned input group', async () =>
         'README.md',
         'CONTRIBUTING.md',
         'example/README.md',
+        'example/INTEGRATION.md',
         'package.json',
         'scripts/verify-agent-instructions.mjs',
       ])
@@ -314,6 +314,7 @@ test('requires JavaScript validation routes for example tests and contracts', as
     'README.md',
     'CONTRIBUTING.md',
     'example/README.md',
+    'example/INTEGRATION.md',
     'website/docs/**',
     'package.json',
     'scripts/verify-agent-instructions.mjs',

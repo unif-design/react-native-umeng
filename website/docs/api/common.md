@@ -1,16 +1,12 @@
 ---
 sidebar_position: 1
 title: Common
-description: "Common API 全量参考：preInit(config) / init() / isInited() — 友盟 SDK 两段式初始化（PIPL 合规）。preInit 只在 JS 保存配置快照且不触达 native；用户同意后调用无参 init() 才执行 native 初始化。未先 preInit 直接 init 会 reject E_NOT_INITIALIZED。"
+description: 'SDK 配置准备、初始化和状态查询。'
 ---
 
 # Common
 
-两段式初始化的公共契约:用户同意《隐私协议》前 JS 只保存 config 快照,授权后 `init()` 才允许进入 native。Android 与 iOS 都通过单一 private native `initialize(config)` 执行授权后的 vendor bootstrap。
-
-:::info 验证边界
-iOS bootstrap 已通过 simulator build、XCTest 与 native contract。Android CI 已通过 native contract、状态机 JVM tests、启用 minify 的 release 构建与 merged manifest 核对。真实第三方平台行为与 Android 真机 R8 运行仍须真机验证。
-:::
+两段式初始化的公共契约:用户同意《隐私协议》前 JS 只保存 config 快照,授权后 `init()` 才允许进入 native。Android 与 iOS 通过内部原生接口 `initialize(config)` 完成 SDK 初始化。
 
 ## 引用 {#import}
 
@@ -18,17 +14,17 @@ iOS bootstrap 已通过 simulator build、XCTest 与 native contract。Android C
 import { Common } from '@unif/react-native-umeng';
 ```
 
-| 方法 | 签名 | 返回 |
-| --- | --- | --- |
-| [`preInit`](#preinit) | `preInit(config: UmengInitConfig)` | `Promise<void>` |
-| [`init`](#init) | `init()` | `Promise<void>` |
-| [`isInited`](#isinited) | `isInited()` | `Promise<boolean>` |
+| 方法                    | 签名                               | 返回               |
+| ----------------------- | ---------------------------------- | ------------------ |
+| [`preInit`](#preinit)   | `preInit(config: UmengInitConfig)` | `Promise<void>`    |
+| [`init`](#init)         | `init()`                           | `Promise<void>`    |
+| [`isInited`](#isinited) | `isInited()`                       | `Promise<boolean>` |
 
 ---
 
 ## `Common.preInit(config)` {#preinit}
 
-准备初始化配置。可在用户同意《隐私协议》之前调用，推荐 **App 启动后立刻调**；方法名保留 `preInit`，但它不会预初始化 vendor SDK。
+准备初始化配置。可在用户同意《隐私协议》之前调用，在首次 `init()` 前完成即可；方法名保留 `preInit`，但它不会预初始化 vendor SDK。
 
 **行为**：只在 JS 侧校验、标准化并冻结/保存不可变 config 快照,**不调用 native、不注册平台、不上报数据**。相同 config 可安全重复;native 初始化开始前可用新的合法 config 替换快照,开始后不得再换 config。
 
@@ -38,14 +34,14 @@ function preInit(config: UmengInitConfig): Promise<void>;
 
 ### `UmengInitConfig` 字段 {#umenginitconfig}
 
-| 字段 | 类型 | 必填 | 默认 | 说明 |
-| --- | --- | --- | --- | --- |
-| `appkey` | `string` | ✅ | — | 友盟 appkey |
-| `channel` | `string` | — | iOS `'App Store'`、Android `'default'` | 渠道标识 |
-| `wechatAppId` | `string` | 启用微信时 | — | 微信平台 App ID；与下列微信字段按平台严格成组 |
-| `wechatAppSecret` | `string` | 启用微信时 | — | 微信平台 App Secret；必须与 `wechatAppId` 同时提供 |
-| `wechatUniversalLink` | `string` | iOS 启用微信时 | — | 带 host 的绝对 HTTPS URL；Android 可省略 |
-| `dingtalkAppId` | `string` | — | — | 钉钉平台 appid；不传则不注册钉钉分享 |
+| 字段                  | 类型     | 必填           | 默认值                                 | 说明                                               |
+| --------------------- | -------- | -------------- | -------------------------------------- | -------------------------------------------------- |
+| `appkey`              | `string` | ✅             | —                                      | 友盟 appkey                                        |
+| `channel`             | `string` | —              | iOS `'App Store'`、Android `'default'` | 渠道标识                                           |
+| `wechatAppId`         | `string` | 启用微信时     | —                                      | 微信平台 App ID；与下列微信字段按平台严格成组      |
+| `wechatAppSecret`     | `string` | 启用微信时     | —                                      | 微信平台 App Secret；必须与 `wechatAppId` 同时提供 |
+| `wechatUniversalLink` | `string` | iOS 启用微信时 | —                                      | 带 host 的绝对 HTTPS URL；Android 可省略           |
+| `dingtalkAppId`       | `string` | —              | —                                      | 钉钉平台 appid；不传则不注册钉钉分享               |
 
 组合校验不会静默忽略半套配置:
 
@@ -57,8 +53,8 @@ function preInit(config: UmengInitConfig): Promise<void>;
 
 ### 抛出 {#preinit-errors}
 
-| `UmengError.code` | 触发 |
-| --- | --- |
+| `UmengError.code`   | 触发                                                                 |
+| ------------------- | -------------------------------------------------------------------- |
 | `E_INVALID_OPTIONS` | 必填字段缺失、平台字段组合非法,或 native 初始化开始后尝试更换 config |
 
 ---
@@ -81,11 +77,11 @@ native 失败不会把不确定副作用伪装成可安全回滚：Android 的�
 
 ### 抛出 {#init-errors}
 
-| `UmengError.code` | 触发 |
-| --- | --- |
-| `E_NOT_INITIALIZED` | 未先 `preInit` 就调 `init` |
+| `UmengError.code`   | 触发                        |
+| ------------------- | --------------------------- |
+| `E_NOT_INITIALIZED` | 未先 `preInit` 就调 `init`  |
 | `E_INVALID_OPTIONS` | 初始化开始后尝试更换 config |
-| `E_UNKNOWN` | native init 其它失败 |
+| `E_UNKNOWN`         | native init 其它失败        |
 
 ---
 
@@ -125,16 +121,16 @@ await Common.init();
 
 ## 平台支持 {#platform-support}
 
-| API | iOS | Android |
-| --- | --- | --- |
-| `preInit()` | ✅ JS-only、零 native/vendor | ✅ JS-only、零 native/vendor |
-| `init()` | ✅ UL + 平台注册 + `UMConfigure.initWithAppkey` | ✅ vendor preInit + 平台注册 + FileProvider + init |
-| `isInited()` | ✅ | ✅ |
+| API          | iOS                                             | Android                                            |
+| ------------ | ----------------------------------------------- | -------------------------------------------------- |
+| `preInit()`  | ✅ JS-only、零 native/vendor                    | ✅ JS-only、零 native/vendor                       |
+| `init()`     | ✅ UL + 平台注册 + `UMConfigure.initWithAppkey` | ✅ vendor preInit + 平台注册 + FileProvider + init |
+| `isInited()` | ✅                                              | ✅                                                 |
 
 > `wechatUniversalLink` 仅 iOS 生效（Android 无此概念）。表格描述当前实现；iOS simulator/XCTest 与 Android native contract/JVM/minified build 均已有 CI 通过证据，真实平台回跳仍尚未真机验收。
 
 ## 相关 {#related}
 
-- [隐私合规（PIPL）](../guides/privacy-pipl) —— 两段式初始化的合规依据与时序
+- [初始化与用户同意](../guides/privacy-pipl) —— 两段式初始化的职责与时序
 - [快速上手](../getting-started/quick-start) —— 完整接入流程
 - [常见问题 → init 顺序](../troubleshooting#init-order)
