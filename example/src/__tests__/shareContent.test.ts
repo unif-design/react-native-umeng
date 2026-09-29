@@ -1,5 +1,3 @@
-import { Platform } from '@unif/react-native-umeng';
-
 import {
   DEFAULT_SHARE_CONTENT,
   buildDirectOptions,
@@ -38,8 +36,8 @@ describe('share content builders', () => {
   it('builds the image and optional thumb for a sheet image payload', () => {
     expect(buildSheetPayload({ type: 'image', ...validDraft })).toEqual({
       type: 'image',
-      image: 'https://host/image.png',
-      thumb: 'https://host/thumb.png',
+      imageUrl: 'https://host/image.png',
+      thumbnailUrl: 'https://host/thumb.png',
     });
   });
 
@@ -48,7 +46,7 @@ describe('share content builders', () => {
       buildSheetPayload({ type: 'image', ...validDraft, thumb: '   ' })
     ).toEqual({
       type: 'image',
-      image: 'https://host/image.png',
+      imageUrl: 'https://host/image.png',
     });
   });
 
@@ -68,70 +66,37 @@ describe('share content builders', () => {
       title: '标题',
       url: 'https://host/page',
       description: '说明',
-      thumb: 'https://host/thumb.png',
+      thumbnailUrl: 'https://host/thumb.png',
     });
   });
 
-  it.each([
-    [
-      'text',
-      Platform.WECHAT_SESSION,
-      {
-        platform: Platform.WECHAT_SESSION,
-        text: '一段分享文字',
-      },
-    ],
-    [
-      'text',
-      Platform.DINGTALK,
-      {
-        platform: Platform.DINGTALK,
-        text: '一段分享文字',
-      },
-    ],
-    [
-      'image',
-      Platform.WECHAT_SESSION,
-      {
-        platform: Platform.WECHAT_SESSION,
-        image: 'https://host/image.png',
-        thumb: 'https://host/thumb.png',
-      },
-    ],
-    [
-      'image',
-      Platform.DINGTALK,
-      {
-        platform: Platform.DINGTALK,
-        image: 'https://host/image.png',
-        thumb: 'https://host/thumb.png',
-      },
-    ],
-    [
-      'link',
-      Platform.WECHAT_SESSION,
-      {
-        platform: Platform.WECHAT_SESSION,
-        title: '分享标题',
-        url: 'https://host/page',
-        description: '分享说明',
-        thumb: 'https://host/thumb.png',
-      },
-    ],
-    [
-      'link',
-      Platform.DINGTALK,
-      {
-        platform: Platform.DINGTALK,
-        title: '分享标题',
-        url: 'https://host/page',
-        description: '分享说明',
-        thumb: 'https://host/thumb.png',
-      },
-    ],
-  ] as const)('builds %s direct options for %s', (type, platform, expected) => {
-    expect(buildDirectOptions(type, platform, validDraft)).toEqual(expected);
-  });
+  it.each(['wechat_session', 'dingtalk'] as const)(
+    'builds public requests for %s',
+    (target) => {
+      expect(buildDirectOptions('text', target, validDraft)).toEqual({
+        target,
+        content: { type: 'text', text: '一段分享文字' },
+      });
+      expect(buildDirectOptions('image', target, validDraft)).toEqual({
+        target,
+        content: {
+          type: 'image',
+          imageUrl: 'https://host/image.png',
+          thumbnailUrl: 'https://host/thumb.png',
+        },
+      });
+      expect(buildDirectOptions('link', target, validDraft)).toEqual({
+        target,
+        content: {
+          type: 'link',
+          title: '分享标题',
+          url: 'https://host/page',
+          description: '分享说明',
+          thumbnailUrl: 'https://host/thumb.png',
+        },
+      });
+    }
+  );
 
   it.each([
     [
@@ -164,7 +129,7 @@ describe('share content builders', () => {
     [
       'direct image',
       () =>
-        buildDirectOptions('image', Platform.DINGTALK, {
+        buildDirectOptions('image', 'dingtalk', {
           ...validDraft,
           image: 'http://host/image.png',
         }),
@@ -172,7 +137,7 @@ describe('share content builders', () => {
     [
       'direct link',
       () =>
-        buildDirectOptions('link', Platform.WECHAT_SESSION, {
+        buildDirectOptions('link', 'wechat_session', {
           ...validDraft,
           url: 'not-a-url',
         }),
@@ -180,7 +145,7 @@ describe('share content builders', () => {
     [
       'direct image thumb over HTTP',
       () =>
-        buildDirectOptions('image', Platform.DINGTALK, {
+        buildDirectOptions('image', 'dingtalk', {
           ...validDraft,
           thumb: 'http://host/thumb.png',
         }),
@@ -188,7 +153,7 @@ describe('share content builders', () => {
     [
       'direct link thumb without a host',
       () =>
-        buildDirectOptions('link', Platform.WECHAT_SESSION, {
+        buildDirectOptions('link', 'wechat_session', {
           ...validDraft,
           thumb: 'https:///',
         }),
@@ -196,7 +161,7 @@ describe('share content builders', () => {
   ])('rejects non-HTTPS or malformed URLs for %s', (_label, build) => {
     expect(build).toThrow(
       expect.objectContaining({
-        code: 'E_INVALID_OPTIONS',
+        reason: 'invalid_input',
         message: '分享素材必须使用带域名的绝对 HTTPS URL',
       })
     );

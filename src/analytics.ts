@@ -1,57 +1,60 @@
 import NativeUmengAnalytics from './NativeUmengAnalytics';
-import { UmengError } from './types';
+import { normalizeError, unavailable } from './internal/errors';
+import {
+  invalidInput,
+  requireObject,
+  requireString,
+} from './internal/shareContent';
+import type { AnalyticsEvent, AnalyticsUser } from './types';
 
-function invalidOptions(message: string): never {
-  throw new UmengError('E_INVALID_OPTIONS', message);
-}
-
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return invalidOptions(`\`${field}\` must be a non-empty string`);
-  }
-  return value;
-}
-
-/** 自定义事件埋点。value 为 number 时自动 stringify（友盟 iOS attributes 强制 NSString）。 */
-export function onEvent(
-  eventId: string,
-  params?: Record<string, string | number>
-): void {
-  const validEventId = requireString(eventId, 'eventId');
-  const stringifiedParams: Record<string, string> = {};
-  if (params !== undefined) {
-    if (
-      typeof params !== 'object' ||
-      params === null ||
-      Array.isArray(params)
-    ) {
-      return invalidOptions('`params` must be an object');
-    }
-
-    for (const [k, v] of Object.entries(params)) {
-      if (typeof v === 'string') {
-        stringifiedParams[k] = v;
-      } else if (typeof v === 'number' && Number.isFinite(v)) {
-        stringifiedParams[k] = String(v);
-      } else {
-        return invalidOptions(
-          `\`params.${k}\` must be a string or finite number`
+/** Synchronous handoff; return does not confirm upload to the analytics service. */
+export function trackEvent(input: Readonly<AnalyticsEvent>): void {
+  const event = requireObject(input, 'input');
+  const name = requireString(event.name, 'name');
+  const attributes: Record<string, string> = {};
+  if (event.attributes !== undefined) {
+    for (const [key, value] of Object.entries(
+      requireObject(event.attributes, 'attributes')
+    )) {
+      if (
+        typeof value !== 'string' &&
+        !(typeof value === 'number' && Number.isFinite(value))
+      )
+        return invalidInput(
+          `attributes.${key} must be a string or finite number`
         );
-      }
+      Object.defineProperty(attributes, key, {
+        value: String(value),
+        enumerable: true,
+      });
     }
   }
-  NativeUmengAnalytics.onEvent(validEventId, stringifiedParams);
+  try {
+    if (!NativeUmengAnalytics) throw unavailable();
+    NativeUmengAnalytics.onEvent(name, attributes);
+  } catch (error) {
+    throw normalizeError(error, 'sdk_failed', 'Failed to hand off event');
+  }
 }
-
-/** 用户登录账号埋点。 */
-export function signIn(userId: string, provider?: string): void {
-  const validUserId = requireString(userId, 'userId');
-  const validProvider =
-    provider === undefined ? undefined : requireString(provider, 'provider');
-  NativeUmengAnalytics.signIn(validUserId, validProvider);
+export function bindAnalyticsUser(input: Readonly<AnalyticsUser>): void {
+  const user = requireObject(input, 'input');
+  const userId = requireString(user.userId, 'userId');
+  const provider =
+    user.provider === undefined
+      ? undefined
+      : requireString(user.provider, 'provider');
+  try {
+    if (!NativeUmengAnalytics) throw unavailable();
+    NativeUmengAnalytics.signIn(userId, provider);
+  } catch (error) {
+    throw normalizeError(error, 'sdk_failed', 'Failed to bind analytics user');
+  }
 }
-
-/** 用户登出。 */
-export function signOut(): void {
-  NativeUmengAnalytics.signOut();
+export function clearAnalyticsUser(): void {
+  try {
+    if (!NativeUmengAnalytics) throw unavailable();
+    NativeUmengAnalytics.signOut();
+  } catch (error) {
+    throw normalizeError(error, 'sdk_failed', 'Failed to clear analytics user');
+  }
 }

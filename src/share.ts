@@ -1,347 +1,165 @@
+import NativeUmengCommon from './NativeUmengCommon';
 import NativeUmengShare from './NativeUmengShare';
-import { shareSheetController } from './ShareSheet/ShareSheetController';
-import { normalizeError } from './internal/errors';
+import { normalizeError, toFailure, unavailable } from './internal/errors';
 import {
-  Platform,
-  PLATFORM_DISPLAY_NAMES,
-  SUPPORTED_PLATFORMS,
-  UmengError,
-  type PlatformInfo,
-  type ShareImageOptions,
-  type ShareLinkOptions,
-  type ShareResult,
-  type ShareSheetOptions,
-  type ShareSheetPayload,
-  type ShareTextOptions,
+  isShareTarget,
+  requireObject,
+  snapshotContent,
+  invalidInput,
+} from './internal/shareContent';
+import { SHARE_TARGET_LABELS } from './internal/shareTargets';
+import { UmengError } from './UmengError';
+import type {
+  ShareTarget,
+  ShareTargetInfo,
+  ShareRequest,
+  ShareResult,
 } from './types';
 
-type UnknownRecord = Record<string, unknown>;
-
-function invalidOptions(message: string): never {
-  throw new UmengError('E_INVALID_OPTIONS', message);
-}
-
-function requireObject(value: unknown, field: string): UnknownRecord {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return invalidOptions(`\`${field}\` must be an object`);
-  }
-  return value as UnknownRecord;
-}
-
-function assertSupportedPlatform(value: unknown): asserts value is Platform {
+async function configuredTargets(): Promise<readonly ShareTarget[]> {
+  if (!NativeUmengCommon) throw unavailable();
+  const value: unknown = await NativeUmengCommon.getConfiguredShareTargets();
   if (
-    typeof value !== 'string' ||
-    !SUPPORTED_PLATFORMS.includes(value as Platform)
+    !Array.isArray(value) ||
+    !Array.from(value).every(isShareTarget) ||
+    new Set(value).size !== value.length
   ) {
-    throw new UmengError(
-      'E_PLATFORM_NOT_SUPPORTED',
-      `Platform '${String(value)}' is not supported`
-    );
-  }
-}
-
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0) {
-    return invalidOptions(`\`${field}\` must be a non-empty string`);
+    throw new UmengError({
+      reason: 'invalid_response',
+      message: 'Native returned invalid share targets',
+    });
   }
   return value;
 }
-
-function optionalString(value: unknown, field: string): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return requireString(value, field);
+async function installed(target: ShareTarget): Promise<boolean> {
+  if (!NativeUmengShare) throw unavailable();
+  const value: unknown = await NativeUmengShare.isInstalled(target);
+  if (typeof value !== 'boolean')
+    throw new UmengError({
+      reason: 'invalid_response',
+      message: 'Native returned invalid installation state',
+    });
+  return value;
 }
-
-function requireHttpUrl(value: unknown, field: string): string {
-  const urlString = requireString(value, field);
+export async function getShareTargets(): Promise<readonly ShareTargetInfo[]> {
   try {
-    const url = new URL(urlString);
-    if (
-      (url.protocol === 'http:' || url.protocol === 'https:') &&
-      url.hostname.length > 0
-    ) {
-      return urlString;
-    }
-  } catch {
-    // 统一在下方抛稳定的参数错误。
+    const targets = await configuredTargets();
+    return await Promise.all(
+      targets.map(async (target) => ({
+        target,
+        label: SHARE_TARGET_LABELS[target],
+        installed: await installed(target),
+      }))
+    );
+  } catch (error) {
+    throw normalizeError(error, 'sdk_failed', 'Failed to query share targets');
   }
-  return invalidOptions(
-    `\`${field}\` must be an absolute HTTP or HTTPS URL with a host`
-  );
 }
-
-function optionalHttpUrl(value: unknown, field: string): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  return requireHttpUrl(value, field);
-}
-
-function invalidNativeResult(value: unknown): never {
-  throw new UmengError(
-    'E_UNKNOWN',
-    'Native share returned an invalid result',
-    value
-  );
-}
-
-function settleNativeResult(
-  value: unknown,
-  requestedPlatform: Platform
-): ShareResult {
+function nativeResult(value: unknown, target: ShareTarget): ShareResult {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return invalidNativeResult(value);
+    throw new UmengError({
+      reason: 'invalid_response',
+      message: 'Native share returned an invalid receipt',
+    });
   }
-
-  const result = value as UnknownRecord;
-  const { code, message, platform } = result;
-  if (code !== 'success' && code !== 'cancel' && code !== 'failed') {
-    return invalidNativeResult(value);
-  }
+  const result = value as Record<string, unknown>;
   if (
-    typeof platform !== 'string' ||
-    !SUPPORTED_PLATFORMS.includes(platform as Platform) ||
-    platform !== requestedPlatform
+    result.platform !== target ||
+    !['success', 'cancel', 'failed'].includes(String(result.code)) ||
+    (result.message !== undefined && typeof result.message !== 'string')
   ) {
-    return invalidNativeResult(value);
+    throw new UmengError({
+      reason: 'invalid_response',
+      message: 'Native share returned a mismatched or invalid receipt',
+    });
   }
-  if (message !== undefined && typeof message !== 'string') {
-    return invalidNativeResult(value);
-  }
-
-  if (code === 'cancel') {
-    throw new UmengError(
-      'E_USER_CANCEL',
-      message !== undefined && message.trim().length > 0
-        ? message
-        : 'User cancelled',
-      value
-    );
-  }
-  if (code === 'failed') {
-    throw new UmengError(
-      'E_SHARE_FAILED',
-      message !== undefined && message.trim().length > 0
-        ? message
-        : 'Share failed',
-      value
-    );
-  }
-
-  return message === undefined
-    ? { code: 'success', platform: requestedPlatform }
-    : { code: 'success', message, platform: requestedPlatform };
+  if (result.code === 'success') return { status: 'success', target };
+  if (result.code === 'cancel') return { status: 'cancelled', target };
+  return {
+    status: 'failed',
+    target,
+    error: {
+      reason: 'sdk_failed',
+      message:
+        typeof result.message === 'string' && result.message.trim()
+          ? result.message
+          : 'Share failed',
+    },
+  };
 }
 
-function validateSheetPayload(payload: unknown): ShareSheetPayload {
-  const input = requireObject(payload, 'payload');
-
-  switch (input.type) {
-    case 'text':
-      return { type: 'text', text: requireString(input.text, 'text') };
-    case 'image': {
-      const thumb = optionalHttpUrl(input.thumb, 'thumb');
-      return thumb === undefined
-        ? { type: 'image', image: requireHttpUrl(input.image, 'image') }
-        : {
-            type: 'image',
-            image: requireHttpUrl(input.image, 'image'),
-            thumb,
-          };
+// One SDK channel, independent from the lifetime of any presentation instance.
+let sharing = false;
+export async function share(
+  input: Readonly<ShareRequest>
+): Promise<ShareResult> {
+  let target: ShareTarget | undefined;
+  let ownsChannel = false;
+  try {
+    const request = requireObject(input, 'input');
+    if (!isShareTarget(request.target))
+      return invalidInput('target must be wechat_session or dingtalk');
+    target = request.target;
+    const content = snapshotContent(request.content);
+    if (sharing)
+      throw new UmengError({
+        reason: 'busy',
+        message: 'Another native share is still in progress',
+      });
+    sharing = true;
+    ownsChannel = true;
+    if (!(await configuredTargets()).includes(target)) {
+      throw new UmengError({
+        reason: 'not_initialized',
+        message: `${SHARE_TARGET_LABELS[target]} has not been configured`,
+      });
     }
-    case 'link': {
-      const description = optionalString(input.description, 'description');
-      const thumb = optionalHttpUrl(input.thumb, 'thumb');
-      return {
-        type: 'link',
-        title: requireString(input.title, 'title'),
-        url: requireHttpUrl(input.url, 'url'),
-        ...(description === undefined ? {} : { description }),
-        ...(thumb === undefined ? {} : { thumb }),
-      };
-    }
-    default:
-      return invalidOptions(
-        '`payload.type` must be one of "text", "image", or "link"'
-      );
-  }
-}
-
-function validateSheetOptions(options: unknown): ShareSheetOptions {
-  if (options === undefined) {
-    return {};
-  }
-
-  const input = requireObject(options, 'options');
-  optionalString(input.title, 'title');
-  optionalString(input.cancelText, 'cancelText');
-  if (
-    input.hideUninstalled !== undefined &&
-    typeof input.hideUninstalled !== 'boolean'
-  ) {
-    return invalidOptions('`hideUninstalled` must be a boolean');
-  }
-  if (
-    input.presentation !== undefined &&
-    input.presentation !== 'modal' &&
-    input.presentation !== 'floating'
-  ) {
-    return invalidOptions(
-      '`presentation` must be one of "modal" or "floating"'
-    );
-  }
-  if (input.onDismiss !== undefined && typeof input.onDismiss !== 'function') {
-    return invalidOptions('`onDismiss` must be a function');
-  }
-  if (
-    input.onSheetLayout !== undefined &&
-    typeof input.onSheetLayout !== 'function'
-  ) {
-    return invalidOptions('`onSheetLayout` must be a function');
-  }
-  if (input.subtitles !== undefined) {
-    const subtitles = requireObject(input.subtitles, 'subtitles');
-    for (const [platform, subtitle] of Object.entries(subtitles)) {
-      if (!SUPPORTED_PLATFORMS.includes(platform as Platform)) {
-        return invalidOptions(
-          `\`subtitles.${platform}\` is not a supported platform`
+    if (!(await installed(target)))
+      throw new UmengError({
+        reason: 'not_installed',
+        message: `${SHARE_TARGET_LABELS[target]} 未安装`,
+      });
+    if (!NativeUmengShare) throw unavailable();
+    let receipt: unknown;
+    switch (content.type) {
+      case 'text':
+        receipt = await NativeUmengShare.shareText(target, content.text);
+        break;
+      case 'image':
+        receipt = await NativeUmengShare.shareImage(
+          target,
+          content.imageUrl,
+          content.thumbnailUrl
         );
-      }
-      requireString(subtitle, `subtitles.${platform}`);
+        break;
+      case 'link':
+        receipt = await NativeUmengShare.shareLink(
+          target,
+          content.title,
+          content.url,
+          content.description,
+          content.thumbnailUrl
+        );
+        break;
     }
-  }
-
-  return options as ShareSheetOptions;
-}
-
-export async function shareText(
-  options: ShareTextOptions
-): Promise<ShareResult> {
-  const fallbackMessage = 'Failed to share text';
-
-  try {
-    const input = requireObject(options, 'options');
-    const platform = input.platform;
-    assertSupportedPlatform(platform);
-    const text = requireString(input.text, 'text');
-    const result: unknown = await NativeUmengShare.shareText(platform, text);
-    return settleNativeResult(result, platform);
+    return nativeResult(receipt, target);
   } catch (error) {
-    throw normalizeError(error, 'E_SHARE_FAILED', fallbackMessage);
-  }
-}
-
-export async function shareImage(
-  options: ShareImageOptions
-): Promise<ShareResult> {
-  const fallbackMessage = 'Failed to share image';
-
-  try {
-    const input = requireObject(options, 'options');
-    const platform = input.platform;
-    assertSupportedPlatform(platform);
-    const image = requireHttpUrl(input.image, 'image');
-    const thumb = optionalHttpUrl(input.thumb, 'thumb');
-    const result: unknown = await NativeUmengShare.shareImage(
-      platform,
-      image,
-      thumb
-    );
-    return settleNativeResult(result, platform);
-  } catch (error) {
-    throw normalizeError(error, 'E_SHARE_FAILED', fallbackMessage);
-  }
-}
-
-export async function shareLink(
-  options: ShareLinkOptions
-): Promise<ShareResult> {
-  const fallbackMessage = 'Failed to share link';
-
-  try {
-    const input = requireObject(options, 'options');
-    const platform = input.platform;
-    assertSupportedPlatform(platform);
-    const title = requireString(input.title, 'title');
-    const url = requireHttpUrl(input.url, 'url');
-    const description = optionalString(input.description, 'description');
-    const thumb = optionalHttpUrl(input.thumb, 'thumb');
-    const result: unknown = await NativeUmengShare.shareLink(
-      platform,
-      title,
-      url,
-      description,
-      thumb
-    );
-    return settleNativeResult(result, platform);
-  } catch (error) {
-    throw normalizeError(error, 'E_SHARE_FAILED', fallbackMessage);
-  }
-}
-
-export async function isInstalled(platform: Platform): Promise<boolean> {
-  const fallbackMessage = 'Failed to query platform installation state';
-
-  try {
-    assertSupportedPlatform(platform);
-    const result: unknown = await NativeUmengShare.isInstalled(platform);
-    if (typeof result !== 'boolean') {
-      throw new UmengError('E_UNKNOWN', fallbackMessage, result);
-    }
-    return result;
-  } catch (error) {
-    throw normalizeError(error, 'E_UNKNOWN', fallbackMessage);
-  }
-}
-
-export async function listPlatforms(): Promise<PlatformInfo[]> {
-  const fallbackMessage = 'Failed to list share platforms';
-
-  try {
-    const installs = await Promise.all(
-      SUPPORTED_PLATFORMS.map((platform) => isInstalled(platform))
-    );
-    return SUPPORTED_PLATFORMS.map((platform, index) => ({
-      platform,
-      installed: installs[index] ?? false,
-      displayName: PLATFORM_DISPLAY_NAMES[platform],
-    }));
-  } catch (error) {
-    throw normalizeError(error, 'E_UNKNOWN', fallbackMessage);
-  }
-}
-
-/**
- * 命令式拉起分享面板（推荐用法）。
- * 必须在应用根挂载 `<ShareSheetHost />`，否则 Promise 立即 reject。
- */
-export async function openSheet(
-  payload: ShareSheetPayload,
-  options?: ShareSheetOptions
-): Promise<ShareResult> {
-  const fallbackMessage = 'Failed to open share sheet';
-  let validatedPayload: ShareSheetPayload;
-  let validatedOptions: ShareSheetOptions;
-
-  try {
-    validatedPayload = validateSheetPayload(payload);
-    validatedOptions = validateSheetOptions(options);
-  } catch (error) {
-    const rawOptions =
-      typeof options === 'object' && options !== null
-        ? (options as Record<string, unknown>)
-        : null;
-    if (typeof rawOptions?.onDismiss === 'function') {
-      rawOptions.onDismiss();
-    }
-    throw normalizeError(error, 'E_UNKNOWN', fallbackMessage);
-  }
-
-  try {
-    return await shareSheetController.show(validatedPayload, validatedOptions);
-  } catch (error) {
-    throw normalizeError(error, 'E_UNKNOWN', fallbackMessage);
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'E_USER_CANCEL'
+    )
+      return {
+        status: 'cancelled',
+        ...(target === undefined ? {} : { target }),
+      };
+    return {
+      status: 'failed',
+      ...(target === undefined ? {} : { target }),
+      error: toFailure(error, 'Failed to share'),
+    };
+  } finally {
+    if (ownsChannel) sharing = false;
   }
 }

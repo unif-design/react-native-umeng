@@ -1,6 +1,6 @@
 export type DemoLogLevel = 'info' | 'warning' | 'error';
 
-export type DemoLogScope = 'setup' | 'platform' | 'share' | 'analytics';
+export type DemoLogScope = 'setup' | 'target' | 'share' | 'analytics';
 
 export type DemoLog = {
   readonly id: string;

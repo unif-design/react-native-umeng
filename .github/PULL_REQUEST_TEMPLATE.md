@@ -16,7 +16,7 @@
 - [ ] `yarn lint`
 - [ ] `yarn typecheck`
 - [ ] `yarn test`
-- [ ] (若改了 native module)在 `example/` 跑过微信/钉钉分享、PIPL `Common.init()` 流程
+- [ ] (若改了 native module)在 `example/` 跑过微信/钉钉分享、PIPL `initializeUmeng(config)` 流程
 - [ ] (若改了 ShareSheet UI)在亮 + 暗主题下都看了
 - [ ] (若改了原生依赖)`yarn turbo run build:android` / `build:ios` 通过
 

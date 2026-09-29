@@ -18,6 +18,29 @@ class UmengBootstrapTest {
     }
 
   @Test
+  fun `configured targets distinguish uninitialized from analytics only and registered targets`() {
+    val calls = mutableListOf<String>()
+    val bootstrap =
+      UmengBootstrapStateMachine(
+        adapter = RecordingAdapter(calls),
+        callbackComponentsFactory = { RecordingCallbacks(calls) },
+      )
+    assertEquals(null, bootstrap.configuredShareTargets())
+    bootstrap.initialize(context, completeConfig)
+    assertEquals(listOf("wechat_session", "dingtalk"), bootstrap.configuredShareTargets())
+    val analytics =
+      UmengBootstrapStateMachine(
+        adapter = RecordingAdapter(mutableListOf()),
+        callbackComponentsFactory = { RecordingCallbacks(mutableListOf()) },
+      )
+    analytics.initialize(
+      context,
+      completeConfig.copy(wechatAppId = null, wechatAppSecret = null, wechatUniversalLink = null, dingtalkAppId = null),
+    )
+    assertEquals(emptyList<String>(), analytics.configuredShareTargets())
+  }
+
+  @Test
   fun `construction does not call the vendor adapter`() {
     val calls = mutableListOf<String>()
 

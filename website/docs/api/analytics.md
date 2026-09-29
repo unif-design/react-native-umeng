@@ -1,89 +1,30 @@
 ---
-sidebar_position: 3
-title: Analytics
-description: '统计事件及统计用户标识的公开接口。'
+title: 统计
+description: 同步交接事件及统计用户关联。
 ---
 
-# Analytics
-
-U-App 移动统计 API。三个方法都是**同步 `void`**，不返回 Promise。
-
-## 引用 {#import}
+# 统计
 
 ```ts
-import { Analytics } from '@unif/react-native-umeng';
+import { trackEvent, bindAnalyticsUser, clearAnalyticsUser } from '@unif/react-native-umeng';
+
+trackEvent({ name: 'share_tap', attributes: { source: 'detail', count: 1 } });
+bindAnalyticsUser({ userId: 'business-user-id', provider: 'organization' });
+clearAnalyticsUser();
 ```
 
-| 方法                  | 签名                        | 返回   |
-| --------------------- | --------------------------- | ------ |
-| [`onEvent`](#onevent) | `onEvent(eventId, params?)` | `void` |
-| [`signIn`](#signin)   | `signIn(userId, provider?)` | `void` |
-| [`signOut`](#signout) | `signOut()`                 | `void` |
+## trackEvent(input) {#trackevent}
 
-:::warning 同步 void，不要 await
-`Analytics.*` 全是同步方法，**没有 Promise**。`await Analytics.onEvent(...)` 只会 await 一个 `undefined`，没有意义。
-:::
+`AnalyticsEvent` 含非空 `name` 及可选 `attributes: Readonly<Record<string, string | number>>`。只接受字符串和有限数字；数字在统计适配中转换为原生字符串，NaN、Infinity、布尔值或嵌套对象同步抛 `UmengError`，reason 为 `invalid_input`。
 
----
+## bindAnalyticsUser(input) {#bindanalyticsuser}
 
-## `Analytics.onEvent(eventId, params?)` {#onevent}
+`AnalyticsUser` 含非空 `userId` 及可选非空 `provider`。消费者在真实账号业务结果后调用；此接口只关联统计标识，不建立业务登录状态。
 
-自定义事件埋点。
+## clearAnalyticsUser() {#clearanalyticsuser}
 
-```ts
-function onEvent(
-  eventId: string,
-  params?: Record<string, string | number>
-): void;
-```
+同步清除 SDK 的统计用户关联。
 
-| 参数      | 类型                               | 必填 | 说明                                                                                  |
-| --------- | ---------------------------------- | ---- | ------------------------------------------------------------------------------------- |
-| `eventId` | `string`                           | ✅   | 友盟后台定义的事件 ID                                                                 |
-| `params`  | `Record<string, string \| number>` | —    | 事件属性；`number` 值自动 `String()` stringify（友盟 iOS attributes 强制 `NSString`） |
+三个方法均返回 `void`。这只表示同步交接，不证明统计服务已收到事件。调用时机由应用在初始化后安排；原生未初始化时不调用厂商、不缓存或补发事件。库不读取业务 store、不自动补初始化、不保存离线事件队列。Web 抛 `unsupported`。
 
-```ts
-Analytics.onEvent('share_tap', { source: 'detail', count: 1 }); // count 自动转 '1'
-```
-
----
-
-## `Analytics.signIn(userId, provider?)` {#signin}
-
-用户登录账号埋点。
-
-```ts
-function signIn(userId: string, provider?: string): void;
-```
-
-| 参数       | 类型     | 必填 | 说明                             |
-| ---------- | -------- | ---- | -------------------------------- |
-| `userId`   | `string` | ✅   | 业务用户 ID                      |
-| `provider` | `string` | —    | 登录方式标识，如 `'WX'` / `'DD'` |
-
----
-
-## `Analytics.signOut()` {#signout}
-
-用户登出。
-
-```ts
-function signOut(): void;
-```
-
----
-
-## 平台支持 {#platform-support}
-
-| API       | iOS | Android |
-| --------- | --- | ------- |
-| `onEvent` | ✅  | ✅      |
-| `signIn`  | ✅  | ✅      |
-| `signOut` | ✅  | ✅      |
-
-> 埋点需要先完成 [`Common.init()`](./common#init) 才会真正上报。Android 与 iOS native 在未 init 时都同步 no-op，不缓存或补发这次事件；三个入口均在 vendor adapter 前执行门禁。
-
-## 相关 {#related}
-
-- [统计埋点指南](../guides/analytics) —— 任务导向用法
-- [Common API](./common) —— 初始化（埋点上报的前提）
+[初始化](./common) · [统计指南](../guides/analytics)

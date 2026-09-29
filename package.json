@@ -6,8 +6,12 @@
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
     ".": {
-      "source": "./src/index.ts",
       "types": "./lib/typescript/src/index.d.ts",
+      "browser": {
+        "source": "./src/index.web.ts",
+        "default": "./lib/module/index.web.js"
+      },
+      "source": "./src/index.ts",
       "default": "./lib/module/index.js"
     },
     "./mock": {
@@ -227,5 +231,6 @@
       "jest"
     ],
     "version": "0.62.0"
-  }
+  },
+  "browser": "./lib/module/index.web.js"
 }

@@ -15,7 +15,7 @@ description: '配置 Android 分享依赖、平台回调与 R8。'
 :::tip 不需要写的内容（已自动合并）
 
 - **`<uses-permission>` 与 `<queries>`** —— `@unif/react-native-umeng` 的 library Manifest 已声明 `INTERNET` / `ACCESS_NETWORK_STATE` / `ACCESS_WIFI_STATE` 权限，以及 `<queries>`（`com.tencent.mm` 微信、`com.alibaba.android.rimet` 钉钉）；Android manifest merger 自动合并到宿主。
-- **友盟相关 `<meta-data>`** —— appkey 等由 JS [`Common.preInit(config)`](../api/common#preinit) 保存,用户授权后 `Common.init()` 才交给 native。
+- **友盟相关 `<meta-data>`** —— appkey 等由 JS [`initializeUmeng(config)`](../api/common#init) 在用户授权后一次交给 native。
 - **回调 Activity manifest 节点** —— library Manifest 已按 `${applicationId}.wxapi.WXEntryActivity` / `${applicationId}.ddshare.DDShareActivity` 声明为 `android:enabled="false"`;完整授权初始化成功后才动态启用已配置平台。宿主只需提供下面两个 class,无需重复注册节点。
   :::
 
@@ -66,7 +66,7 @@ class DDShareActivity : DingCallBack()
 ```
 
 :::warning 不要在 Activity 硬编码 appId
-凭据只从 [`Common.preInit(config)`](../api/common#umenginitconfig) 的 JS 快照进入用户授权后的 native 初始化。Activity 只负责 SDK 回调链。
+凭据只从 [`initializeUmeng(config)`](../api/common#umengconfiguration) 在用户授权后交付的配置快照进入 native 初始化。Activity 只负责 SDK 回调链。
 :::
 
 ---

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { Platform } from '@unif/react-native-umeng';
+import type { ShareTarget } from '@unif/react-native-umeng';
 
 import type { ShareContentDraft } from '../content/shareContent';
 import type { OperationFeedback } from '../errors/classifyUmengError';
@@ -13,7 +13,7 @@ export type SetupActions = {
     field: keyof CredentialDraft,
     value: string | boolean
   ) => void;
-  readonly preInitialize: () => Promise<void>;
+  readonly reviewConfiguration: () => Promise<void>;
   readonly setConsent: (checked: boolean) => void;
   readonly initialize: () => Promise<void>;
   readonly retryInitialize: () => Promise<void>;
@@ -24,11 +24,11 @@ export type ShowcaseActions = SetupActions & {
   readonly back: () => void;
   readonly clearLogs: () => void;
   readonly refreshPlatforms: () => Promise<void>;
-  readonly checkPlatform: (platform: Platform) => Promise<void>;
+  readonly checkPlatform: (target: ShareTarget) => Promise<void>;
   readonly openShareSheet: (draft: SheetDraft) => Promise<void>;
   readonly shareDirect: (
     type: DirectShareType,
-    platform: Platform,
+    target: ShareTarget,
     draft: ShareContentDraft
   ) => Promise<void>;
   readonly trackEvent: (

@@ -1,5 +1,4 @@
 import { ThemeProvider } from '@unif/react-native-design';
-import { ShareSheetHost } from '@unif/react-native-umeng';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
@@ -46,7 +45,6 @@ export default function App() {
       <ThemeProvider>
         <ShowcaseProvider>
           <ExampleRouter />
-          <ShareSheetHost />
         </ShowcaseProvider>
       </ThemeProvider>
     </GestureHandlerRootView>

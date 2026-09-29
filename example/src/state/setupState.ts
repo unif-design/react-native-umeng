@@ -1,4 +1,4 @@
-import type { UmengInitConfig } from '@unif/react-native-umeng';
+import type { UmengConfiguration } from '@unif/react-native-umeng';
 
 import type { OperationFeedback } from '../errors/classifyUmengError';
 
@@ -23,7 +23,7 @@ export type ValidationResult<T> =
 
 export type SetupPhase =
   | 'editing'
-  | 'preInitializing'
+  | 'reviewingConfiguration'
   | 'awaitingConsent'
   | 'initializing'
   | 'initialized'
@@ -34,7 +34,7 @@ export type SetupState = {
   readonly draft: CredentialDraft;
   readonly errors: CredentialErrors;
   readonly consent: boolean;
-  readonly configSnapshot: Readonly<UmengInitConfig> | null;
+  readonly configSnapshot: Readonly<UmengConfiguration> | null;
   readonly feedback: OperationFeedback | null;
 };
 
@@ -48,13 +48,13 @@ export type SetupAction =
       readonly type: 'validationFailed';
       readonly errors: CredentialErrors;
     }
-  | { readonly type: 'preInitializeStarted' }
+  | { readonly type: 'reviewConfigurationStarted' }
   | {
-      readonly type: 'preInitializeSucceeded';
-      readonly configSnapshot: Readonly<UmengInitConfig>;
+      readonly type: 'reviewConfigurationSucceeded';
+      readonly configSnapshot: Readonly<UmengConfiguration>;
     }
   | {
-      readonly type: 'preInitializeFailed';
+      readonly type: 'reviewConfigurationFailed';
       readonly feedback: OperationFeedback;
     }
   | { readonly type: 'setConsent'; readonly checked: boolean }
@@ -96,7 +96,7 @@ function hasOwnErrors(errors: CredentialErrors): boolean {
 export function buildInitConfig(
   draft: CredentialDraft,
   os: SetupOS
-): ValidationResult<UmengInitConfig> {
+): ValidationResult<UmengConfiguration> {
   const errors: CredentialErrors = {};
   const appkey = draft.appkey.trim();
   const channel = draft.channel.trim();
@@ -113,7 +113,7 @@ export function buildInitConfig(
     errors.channel = '请替换 Channel 占位值';
   }
 
-  const config: UmengInitConfig = { appkey };
+  const config: UmengConfiguration = { appKey: appkey };
   if (channel.length > 0) {
     config.channel = channel;
   }
@@ -151,10 +151,9 @@ export function buildInitConfig(
       errors.wechatUniversalLink = '请替换 Universal Link 占位值';
     }
 
-    config.wechatAppId = wechatAppId;
-    config.wechatAppSecret = wechatAppSecret;
+    config.wechat = { appId: wechatAppId, appSecret: wechatAppSecret };
     if (wechatUniversalLink.length > 0) {
-      config.wechatUniversalLink = wechatUniversalLink;
+      config.wechat.universalLink = wechatUniversalLink;
     }
   }
 
@@ -165,7 +164,7 @@ export function buildInitConfig(
     } else if (isPlaceholder(dingtalkAppId)) {
       errors.dingtalkAppId = '请替换钉钉 App ID 占位值';
     }
-    config.dingtalkAppId = dingtalkAppId;
+    config.dingtalk = { appId: dingtalkAppId };
   }
 
   return hasOwnErrors(errors) ? { ok: false, errors } : { ok: true, config };
@@ -221,17 +220,17 @@ export function setupReducer(
       return state.phase === 'editing'
         ? { ...state, errors: action.errors, feedback: null }
         : state;
-    case 'preInitializeStarted':
+    case 'reviewConfigurationStarted':
       return state.phase === 'editing'
         ? {
             ...state,
-            phase: 'preInitializing',
+            phase: 'reviewingConfiguration',
             errors: {},
             feedback: null,
           }
         : state;
-    case 'preInitializeSucceeded':
-      return state.phase === 'preInitializing'
+    case 'reviewConfigurationSucceeded':
+      return state.phase === 'reviewingConfiguration'
         ? {
             ...state,
             phase: 'awaitingConsent',
@@ -241,8 +240,8 @@ export function setupReducer(
             feedback: null,
           }
         : state;
-    case 'preInitializeFailed':
-      return state.phase === 'preInitializing'
+    case 'reviewConfigurationFailed':
+      return state.phase === 'reviewingConfiguration'
         ? {
             ...state,
             phase: 'editing',

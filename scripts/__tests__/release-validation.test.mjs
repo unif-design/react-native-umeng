@@ -1157,6 +1157,16 @@ test('consumer smoke matrix asserts default and source targets for root and mock
         expectedPackagePath: 'src/mock.ts',
         specifier: '@unif/react-native-umeng/mock',
       },
+      {
+        conditionNames: ['browser'],
+        expectedPackagePath: 'lib/module/index.web.js',
+        specifier: '@unif/react-native-umeng',
+      },
+      {
+        conditionNames: ['browser', 'source'],
+        expectedPackagePath: 'src/index.web.ts',
+        specifier: '@unif/react-native-umeng',
+      },
     ]
   );
   assert.deepEqual(mockJestSmokeCases, [

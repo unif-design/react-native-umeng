@@ -29,6 +29,7 @@ const publicContractFiles = [
   'src/index.ts',
   'src/mock.ts',
   'src/types.ts',
+  'src/UmengError.ts',
   'src/common.ts',
   'src/share.ts',
   'src/analytics.ts',
@@ -40,6 +41,9 @@ const publicContractFiles = [
 const initializationContractFiles = [
   'src/common.ts',
   'src/internal/initConfig.ts',
+  'src/internal/initConfig/index.ts',
+  'src/internal/initConfig/normalizeInitConfig.ts',
+  'src/internal/initConfig/types.ts',
   'src/NativeUmengCommon.ts',
   'android/src/main/java/com/unif/reactnativeumeng/UmengBootstrap.kt',
   'android/src/main/java/com/unif/reactnativeumeng/UmengBootstrapAdapter.kt',

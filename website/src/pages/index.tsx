@@ -164,25 +164,32 @@ const K = (kw: string) => <span className="tok-kw">{kw}</span>;
 const ST = (s: string) => <span className="tok-str">{s}</span>;
 const FN = (s: string) => <span className="tok-fn">{s}</span>;
 
-// shareVisit.ts — public barrel 可直接复制的 openSheet 示例
+// Direct sharing uses the same operation as the instance sheet.
 const CODE_LINES: CodeLine[] = [
   <>
-    {K('import')} <span className="tok-id">{'{ Share }'}</span> {K('from')}{' '}
+    {K('import')} <span className="tok-id">{'{ share }'}</span> {K('from')}{' '}
     {ST("'@unif/react-native-umeng'")}
   </>,
   <> </>,
   <>
-    {K('await')} <span className="tok-id">Share</span>.{FN('openSheet')}({'{'}
+    {K('const')} result = {K('await')} {FN('share')}({'{'}
   </>,
   <>
-    {'  '}type: {ST("'link'")},
+    {'  '}target: {ST("'dingtalk'")},
   </>,
   <>
-    {'  '}title: {ST("'拜访总结'")},
+    {'  '}content: {'{'}
   </>,
   <>
-    {'  '}url: <span className="tok-id">visit</span>.url,
+    {'    '}type: {ST("'link'")},
   </>,
+  <>
+    {'    '}title: {ST("'拜访总结'")},
+  </>,
+  <>
+    {'    '}url: <span className="tok-id">visit</span>.url,
+  </>,
+  <>{'  }'}</>,
   <>{'}'})</>,
 ];
 
@@ -197,7 +204,7 @@ const FEATURES: Feature[] = [
   {
     Icon: IconShare,
     title: '社会化分享',
-    desc: '一次调用唤起微信会话 / 钉钉分享，支持链接 · 图片 · 文本；成功 resolve，取消 / 失败 reject UmengError。',
+    desc: '一次调用唤起微信会话 / 钉钉分享，支持链接 · 图片 · 文本；通过同一结果区分成功、取消与失败。',
   },
   {
     Icon: IconChart,
@@ -207,7 +214,7 @@ const FEATURES: Feature[] = [
   {
     Icon: IconShield,
     title: '初始化时机',
-    desc: 'preInit 只保存 JS 配置快照；用户同意隐私协议后，无参 init 才进入 native/vendor 并开始采集。',
+    desc: '用户同意隐私协议后，通过 initializeUmeng 一次交付完整配置，由原生 SDK 维护就绪状态。',
   },
 ];
 

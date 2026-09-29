@@ -83,6 +83,19 @@
 
 @implementation UmengBootstrapTests
 
+- (void)testConfiguredTargetsReadProcessStateWithoutReinitializing {
+  RecordingUmengSDKAdapter *adapter = [RecordingUmengSDKAdapter new];
+  UmengBootstrap *bootstrap = [[UmengBootstrap alloc] initWithAdapter:adapter];
+  XCTAssertNil([bootstrap configuredShareTargets]);
+  XCTAssertNil([self initializeBootstrap:bootstrap config:[self completeConfig]]);
+  NSUInteger callCount = adapter.calls.count;
+  XCTAssertEqualObjects([bootstrap configuredShareTargets], (@[ @"wechat_session", @"dingtalk" ]));
+  XCTAssertEqual(adapter.calls.count, callCount);
+  UmengBootstrap *analytics = [[UmengBootstrap alloc] initWithAdapter:[RecordingUmengSDKAdapter new]];
+  XCTAssertNil([self initializeBootstrap:analytics config:@{@"appkey" : @"analytics"}]);
+  XCTAssertEqualObjects([analytics configuredShareTargets], (@[]));
+}
+
 - (void)testConstructionAndHandlersBeforeInitializationDoNotCallVendor {
   RecordingUmengSDKAdapter *adapter = [RecordingUmengSDKAdapter new];
   UmengBootstrap *bootstrap = [[UmengBootstrap alloc] initWithAdapter:adapter];

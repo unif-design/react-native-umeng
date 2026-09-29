@@ -17,24 +17,21 @@ yarn add @unif/react-native-umeng
 应用准备自己的测试配置；取得用户明确同意后再初始化和使用 SDK：
 
 ```ts
-import { Common, Platform, Share } from '@unif/react-native-umeng';
+import { initializeUmeng, share } from '@unif/react-native-umeng';
 
-await Common.preInit({
-  appkey: 'YOUR_UMENG_APPKEY',
-  dingtalkAppId: 'YOUR_DINGTALK_APP_ID',
+// 应用已在此之前取得真实隐私同意。
+await initializeUmeng({
+  appKey: 'YOUR_UMENG_APPKEY',
+  dingtalk: { appId: 'YOUR_DINGTALK_APP_ID' },
 });
-
-// 此处由应用完成用户同意流程，再调用 init。
-await Common.init();
-
-try {
-  await Share.shareText({ platform: Platform.DINGTALK, text: '你好' });
-} catch (error) {
-  // 按 UmengError 区分用户取消、未安装和其他失败。
-}
+const result = await share({
+  target: 'dingtalk',
+  content: { type: 'text', text: '你好' },
+});
+if (result.status === 'failed') console.log(result.error.reason);
 ```
 
-`preInit` 只保存配置，`init` 才进入原生 SDK。分享成功时 resolve，取消或失败时 reject；统计 API 是同步 `void` 调用。需要平台选择面板时使用 `Share.openSheet` 并接入 `ShareSheetHost`。
+分享返回 `success`、`cancelled` 或 `failed`。`useShareSheet()` 返回本实例的控制器与需要渲染的宿主；统计操作为同步 `void` 交接。Web 入口不加载原生 SDK，操作明确报告 `unsupported`。
 
 ## 文档与开发
 

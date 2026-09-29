@@ -52,6 +52,8 @@ typedef NS_ENUM(NSInteger, UmengBootstrapErrorCode) {
 
 - (BOOL)isInited;
 
+- (nullable NSArray<NSString *> *)configuredShareTargets;
+
 /// 由宿主 App 的 `application:openURL:options:` 调。未初始化时返回 NO 且不触碰 SDK。
 - (BOOL)handleOpenURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options;
 

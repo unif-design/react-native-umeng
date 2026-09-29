@@ -243,6 +243,21 @@ static BOOL UmengRunBoolOnMainThread(BOOL (^block)(void)) {
   return inited;
 }
 
+- (NSArray<NSString *> *)configuredShareTargets {
+  __block NSArray<NSString *> *targets = nil;
+  dispatch_sync(_stateQueue, ^{
+    if (self->_stage != UmengBootstrapStageInitialized)
+      return;
+    NSMutableArray<NSString *> *configured = [NSMutableArray array];
+    if (self->_config[@"wechatAppId"] != nil)
+      [configured addObject:@"wechat_session"];
+    if (self->_config[@"dingtalkAppId"] != nil)
+      [configured addObject:@"dingtalk"];
+    targets = [configured copy];
+  });
+  return targets;
+}
+
 - (BOOL)handleOpenURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey, id> *)options {
   if (![self isInited]) {
     return NO;

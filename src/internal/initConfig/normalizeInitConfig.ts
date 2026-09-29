@@ -1,18 +1,10 @@
-import { UmengError } from '../types';
+import { UmengError } from '../../UmengError';
+import { isHttpUrl } from '../isHttpUrl';
 
-export interface NormalizedUmengInitConfig {
-  readonly appkey: string;
-  readonly channel: string | undefined;
-  readonly wechatAppId: string | undefined;
-  readonly wechatAppSecret: string | undefined;
-  readonly wechatUniversalLink: string | undefined;
-  readonly dingtalkAppId: string | undefined;
-}
-
-type InitConfigInput = Record<string, unknown>;
+import type { NormalizedUmengInitConfig, InitConfigInput } from './types';
 
 function invalidConfig(message: string): never {
-  throw new UmengError('E_INVALID_OPTIONS', message);
+  throw new UmengError({ reason: 'invalid_input', message });
 }
 
 function normalizeOptionalString(
@@ -34,16 +26,7 @@ function normalizeOptionalString(
 }
 
 function isValidUniversalLink(link: string): boolean {
-  if (!/^https:\/\//i.test(link)) {
-    return false;
-  }
-
-  try {
-    const url = new URL(link);
-    return url.protocol === 'https:' && url.hostname.length > 0;
-  } catch {
-    return false;
-  }
+  return /^https:\/\//i.test(link) && isHttpUrl(link);
 }
 
 export function normalizeInitConfig(
@@ -55,39 +38,51 @@ export function normalizeInitConfig(
   }
 
   const input = config as InitConfigInput;
-  const appkey = normalizeOptionalString(input.appkey, 'appkey');
+  for (const key of ['wechat', 'dingtalk']) {
+    const value = input[key];
+    if (
+      value !== undefined &&
+      (typeof value !== 'object' || value === null || Array.isArray(value))
+    ) {
+      return invalidConfig(`\`${key}\` must be an object`);
+    }
+  }
+  const wechat = input.wechat as InitConfigInput | undefined;
+  const dingtalk = input.dingtalk as InitConfigInput | undefined;
+  const appkey = normalizeOptionalString(input.appKey, 'appKey');
   if (appkey === undefined) {
-    return invalidConfig('`appkey` is required');
+    return invalidConfig('`appKey` is required');
   }
 
   const channel = normalizeOptionalString(input.channel, 'channel');
-  const wechatAppId = normalizeOptionalString(input.wechatAppId, 'wechatAppId');
+  const wechatAppId = normalizeOptionalString(wechat?.appId, 'wechat.appId');
   const wechatAppSecret = normalizeOptionalString(
-    input.wechatAppSecret,
-    'wechatAppSecret'
+    wechat?.appSecret,
+    'wechat.appSecret'
   );
   const wechatUniversalLink = normalizeOptionalString(
-    input.wechatUniversalLink,
-    'wechatUniversalLink'
+    wechat?.universalLink,
+    'wechat.universalLink'
   );
   const dingtalkAppId = normalizeOptionalString(
-    input.dingtalkAppId,
-    'dingtalkAppId'
+    dingtalk?.appId,
+    'dingtalk.appId'
   );
 
-  const hasWeChatConfig =
-    wechatAppId !== undefined ||
-    wechatAppSecret !== undefined ||
-    wechatUniversalLink !== undefined;
+  const hasWeChatConfig = wechat !== undefined;
   if (hasWeChatConfig) {
     if (wechatAppId === undefined || wechatAppSecret === undefined) {
       return invalidConfig(
-        '`wechatAppId` and `wechatAppSecret` must be provided together'
+        '`wechat.appId` and `wechat.appSecret` must be provided together'
       );
     }
     if (os === 'ios' && wechatUniversalLink === undefined) {
-      return invalidConfig('`wechatUniversalLink` is required on iOS');
+      return invalidConfig('`wechat.universalLink` is required on iOS');
     }
+  }
+
+  if (dingtalk !== undefined && dingtalkAppId === undefined) {
+    return invalidConfig('`dingtalk.appId` is required');
   }
 
   if (
@@ -95,7 +90,7 @@ export function normalizeInitConfig(
     !isValidUniversalLink(wechatUniversalLink)
   ) {
     return invalidConfig(
-      '`wechatUniversalLink` must be an absolute HTTPS URL with a host'
+      '`wechat.universalLink` must be an absolute HTTPS URL with a host'
     );
   }
 

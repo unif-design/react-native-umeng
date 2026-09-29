@@ -49,8 +49,8 @@ function setupStatus(phase: string): {
   switch (phase) {
     case 'editing':
       return { label: '等待运行时配置', status: 'pending' };
-    case 'preInitializing':
-      return { label: '正在预初始化', status: 'active' };
+    case 'reviewingConfiguration':
+      return { label: '正在确认配置', status: 'active' };
     case 'awaitingConsent':
       return { label: '等待隐私同意', status: 'pending' };
     case 'initializing':
@@ -70,7 +70,7 @@ export function SetupScreen() {
   const setup = state.setup;
   const status = setupStatus(setup.phase);
   const editing =
-    setup.phase === 'editing' || setup.phase === 'preInitializing';
+    setup.phase === 'editing' || setup.phase === 'reviewingConfiguration';
   const awaitingConsent =
     setup.phase === 'awaitingConsent' || setup.phase === 'initializing';
 
@@ -84,25 +84,25 @@ export function SetupScreen() {
       </Card>
 
       <Text style={styles.description}>
-        请在运行时填写测试凭据。只有主动点击预初始化后才会保存配置快照，
+        请在运行时填写测试凭据。只有主动点击确认配置后才会保存配置快照，
         明示同意隐私政策前不会调用 native/vendor 初始化。
       </Text>
 
       <CredentialForm
         draft={setup.draft}
         errors={setup.errors}
-        disabled={!editing || setup.phase === 'preInitializing'}
+        disabled={!editing || setup.phase === 'reviewingConfiguration'}
         onChange={actions.updateCredential}
       />
 
       {editing ? (
         <Button
-          label="预初始化"
+          label="确认配置"
           block
-          loading={setup.phase === 'preInitializing'}
-          disabled={setup.phase === 'preInitializing'}
+          loading={setup.phase === 'reviewingConfiguration'}
+          disabled={setup.phase === 'reviewingConfiguration'}
           onPress={() => {
-            actions.preInitialize();
+            actions.reviewConfiguration();
           }}
         />
       ) : null}

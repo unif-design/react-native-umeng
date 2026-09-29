@@ -19,7 +19,7 @@ describe('buildInitConfig', () => {
     });
   });
 
-  it('omits disabled platform fields even when stale credentials remain in the draft', () => {
+  it('omits disabled target fields even when stale credentials remain in the draft', () => {
     expect(
       buildInitConfig(
         {
@@ -31,7 +31,7 @@ describe('buildInitConfig', () => {
         },
         'android'
       )
-    ).toEqual({ ok: true, config: { appkey: 'app-key' } });
+    ).toEqual({ ok: true, config: { appKey: 'app-key' } });
   });
 
   it('requires complete WeChat credentials and an HTTPS Universal Link on iOS', () => {
@@ -67,9 +67,8 @@ describe('buildInitConfig', () => {
     expect(buildInitConfig(androidDraft, 'android')).toEqual({
       ok: true,
       config: {
-        appkey: 'app-key',
-        wechatAppId: 'wechat-app-id',
-        wechatAppSecret: 'wechat-secret',
+        appKey: 'app-key',
+        wechat: { appId: 'wechat-app-id', appSecret: 'wechat-secret' },
       },
     });
     expect(
@@ -96,7 +95,7 @@ describe('buildInitConfig', () => {
     });
   });
 
-  it('requires DingTalk credentials only when the platform is enabled', () => {
+  it('requires DingTalk credentials only when the target is enabled', () => {
     expect(
       buildInitConfig(
         { ...validBase, dingtalkEnabled: true, dingtalkAppId: 'YOUR_DING_ID' },
@@ -130,9 +129,9 @@ describe('buildInitConfig', () => {
     ).toEqual({
       ok: true,
       config: {
-        appkey: 'app-key',
+        appKey: 'app-key',
         channel: 'release',
-        dingtalkAppId: 'ding-id',
+        dingtalk: { appId: 'ding-id' },
       },
     });
   });
@@ -146,20 +145,19 @@ describe('setupReducer', () => {
       field: 'wechatAppSecret',
       value: 'sensitive-secret',
     });
-    const preInitializing = setupReducer(withCredentials, {
-      type: 'preInitializeStarted',
+    const reviewingConfiguration = setupReducer(withCredentials, {
+      type: 'reviewConfigurationStarted',
     });
     const snapshot = Object.freeze({
-      appkey: 'app-key',
-      wechatAppId: 'wechat-id',
-      wechatAppSecret: 'sensitive-secret',
+      appKey: 'app-key',
+      wechat: { appId: 'wechat-id', appSecret: 'sensitive-secret' },
     });
-    const awaitingConsent = setupReducer(preInitializing, {
-      type: 'preInitializeSucceeded',
+    const awaitingConsent = setupReducer(reviewingConfiguration, {
+      type: 'reviewConfigurationSucceeded',
       configSnapshot: snapshot,
     });
 
-    expect(preInitializing.phase).toBe('preInitializing');
+    expect(reviewingConfiguration.phase).toBe('reviewingConfiguration');
     expect(awaitingConsent).toMatchObject({
       phase: 'awaitingConsent',
       consent: false,
@@ -180,25 +178,25 @@ describe('setupReducer', () => {
     ).toBe('initialized');
   });
 
-  it('returns to editing after preInit failure and locks the snapshot after init failure', () => {
-    const preInitializing = setupReducer(createInitialSetupState(), {
-      type: 'preInitializeStarted',
+  it('returns to editing after configuration review failure and locks the snapshot after init failure', () => {
+    const reviewingConfiguration = setupReducer(createInitialSetupState(), {
+      type: 'reviewConfigurationStarted',
     });
-    const editable = setupReducer(preInitializing, {
-      type: 'preInitializeFailed',
+    const editable = setupReducer(reviewingConfiguration, {
+      type: 'reviewConfigurationFailed',
       feedback: {
         tone: 'error',
-        code: 'E_NON_UMENG',
+        code: 'unrecognized',
         message: '发生未识别错误，请稍后重试',
         restartRequired: false,
       },
     });
     expect(editable.phase).toBe('editing');
 
-    const snapshot = Object.freeze({ appkey: 'app-key' });
+    const snapshot = Object.freeze({ appKey: 'app-key' });
     const awaitingConsent = setupReducer(
-      setupReducer(editable, { type: 'preInitializeStarted' }),
-      { type: 'preInitializeSucceeded', configSnapshot: snapshot }
+      setupReducer(editable, { type: 'reviewConfigurationStarted' }),
+      { type: 'reviewConfigurationSucceeded', configSnapshot: snapshot }
     );
     const initializing = setupReducer(
       setupReducer(awaitingConsent, {
@@ -211,7 +209,7 @@ describe('setupReducer', () => {
       type: 'initializeFailed',
       feedback: {
         tone: 'error',
-        code: 'E_UNKNOWN',
+        code: 'sdk_failed',
         message: '初始化失败，可使用同一配置重试；若持续失败请重启 App',
         restartRequired: true,
       },
