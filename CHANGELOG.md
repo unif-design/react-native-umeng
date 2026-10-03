@@ -1,5 +1,13 @@
 # Changelog
 
+# [1.0.0](https://github.com/unif-design/react-native-umeng/compare/v0.9.0...v1.0.0) (2026-10-03)
+
+* feat(umeng)!: implement initialization and per-host sharing contract ([e746175](https://github.com/unif-design/react-native-umeng/commit/e746175bcc14c0c155bbfa855b440b4b0be10111))
+
+### BREAKING CHANGES
+
+* 移除 Common/Share/Analytics 命名空间、preInit/init 分段初始化和全局 ShareSheetHost。消费者改用 initializeUmeng 交付完整配置、直接分享/统计函数及实例 useShareSheet，并迁移新的目标、内容和 success/cancelled/failed 结果类型后重建原生 App。
+
 # [0.9.0](https://github.com/unif-design/react-native-umeng/compare/v0.8.0...v0.9.0) (2026-09-04)
 
 ### Features
