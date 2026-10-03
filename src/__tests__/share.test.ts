@@ -1,546 +1,265 @@
-/// <reference types="jest" />
-
+import { deferred } from './fixtures/deferred';
+const mockCommon = {
+  getConfiguredShareTargets: jest.fn(),
+  isInited: jest.fn(),
+};
+const mockNative = {
+  shareText: jest.fn(),
+  shareImage: jest.fn(),
+  shareLink: jest.fn(),
+  isInstalled: jest.fn(),
+};
+jest.mock('../NativeUmengCommon', () => ({
+  __esModule: true,
+  default: mockCommon,
+}));
 jest.mock('../NativeUmengShare', () => ({
   __esModule: true,
-  default: {
-    shareText: jest.fn(),
-    shareImage: jest.fn(),
-    shareLink: jest.fn(),
-    isInstalled: jest.fn(),
-  },
+  default: mockNative,
 }));
-jest.mock('../ShareSheet/ShareSheetController', () => ({
-  shareSheetController: { show: jest.fn() },
-}));
+const api: typeof import('../share') = require('../share');
 
-import NativeUmengShare from '../NativeUmengShare';
-import { shareSheetController } from '../ShareSheet/ShareSheetController';
-import * as Share from '../share';
-import { Platform } from '../types';
-
-function createDeferred<T>(): {
-  promise: Promise<T>;
-  resolve: (value: T) => void;
-} {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockCommon.getConfiguredShareTargets.mockResolvedValue([
+    'wechat_session',
+    'dingtalk',
+  ]);
+  mockCommon.isInited.mockResolvedValue(true);
+  mockNative.isInstalled.mockResolvedValue(true);
+  mockNative.shareText.mockResolvedValue({
+    code: 'success',
+    platform: 'wechat_session',
   });
-  return { promise, resolve };
-}
+  mockNative.shareImage.mockResolvedValue({
+    code: 'success',
+    platform: 'wechat_session',
+  });
+  mockNative.shareLink.mockResolvedValue({
+    code: 'success',
+    platform: 'wechat_session',
+  });
+});
 
-describe('Share', () => {
-  const mockedShareText = NativeUmengShare.shareText as jest.Mock;
-  const mockedShareImage = NativeUmengShare.shareImage as jest.Mock;
-  const mockedShareLink = NativeUmengShare.shareLink as jest.Mock;
-  const mockedIsInstalled = NativeUmengShare.isInstalled as jest.Mock;
+it('reads only native configured targets, including analytics-only initialization', async () => {
+  expect(api.getShareTargets).toEqual(expect.any(Function));
+  mockCommon.getConfiguredShareTargets
+    .mockResolvedValueOnce(['dingtalk'])
+    .mockResolvedValueOnce([]);
+  mockNative.isInstalled.mockResolvedValueOnce(false);
+  await expect(api.getShareTargets()).resolves.toEqual([
+    { target: 'dingtalk', label: '钉钉', installed: false },
+  ]);
+  await expect(api.getShareTargets()).resolves.toEqual([]);
+  expect(mockNative.isInstalled).toHaveBeenCalledTimes(1);
+});
 
+it('rejects holes in a native target response before querying installation state', async () => {
+  const targets = new Array(2);
+  targets[1] = 'wechat_session';
+  mockCommon.getConfiguredShareTargets.mockResolvedValueOnce(targets);
+  await expect(api.getShareTargets()).rejects.toMatchObject({
+    reason: 'invalid_response',
+  });
+  expect(mockNative.isInstalled).not.toHaveBeenCalled();
+});
+
+describe('HTTP URLs with the React Native runtime', () => {
+  const originalURL = globalThis.URL;
   beforeEach(() => {
-    mockedShareText.mockReset();
-    mockedShareImage.mockReset();
-    mockedShareLink.mockReset();
-    mockedIsInstalled.mockReset();
-    (shareSheetController.show as jest.Mock).mockReset();
-    (shareSheetController.show as jest.Mock).mockResolvedValue({
-      code: 'success',
-      platform: Platform.WECHAT_SESSION,
-    });
+    globalThis.URL = jest.requireActual('react-native/Libraries/Blob/URL').URL;
+  });
+  afterEach(() => {
+    globalThis.URL = originalURL;
   });
 
-  describe('shareText', () => {
-    it('forwards platform + text to native and returns ShareResult', async () => {
-      mockedShareText.mockResolvedValue({
-        code: 'success',
-        message: 'ok',
-        platform: 'wechat_session',
-      });
-      const r = await Share.shareText({
-        platform: Platform.WECHAT_SESSION,
-        text: 'hi',
-      });
-      expect(NativeUmengShare.shareText).toHaveBeenCalledWith(
-        'wechat_session',
-        'hi'
-      );
-      expect(r).toEqual({
-        code: 'success',
-        message: 'ok',
-        platform: Platform.WECHAT_SESSION,
-      });
-    });
-
-    it('rejects E_INVALID_OPTIONS when text is empty', async () => {
+  it.each([
+    'https://bad host/image.png',
+    'https://bad%20host/image.png',
+    'https://example.com:notaport/image.png',
+    'https://example.com:65536/image.png',
+    'https://[broken]/image.png',
+  ])('rejects invalid authorities before invoking native: %s', async (url) => {
+    for (const content of [
+      { type: 'image' as const, imageUrl: url },
+      { type: 'link' as const, title: 'Title', url },
+      {
+        type: 'image' as const,
+        imageUrl: 'https://example.com/image.png',
+        thumbnailUrl: url,
+      },
+    ]) {
       await expect(
-        Share.shareText({ platform: Platform.WECHAT_SESSION, text: '' })
-      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-    });
-
-    it.each([null, undefined, [], 'options'])(
-      'rejects non-object options without reaching native: %#',
-      async (options) => {
-        await expect(Share.shareText(options as never)).rejects.toMatchObject({
-          code: 'E_INVALID_OPTIONS',
-        });
-        expect(mockedShareText).not.toHaveBeenCalled();
-      }
-    );
-
-    it.each(['', '   ', null, 42])(
-      'rejects invalid text without reaching native: %#',
-      async (text) => {
-        await expect(
-          Share.shareText({
-            platform: Platform.WECHAT_SESSION,
-            text,
-          } as never)
-        ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-        expect(mockedShareText).not.toHaveBeenCalled();
-      }
-    );
-
-    it('rejects E_PLATFORM_NOT_SUPPORTED for unknown platform', async () => {
-      await expect(
-        Share.shareText({ platform: 'unknown' as Platform, text: 'hi' })
-      ).rejects.toMatchObject({ code: 'E_PLATFORM_NOT_SUPPORTED' });
-    });
-
-    it('maps native cancel to UmengError E_USER_CANCEL', async () => {
-      mockedShareText.mockResolvedValue({
-        code: 'cancel',
-        message: 'user cancelled',
-        platform: 'wechat_session',
+        api.share({ target: 'wechat_session', content })
+      ).resolves.toMatchObject({
+        status: 'failed',
+        error: { reason: 'invalid_input' },
       });
-      await expect(
-        Share.shareText({ platform: Platform.WECHAT_SESSION, text: 'hi' })
-      ).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
-    });
-
-    it('maps native failed to UmengError E_SHARE_FAILED', async () => {
-      mockedShareText.mockResolvedValue({
-        code: 'failed',
-        message: 'something broke',
-        platform: 'wechat_session',
-      });
-      await expect(
-        Share.shareText({ platform: Platform.WECHAT_SESSION, text: 'hi' })
-      ).rejects.toMatchObject({
-        code: 'E_SHARE_FAILED',
-        message: 'something broke',
-      });
-    });
-
-    it.each([
-      [null, 'E_UNKNOWN'],
-      [{}, 'E_UNKNOWN'],
-      [{ code: 'mystery', platform: 'wechat_session' }, 'E_UNKNOWN'],
-      [{ code: 'success', platform: 'dingtalk' }, 'E_UNKNOWN'],
-      [{ code: 'success' }, 'E_UNKNOWN'],
-      [
-        { code: 'success', platform: 'wechat_session', message: 42 },
-        'E_UNKNOWN',
-      ],
-    ])('rejects malformed native result %#', async (nativeResult, code) => {
-      mockedShareText.mockResolvedValueOnce(nativeResult);
-
-      await expect(
-        Share.shareText({
-          platform: Platform.WECHAT_SESSION,
-          text: 'hi',
-        })
-      ).rejects.toMatchObject({ code });
-    });
-
-    it('preserves a whitelisted code from an RN-style native Error', async () => {
-      mockedShareText.mockRejectedValueOnce(
-        Object.assign(new Error('not initialized'), {
-          code: 'E_NOT_INITIALIZED',
-        })
-      );
-
-      await expect(
-        Share.shareText({
-          platform: Platform.WECHAT_SESSION,
-          text: 'hi',
-        })
-      ).rejects.toMatchObject({
-        code: 'E_NOT_INITIALIZED',
-        message: 'not initialized',
-      });
-    });
-
-    it('uses E_SHARE_FAILED for an unknown RN-style native error code', async () => {
-      mockedShareText.mockRejectedValueOnce(
-        Object.assign(new Error('vendor failure'), { code: 'VENDOR_ERROR' })
-      );
-
-      await expect(
-        Share.shareText({
-          platform: Platform.WECHAT_SESSION,
-          text: 'hi',
-        })
-      ).rejects.toMatchObject({
-        code: 'E_SHARE_FAILED',
-        message: 'vendor failure',
-      });
-    });
+    }
+    expect(mockCommon.getConfiguredShareTargets).not.toHaveBeenCalled();
+    expect(mockNative.shareImage).not.toHaveBeenCalled();
+    expect(mockNative.shareLink).not.toHaveBeenCalled();
   });
 
-  describe('shareImage', () => {
-    it('forwards optional thumb', async () => {
-      mockedShareImage.mockResolvedValue({
-        code: 'success',
-        platform: 'dingtalk',
-      });
-      await Share.shareImage({
-        platform: Platform.DINGTALK,
-        image: 'https://x/a.png',
-        thumb: 'https://x/t.png',
-      });
-      expect(NativeUmengShare.shareImage).toHaveBeenCalledWith(
-        'dingtalk',
-        'https://x/a.png',
-        'https://x/t.png'
-      );
-    });
-
-    it('rejects E_INVALID_OPTIONS when image is empty', async () => {
-      await expect(
-        Share.shareImage({ platform: Platform.WECHAT_SESSION, image: '' })
-      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-    });
-
-    it.each([
-      ['image', '/relative.png'],
-      ['image', 'file:///tmp/a.png'],
-      ['image', 'https://'],
-      ['thumb', '/relative-thumb.png'],
-      ['thumb', 'ftp://example.com/thumb.png'],
-    ])('rejects a non-http(s) absolute %s URL', async (field, value) => {
-      await expect(
-        Share.shareImage({
-          platform: Platform.WECHAT_SESSION,
-          image: field === 'image' ? value : 'https://example.com/image.png',
-          thumb: field === 'thumb' ? value : undefined,
-        })
-      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-      expect(mockedShareImage).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('shareLink', () => {
-    it('forwards all fields', async () => {
-      mockedShareLink.mockResolvedValue({
-        code: 'success',
-        platform: 'wechat_session',
-      });
-      await Share.shareLink({
-        platform: Platform.WECHAT_SESSION,
-        title: 'T',
-        url: 'https://x',
-        description: 'D',
-        thumb: 'https://t',
-      });
-      expect(NativeUmengShare.shareLink).toHaveBeenCalledWith(
-        'wechat_session',
-        'T',
-        'https://x',
-        'D',
-        'https://t'
-      );
-    });
-
-    it('rejects when title or url missing', async () => {
-      await expect(
-        Share.shareLink({
-          platform: Platform.WECHAT_SESSION,
-          title: '',
-          url: 'https://x',
-        })
-      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-
-      await expect(
-        Share.shareLink({
-          platform: Platform.WECHAT_SESSION,
-          title: 'T',
-          url: '',
-        })
-      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-    });
-
-    it.each([
-      '/relative',
-      'mailto:user@example.com',
-      'https://',
-      'ftp://example.com/file',
-    ])('rejects a non-http(s) absolute link URL: %s', async (url) => {
-      await expect(
-        Share.shareLink({
-          platform: Platform.WECHAT_SESSION,
-          title: 'T',
-          url,
-        })
-      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-      expect(mockedShareLink).not.toHaveBeenCalled();
-    });
-
-    it.each([
-      { title: '   ', url: 'https://example.com' },
-      { title: 'T', url: '   ' },
-    ])(
-      'rejects required strings that are blank after trim: %#',
-      async (input) => {
-        await expect(
-          Share.shareLink({
-            platform: Platform.WECHAT_SESSION,
-            ...input,
-          })
-        ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-        expect(mockedShareLink).not.toHaveBeenCalled();
-      }
+  it.each([
+    'HTTPS://example.com:8443/image.png?signature=a%2Bb#image',
+    'http://127.0.0.1:8080/image.png',
+    'https://[2001:db8::1]:8443/image.png',
+    'https://[::ffff:192.0.2.1]/image.png',
+    'https://例子.中国/image.png',
+  ])('preserves valid URL input for native: %s', async (imageUrl) => {
+    await expect(
+      api.share({
+        target: 'wechat_session',
+        content: { type: 'image', imageUrl },
+      })
+    ).resolves.toEqual({ status: 'success', target: 'wechat_session' });
+    expect(mockNative.shareImage).toHaveBeenCalledWith(
+      'wechat_session',
+      imageUrl,
+      undefined
     );
   });
+});
 
-  describe('direct share platform snapshot', () => {
-    type MutablePlatformOptions = { platform: Platform };
-    type StartedShare = {
-      options: MutablePlatformOptions;
-      result: Promise<unknown>;
-    };
-    type StartShare = (nativePromise: Promise<unknown>) => StartedShare;
-
-    const directShareCases: ReadonlyArray<
-      readonly [name: string, startShare: StartShare]
-    > = [
-      [
-        'shareText',
-        (nativePromise) => {
-          mockedShareText.mockReturnValueOnce(nativePromise);
-          const options = {
-            platform: Platform.WECHAT_SESSION,
-            text: 'hi',
-          };
-          return { options, result: Share.shareText(options) };
-        },
-      ],
-      [
-        'shareImage',
-        (nativePromise) => {
-          mockedShareImage.mockReturnValueOnce(nativePromise);
-          const options = {
-            platform: Platform.WECHAT_SESSION,
-            image: 'https://example.com/image.png',
-          };
-          return { options, result: Share.shareImage(options) };
-        },
-      ],
-      [
-        'shareLink',
-        (nativePromise) => {
-          mockedShareLink.mockReturnValueOnce(nativePromise);
-          const options = {
-            platform: Platform.WECHAT_SESSION,
-            title: 'Title',
-            url: 'https://example.com',
-          };
-          return { options, result: Share.shareLink(options) };
-        },
-      ],
-    ];
-
-    it.each(directShareCases)(
-      '%s resolves a correct response against the originally requested platform',
-      async (_name, startShare) => {
-        const native = createDeferred<unknown>();
-        const { options, result } = startShare(native.promise);
-
-        options.platform = Platform.DINGTALK;
-        native.resolve({
-          code: 'success',
-          platform: Platform.WECHAT_SESSION,
-        });
-
-        await expect(result).resolves.toEqual({
-          code: 'success',
-          platform: Platform.WECHAT_SESSION,
-        });
-      }
-    );
-
-    it.each(directShareCases)(
-      '%s rejects a response matching only a mutated options platform',
-      async (_name, startShare) => {
-        const native = createDeferred<unknown>();
-        const { options, result } = startShare(native.promise);
-
-        options.platform = Platform.DINGTALK;
-        native.resolve({
-          code: 'success',
-          platform: Platform.DINGTALK,
-        });
-
-        await expect(result).rejects.toMatchObject({ code: 'E_UNKNOWN' });
-      }
-    );
+it('preserves text, image, link and optional empty description in native adaptation', async () => {
+  expect(api.share).toEqual(expect.any(Function));
+  await expect(
+    api.share({
+      target: 'wechat_session',
+      content: { type: 'text', text: ' hello ' },
+    })
+  ).resolves.toEqual({ status: 'success', target: 'wechat_session' });
+  expect(mockNative.shareText).toHaveBeenCalledWith(
+    'wechat_session',
+    ' hello '
+  );
+  await api.share({
+    target: 'wechat_session',
+    content: {
+      type: 'image',
+      imageUrl: 'HTTPS://example.com/image.png',
+      thumbnailUrl: 'https://example.com/thumb.png',
+    },
   });
-
-  describe('isInstalled', () => {
-    it('returns boolean from native', async () => {
-      mockedIsInstalled.mockResolvedValue(true);
-      await expect(Share.isInstalled(Platform.WECHAT_SESSION)).resolves.toBe(
-        true
-      );
-    });
-
-    it('rejects an unknown platform without reaching native', async () => {
-      await expect(
-        Share.isInstalled('unknown' as Platform)
-      ).rejects.toMatchObject({ code: 'E_PLATFORM_NOT_SUPPORTED' });
-      expect(mockedIsInstalled).not.toHaveBeenCalled();
-    });
-
-    it('rejects a malformed native boolean result', async () => {
-      mockedIsInstalled.mockResolvedValueOnce('true');
-
-      await expect(
-        Share.isInstalled(Platform.WECHAT_SESSION)
-      ).rejects.toMatchObject({ code: 'E_UNKNOWN' });
-    });
+  expect(mockNative.shareImage).toHaveBeenCalledWith(
+    'wechat_session',
+    'HTTPS://example.com/image.png',
+    'https://example.com/thumb.png'
+  );
+  await api.share({
+    target: 'wechat_session',
+    content: {
+      type: 'link',
+      title: ' Title ',
+      url: 'https://example.com/',
+      description: '',
+    },
   });
+  expect(mockNative.shareLink).toHaveBeenCalledWith(
+    'wechat_session',
+    ' Title ',
+    'https://example.com/',
+    '',
+    undefined
+  );
+});
 
-  describe('listPlatforms', () => {
-    it('returns SUPPORTED_PLATFORMS with installed/displayName', async () => {
-      mockedIsInstalled.mockImplementation((p: string) =>
-        Promise.resolve(p === 'wechat_session')
-      );
-      const list = await Share.listPlatforms();
-      expect(list).toEqual([
-        {
-          platform: Platform.WECHAT_SESSION,
-          installed: true,
-          displayName: '微信',
-        },
-        { platform: Platform.DINGTALK, installed: false, displayName: '钉钉' },
-      ]);
-    });
-
-    it('propagates a whitelisted native error code', async () => {
-      mockedIsInstalled.mockRejectedValueOnce(
-        Object.assign(new Error('initialize first'), {
-          code: 'E_NOT_INITIALIZED',
-        })
-      );
-
-      await expect(Share.listPlatforms()).rejects.toMatchObject({
-        code: 'E_NOT_INITIALIZED',
-        message: 'initialize first',
-      });
-    });
+it('returns cancellation and failure as outcomes without retrying', async () => {
+  expect(api.share).toEqual(expect.any(Function));
+  mockNative.shareText
+    .mockRejectedValueOnce({ code: 'E_USER_CANCEL' })
+    .mockRejectedValueOnce({ code: 'E_SHARE_FAILED', message: 'SDK failed' });
+  const request = {
+    target: 'wechat_session',
+    content: { type: 'text', text: 'hello' },
+  } as const;
+  await expect(api.share(request)).resolves.toEqual({
+    status: 'cancelled',
+    target: 'wechat_session',
   });
-
-  describe('openSheet', () => {
-    it('delegates to shareSheetController.show', async () => {
-      (shareSheetController.show as jest.Mock).mockResolvedValue({
-        code: 'success',
-        platform: Platform.WECHAT_SESSION,
-      });
-      const r = await Share.openSheet({ type: 'text', text: 'hi' });
-      expect(shareSheetController.show).toHaveBeenCalledWith(
-        { type: 'text', text: 'hi' },
-        {}
-      );
-      expect(r.code).toBe('success');
-    });
-
-    it.each([null, undefined, [], 'payload'])(
-      'rejects non-object payload without opening the controller: %#',
-      async (payload) => {
-        await expect(Share.openSheet(payload as never)).rejects.toMatchObject({
-          code: 'E_INVALID_OPTIONS',
-        });
-        expect(shareSheetController.show).not.toHaveBeenCalled();
-      }
-    );
-
-    it.each([null, [], 'options'])(
-      'rejects non-object sheet options without opening the controller: %#',
-      async (options) => {
-        await expect(
-          Share.openSheet({ type: 'text', text: 'hi' }, options as never)
-        ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-        expect(shareSheetController.show).not.toHaveBeenCalled();
-      }
-    );
-
-    it.each([
-      { type: 'text', text: '   ' },
-      { type: 'image', image: '/relative.png' },
-      { type: 'link', title: 'T', url: 'file:///tmp/file' },
-      { type: 'unknown', text: 'hi' },
-    ])('rejects malformed sheet payload %#', async (payload) => {
-      await expect(Share.openSheet(payload as never)).rejects.toMatchObject({
-        code: 'E_INVALID_OPTIONS',
-      });
-      expect(shareSheetController.show).not.toHaveBeenCalled();
-    });
-
-    it('forwards options', async () => {
-      (shareSheetController.show as jest.Mock).mockResolvedValue({
-        code: 'success',
-        platform: Platform.DINGTALK,
-      });
-      await Share.openSheet({ type: 'text', text: 'hi' }, { title: 'X' });
-      expect(shareSheetController.show).toHaveBeenCalledWith(
-        { type: 'text', text: 'hi' },
-        { title: 'X' }
-      );
-    });
-
-    it('forwards floating presentation lifecycle callbacks', async () => {
-      const onSheetLayout = jest.fn();
-      const onDismiss = jest.fn();
-
-      await Share.openSheet(
-        { type: 'image', image: 'https://example.com/order.png' },
-        {
-          presentation: 'floating',
-          onSheetLayout,
-          onDismiss,
-        }
-      );
-
-      expect(shareSheetController.show).toHaveBeenCalledWith(
-        { type: 'image', image: 'https://example.com/order.png' },
-        {
-          presentation: 'floating',
-          onSheetLayout,
-          onDismiss,
-        }
-      );
-    });
-
-    it.each([
-      [{ presentation: 'drawer' }, '`presentation`'],
-      [{ onSheetLayout: 'not-a-function' }, '`onSheetLayout`'],
-      [{ onDismiss: 'not-a-function' }, '`onDismiss`'],
-    ])('rejects invalid presentation options %#', async (options, field) => {
-      await expect(
-        Share.openSheet({ type: 'text', text: 'hi' }, options as never)
-      ).rejects.toMatchObject({
-        code: 'E_INVALID_OPTIONS',
-        message: expect.stringContaining(field),
-      });
-      expect(shareSheetController.show).not.toHaveBeenCalled();
-    });
-
-    it('calls onDismiss when validation prevents the sheet from opening', async () => {
-      const onDismiss = jest.fn();
-
-      await expect(
-        Share.openSheet({ type: 'text', text: '   ' }, { onDismiss })
-      ).rejects.toMatchObject({ code: 'E_INVALID_OPTIONS' });
-
-      expect(onDismiss).toHaveBeenCalledTimes(1);
-      expect(shareSheetController.show).not.toHaveBeenCalled();
-    });
+  await expect(api.share(request)).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'sdk_failed', sourceCode: 'E_SHARE_FAILED' },
   });
+  expect(mockNative.shareText).toHaveBeenCalledTimes(2);
+});
+
+it.each([
+  null,
+  {},
+  { code: 'success', platform: 'dingtalk' },
+  { code: 'unexpected', platform: 'wechat_session' },
+])('rejects malformed or mismatched SDK receipts: %p', async (receipt) => {
+  expect(api.share).toEqual(expect.any(Function));
+  mockNative.shareText.mockResolvedValueOnce(receipt);
+  await expect(
+    api.share({
+      target: 'wechat_session',
+      content: { type: 'text', text: 'hello' },
+    })
+  ).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'invalid_response' },
+  });
+});
+
+it('does not call native share for invalid content, an unconfigured target or missing app', async () => {
+  expect(api.share).toEqual(expect.any(Function));
+  await expect(
+    api.share({
+      target: 'wechat_session',
+      content: { type: 'image', imageUrl: 'file:///a.png' },
+    })
+  ).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'invalid_input' },
+  });
+  mockCommon.getConfiguredShareTargets.mockResolvedValueOnce(['dingtalk']);
+  await expect(
+    api.share({
+      target: 'wechat_session',
+      content: { type: 'text', text: 'hello' },
+    })
+  ).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'not_initialized' },
+  });
+  mockNative.isInstalled.mockResolvedValueOnce(false);
+  await expect(
+    api.share({
+      target: 'wechat_session',
+      content: { type: 'text', text: 'hello' },
+    })
+  ).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'not_installed' },
+  });
+  expect(mockNative.shareText).not.toHaveBeenCalled();
+  expect(mockNative.shareImage).not.toHaveBeenCalled();
+});
+
+it('holds one share channel and the original content snapshot until the native receipt', async () => {
+  expect(api.share).toEqual(expect.any(Function));
+  const pending = deferred<unknown>();
+  mockNative.shareText.mockReturnValueOnce(pending.promise);
+  const request = {
+    target: 'wechat_session' as const,
+    content: { type: 'text' as const, text: 'original' },
+  };
+  const first = api.share(request);
+  request.content.text = 'changed';
+  await expect(api.share(request)).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'busy' },
+  });
+  pending.resolve({ code: 'success', platform: 'wechat_session' });
+  await expect(first).resolves.toEqual({
+    status: 'success',
+    target: 'wechat_session',
+  });
+  expect(mockNative.shareText).toHaveBeenCalledWith(
+    'wechat_session',
+    'original'
+  );
 });

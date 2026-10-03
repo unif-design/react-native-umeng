@@ -1,8 +1,13 @@
 import {
-  Analytics,
-  Common,
-  Platform,
-  Share,
+  initializeUmeng,
+  isUmengInitialized,
+  getShareTargets,
+  share,
+  useShareSheet,
+  trackEvent as handOffEvent,
+  bindAnalyticsUser,
+  clearAnalyticsUser,
+  type ShareTarget,
   UmengError,
   type ShareResult,
 } from '@unif/react-native-umeng';
@@ -65,7 +70,10 @@ import {
 const SETUP_ROUTE: RouteId = 'setup';
 const HOME_ROUTE: RouteId = 'home';
 
-type AnalyticsMethod = 'onEvent' | 'signIn' | 'signOut';
+type AnalyticsMethod =
+  | 'trackEvent'
+  | 'bindAnalyticsUser'
+  | 'clearAnalyticsUser';
 
 type PlatformQueryResult =
   | {
@@ -81,9 +89,9 @@ type PlatformQueryResult =
     };
 
 const ANALYTICS_SUCCESS_LOG: Readonly<Record<AnalyticsMethod, string>> = {
-  onEvent: 'JS 已调用 Analytics.onEvent',
-  signIn: 'JS 已调用 Analytics.signIn',
-  signOut: 'JS 已调用 Analytics.signOut',
+  trackEvent: 'JS 已调用 trackEvent',
+  bindAnalyticsUser: 'JS 已调用 bindAnalyticsUser',
+  clearAnalyticsUser: 'JS 已调用 clearAnalyticsUser',
 };
 
 const INITIAL_RESULTS: ShowcaseResults = {
@@ -98,17 +106,17 @@ function runtimeOS(): SetupOS {
 
 function falseInitializationFeedback(): OperationFeedback {
   return classifyUmengError(
-    new Error('Common.isInited returned false'),
+    new Error('isUmengInitialized returned false'),
     'init'
   );
 }
 
 function platformNotInstalledFeedback(): OperationFeedback {
   return classifyUmengError(
-    new UmengError(
-      'E_PLATFORM_NOT_INSTALLED',
-      'Target platform is not installed'
-    ),
+    new UmengError({
+      reason: 'not_installed',
+      message: 'Target is not installed',
+    }),
     'share'
   );
 }
@@ -126,22 +134,16 @@ function feedbackLogLevel(feedback: OperationFeedback): DemoLogLevel {
 
 async function invokeDirectShare(
   type: DirectShareType,
-  platform: Platform,
+  target: ShareTarget,
   draft: ShareContentDraft
 ): Promise<ShareResult> {
-  switch (type) {
-    case 'text':
-      return Share.shareText(buildDirectOptions('text', platform, draft));
-    case 'image':
-      return Share.shareImage(buildDirectOptions('image', platform, draft));
-    case 'link':
-      return Share.shareLink(buildDirectOptions('link', platform, draft));
-  }
+  return share(buildDirectOptions(type, target, draft));
 }
 
 export function ShowcaseProvider({
   children,
 }: PropsWithChildren): ReactElement {
+  const [sheetController, sheetHost] = useShareSheet();
   const [setup, rawDispatchSetup] = useReducer(
     setupReducer,
     undefined,
@@ -257,7 +259,7 @@ export function ShowcaseProvider({
     setLogs(createEmptyLogs());
   }, []);
 
-  const preInitialize = useCallback(async (): Promise<void> => {
+  const reviewConfiguration = useCallback(async (): Promise<void> => {
     if (setupRef.current.phase !== 'editing') {
       return;
     }
@@ -273,33 +275,33 @@ export function ShowcaseProvider({
     }
 
     const configSnapshot = Object.freeze({ ...validation.config });
-    dispatchSetup({ type: 'preInitializeStarted' });
+    dispatchSetup({ type: 'reviewConfigurationStarted' });
 
     try {
-      await Common.preInit(configSnapshot);
       dispatchSetup({
-        type: 'preInitializeSucceeded',
+        type: 'reviewConfigurationSucceeded',
         configSnapshot,
       });
       appendSafeLog(
         'setup',
         'info',
-        `预初始化成功；微信${
-          configSnapshot.wechatAppId === undefined ? '未配置' : '已配置'
-        }；钉钉${
-          configSnapshot.dingtalkAppId === undefined ? '未配置' : '已配置'
-        }`
+        `确认配置成功；微信${
+          configSnapshot.wechat === undefined ? '未配置' : '已配置'
+        }；钉钉${configSnapshot.dingtalk === undefined ? '未配置' : '已配置'}`
       );
     } catch (error) {
-      const operationFeedback = classifyUmengError(error, 'preInit');
+      const operationFeedback = classifyUmengError(
+        error,
+        'reviewConfiguration'
+      );
       dispatchSetup({
-        type: 'preInitializeFailed',
+        type: 'reviewConfigurationFailed',
         feedback: operationFeedback,
       });
       appendSafeLog(
         'setup',
         'error',
-        `预初始化失败（${operationFeedback.code}）`
+        `确认配置失败（${operationFeedback.code}）`
       );
     }
   }, [appendSafeLog, dispatchSetup]);
@@ -321,24 +323,24 @@ export function ShowcaseProvider({
     const requestId = nextPlatformRequestId();
     dispatchPlatform({ type: 'refreshStarted', requestId });
     try {
-      const items = await Share.listPlatforms();
+      const items = await getShareTargets();
       if (platformsRef.current.activeRefreshRequestId !== requestId) {
         return;
       }
       dispatchPlatform({ type: 'refreshSucceeded', requestId, items });
-      appendSafeLog('platform', 'info', '平台列表已刷新');
+      appendSafeLog('target', 'info', '平台列表已刷新');
     } catch (error) {
       if (platformsRef.current.activeRefreshRequestId !== requestId) {
         return;
       }
-      const operationFeedback = classifyUmengError(error, 'platform');
+      const operationFeedback = classifyUmengError(error, 'target');
       dispatchPlatform({
         type: 'refreshFailed',
         requestId,
         feedback: operationFeedback,
       });
       appendSafeLog(
-        'platform',
+        'target',
         feedbackLogLevel(operationFeedback),
         `平台列表刷新失败（${operationFeedback.code}）`
       );
@@ -346,41 +348,48 @@ export function ShowcaseProvider({
   }, [appendSafeLog, dispatchPlatform, nextPlatformRequestId]);
 
   const queryPlatform = useCallback(
-    async (platform: Platform): Promise<PlatformQueryResult> => {
+    async (target: ShareTarget): Promise<PlatformQueryResult> => {
       const requestId = nextPlatformRequestId();
-      dispatchPlatform({ type: 'checkStarted', requestId, platform });
+      dispatchPlatform({ type: 'checkStarted', requestId, target });
       try {
-        const installed = await Share.isInstalled(platform);
-        if (platformsRef.current.latestRequestIds[platform] !== requestId) {
+        const targets = await getShareTargets();
+        const configured = targets.find((item) => item.target === target);
+        if (!configured)
+          throw new UmengError({
+            reason: 'not_initialized',
+            message: 'Target has not been configured',
+          });
+        const installed = configured.installed;
+        if (platformsRef.current.latestRequestIds[target] !== requestId) {
           return { kind: 'stale' };
         }
         dispatchPlatform({
           type: 'checkSucceeded',
           requestId,
-          platform,
+          target,
           installed,
         });
         appendSafeLog(
-          'platform',
+          'target',
           'info',
-          `平台安装状态已更新：${platform}=${
+          `平台安装状态已更新：${target}=${
             installed ? 'installed' : 'not-installed'
           }`
         );
         return { kind: 'success', installed };
       } catch (error) {
-        if (platformsRef.current.latestRequestIds[platform] !== requestId) {
+        if (platformsRef.current.latestRequestIds[target] !== requestId) {
           return { kind: 'stale' };
         }
-        const operationFeedback = classifyUmengError(error, 'platform');
+        const operationFeedback = classifyUmengError(error, 'target');
         dispatchPlatform({
           type: 'checkFailed',
           requestId,
-          platform,
+          target,
           feedback: operationFeedback,
         });
         appendSafeLog(
-          'platform',
+          'target',
           feedbackLogLevel(operationFeedback),
           `平台检测失败（${operationFeedback.code}）`
         );
@@ -391,11 +400,11 @@ export function ShowcaseProvider({
   );
 
   const checkPlatform = useCallback<ShowcaseActions['checkPlatform']>(
-    async (platform) => {
+    async (target) => {
       if (setupRef.current.phase !== 'initialized') {
         return;
       }
-      await queryPlatform(platform);
+      await queryPlatform(target);
     },
     [queryPlatform]
   );
@@ -407,8 +416,10 @@ export function ShowcaseProvider({
     }
 
     try {
-      await Common.init();
-      const initialized = await Common.isInited();
+      const config = setupRef.current.configSnapshot;
+      if (config === null) return;
+      await initializeUmeng(config);
+      const initialized = await isUmengInitialized();
       if (!initialized) {
         const operationFeedback = falseInitializationFeedback();
         dispatchSetup({
@@ -425,7 +436,7 @@ export function ShowcaseProvider({
 
       dispatchSetup({ type: 'initializeSucceeded' });
       resetNavigation(HOME_ROUTE);
-      appendSafeLog('setup', 'info', '初始化成功；Common.isInited=true');
+      appendSafeLog('setup', 'info', '初始化成功；isUmengInitialized=true');
       await refreshPlatforms();
     } catch (error) {
       const operationFeedback = classifyUmengError(error, 'init');
@@ -482,18 +493,18 @@ export function ShowcaseProvider({
   );
 
   const shareDirect = useCallback<ShowcaseActions['shareDirect']>(
-    async (type, platform, draft) => {
+    async (type, target, draft) => {
       if (setupRef.current.phase !== 'initialized') {
         return;
       }
 
       const operationRequestId = beginOperation('direct');
       const knownPlatform = platformsRef.current.items.find(
-        (item) => item.platform === platform
+        (item) => item.target === target
       );
       let installed: boolean;
       if (knownPlatform === undefined || knownPlatform.freshness === 'stale') {
-        const queryResult = await queryPlatform(platform);
+        const queryResult = await queryPlatform(target);
         if (
           latestOperationRequestIdsRef.current.direct !== operationRequestId
         ) {
@@ -524,8 +535,23 @@ export function ShowcaseProvider({
       }
 
       try {
-        const result = await invokeDirectShare(type, platform, draft);
-        const message = `success@${result.platform}`;
+        const result = await invokeDirectShare(type, target, draft);
+        if (result.status !== 'success') {
+          recordShareFeedback(
+            'direct',
+            operationRequestId,
+            result.status === 'cancelled'
+              ? {
+                  tone: 'neutral',
+                  code: 'cancelled',
+                  message: '已取消分享',
+                  restartRequired: false,
+                }
+              : classifyUmengError(new UmengError(result.error), 'share')
+          );
+          return;
+        }
+        const message = `success@${result.target}`;
         if (
           finishOperation('direct', operationRequestId, {
             kind: 'success',
@@ -559,11 +585,26 @@ export function ShowcaseProvider({
 
       const operationRequestId = beginOperation('sheet');
       try {
-        const result = await Share.openSheet(
+        const result = await sheetController.open(
           buildSheetPayload(draft),
           buildShareSheetOptions(draft)
         );
-        const message = `success@${result.platform}`;
+        if (result.status !== 'success') {
+          recordShareFeedback(
+            'sheet',
+            operationRequestId,
+            result.status === 'cancelled'
+              ? {
+                  tone: 'neutral',
+                  code: 'cancelled',
+                  message: '已取消分享',
+                  restartRequired: false,
+                }
+              : classifyUmengError(new UmengError(result.error), 'share')
+          );
+          return;
+        }
+        const message = `success@${result.target}`;
         if (
           finishOperation('sheet', operationRequestId, {
             kind: 'success',
@@ -580,7 +621,13 @@ export function ShowcaseProvider({
         );
       }
     },
-    [appendSafeLog, beginOperation, finishOperation, recordShareFeedback]
+    [
+      appendSafeLog,
+      beginOperation,
+      finishOperation,
+      recordShareFeedback,
+      sheetController,
+    ]
   );
 
   const runAnalytics = useCallback(
@@ -612,7 +659,7 @@ export function ShowcaseProvider({
           appendSafeLog(
             'analytics',
             feedbackLogLevel(operationFeedback),
-            `Analytics.${method} 调用失败（${operationFeedback.code}）`
+            `${method} 调用失败（${operationFeedback.code}）`
           );
         }
       }
@@ -622,8 +669,8 @@ export function ShowcaseProvider({
 
   const trackEvent = useCallback<ShowcaseActions['trackEvent']>(
     (eventId, params) => {
-      runAnalytics('onEvent', () => {
-        Analytics.onEvent(eventId, params);
+      runAnalytics('trackEvent', () => {
+        handOffEvent({ name: eventId, attributes: params });
       });
     },
     [runAnalytics]
@@ -631,23 +678,23 @@ export function ShowcaseProvider({
 
   const signIn = useCallback<ShowcaseActions['signIn']>(
     (userId, provider) => {
-      runAnalytics('signIn', () => {
-        Analytics.signIn(userId, provider);
+      runAnalytics('bindAnalyticsUser', () => {
+        bindAnalyticsUser({ userId, provider });
       });
     },
     [runAnalytics]
   );
 
   const signOut = useCallback<ShowcaseActions['signOut']>(() => {
-    runAnalytics('signOut', () => {
-      Analytics.signOut();
+    runAnalytics('clearAnalyticsUser', () => {
+      clearAnalyticsUser();
     });
   }, [runAnalytics]);
 
   const actions = useMemo<ShowcaseActions>(
     () => ({
       updateCredential,
-      preInitialize,
+      reviewConfiguration,
       setConsent,
       initialize,
       retryInitialize,
@@ -669,7 +716,7 @@ export function ShowcaseProvider({
       initialize,
       navigate,
       openShareSheet,
-      preInitialize,
+      reviewConfiguration,
       refreshPlatforms,
       retryInitialize,
       setConsent,
@@ -691,6 +738,7 @@ export function ShowcaseProvider({
   return (
     <ShowcaseContext.Provider value={value}>
       {children}
+      {sheetHost}
     </ShowcaseContext.Provider>
   );
 }

@@ -77,11 +77,11 @@ module.exports = {
 Docusaurus website 不需要为此新增 Babel 配置;这一要求只针对 Metro 消费者。
 
 :::warning `@unif/react-native-design` 是分享面板的 UI 壳,不能省
-`<ShareSheetHost />` 面板本体是 RN `Modal` 底部弹层,内部用 design 的 `Cell` / `Button` / `useThemedStyles` 渲染,因此 Host 必须位于 design 的 `ThemeProvider` 内。Host 已在 **Modal 内容内部**创建 `GestureHandlerRootView`;App 外层的同名 root 不能跨越 Modal 的独立 native root,也不能替代这一内部边界。挂载约定见[快速上手](./quick-start)。
+`useShareSheet()` 返回的宿主 面板本体是 RN `Modal` 底部弹层,内部用 design 的 `Cell` / `Button` / `useThemedStyles` 渲染,因此 Host 必须位于 design 的 `ThemeProvider` 内。Host 已在 **Modal 内容内部**创建 `GestureHandlerRootView`;App 外层的同名 root 不能跨越 Modal 的独立 native root,也不能替代这一内部边界。挂载约定见[快速上手](./quick-start)。
 :::
 
 :::note 只用统计、不用分享?
-即使如此,`@unif/react-native-design` 等仍是 `peerDependencies`(非可选),包管理器会要求安装齐全。统计(`Analytics.*`)本身不依赖 design,但建议按上表装齐以避免 peer 告警。
+即使如此,`@unif/react-native-design` 等仍是 `peerDependencies`(非可选),包管理器会要求安装齐全。统计接口本身不依赖 design,但建议按上表装齐以避免 peer 告警。
 :::
 
 ---
@@ -119,15 +119,15 @@ Android 端依赖随 Gradle 自动同步,无需手动 link。使用项目已有�
 - [iOS 原生配置](../native-setup/ios) —— `Info.plist` 的 `LSApplicationQueriesSchemes` / `CFBundleURLTypes`,`AppDelegate` 转发 `handleOpen(_:options:)`,微信 Universal Link。
 - [Android 原生配置](../native-setup/android) —— `WXEntryActivity` / `DDShareActivity` 必须在**宿主包名**下并直接继承 SDK 回调基类;Activity 不硬编码凭据。
 
-> 友盟 `appkey` / `appsecret` / Universal Link 等都通过 JS `Common.preInit(config)` 传,**不写在 Info.plist / Gradle**。
+> 友盟 `appkey` / `appsecret` / Universal Link 等都通过 授权后的 `initializeUmeng(config)` 传,**不写在 Info.plist / Gradle**。
 
 ---
 
 ## 下一步
 
 - [快速上手](./quick-start) —— 完成初始化 + 第一次分享
-- [指南 → 初始化与用户同意](../guides/privacy-pipl) —— preInit / init 两段式时序
-- [API 参考 → Common](../api/common) —— preInit / init / isInited 完整参数
+- [指南 → 初始化与用户同意](../guides/privacy-pipl) —— 真实同意后单次初始化
+- [API 参考 → 初始化](../api/common) —— initializeUmeng / isUmengInitialized 完整参数
 
 ## 官方参考
 

@@ -94,6 +94,15 @@ internal class UmengBootstrapStateMachine(
 
   fun isInited(): Boolean = stage == UmengBootstrapStage.INITIALIZED
 
+  fun configuredShareTargets(): List<String>? =
+    synchronized(lock) {
+      if (!isInited()) return@synchronized null
+      buildList {
+        if (acceptedConfig?.hasWechat == true) add("wechat_session")
+        if (acceptedConfig?.hasDingTalk == true) add("dingtalk")
+      }
+    }
+
   private inline fun runVendorCall(call: () -> Unit) {
     try {
       call()
@@ -123,4 +132,6 @@ object UmengBootstrap {
   }
 
   fun isInited(): Boolean = stateMachine.isInited()
+
+  fun configuredShareTargets(): List<String>? = stateMachine.configuredShareTargets()
 }

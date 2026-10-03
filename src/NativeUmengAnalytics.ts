@@ -7,4 +7,4 @@ export interface Spec extends TurboModule {
   signOut(): void;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('UmengAnalytics');
+export default TurboModuleRegistry.get<Spec>('UmengAnalytics');

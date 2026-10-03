@@ -6,7 +6,7 @@ description: '配置 iOS 分享回调、URL Scheme 和 Universal Link。'
 
 # iOS 原生配置
 
-分享后能否跳回 App，取决于 URL Scheme、Universal Link 与宿主 lifecycle 转发。友盟 appkey、微信 App Secret、Universal Link 等凭据不写进 plist；它们先由 JS `Common.preInit(config)` 保存，用户同意后调用 `Common.init()` 才跨入 native/vendor。
+分享后能否跳回 App，取决于 URL Scheme、Universal Link 与宿主 lifecycle 转发。友盟 appkey、微信 App Secret、Universal Link 等凭据不写进 plist；应用在取得用户同意后，随 `initializeUmeng(config)` 一次交付给 native/vendor。
 
 ## `ios/<App>/Info.plist` {#info-plist}
 
@@ -215,7 +215,7 @@ bundle exec pod install
 1. 在 Apple Developer / Xcode 为 App target 启用 **Associated Domains**，entitlements 添加 `applinks:your.host`。这里只写域名，不带 scheme、path、query 或尾随 `/`。
 2. 网站通过有效 HTTPS 在 `/.well-known/apple-app-site-association` 提供 AASA，响应不得重定向。
 3. AASA 的 app identifier 使用正确的 `TEAM_ID.BUNDLE_ID`，并让 paths/components 覆盖真实回调 path。
-4. `Common.preInit({ wechatUniversalLink })` 传入带 host 的绝对 HTTPS URL；其 host、path 与 entitlement/AASA 相互对应。
+4. `initializeUmeng` 的 `wechat.universalLink` 传入带 host 的绝对 HTTPS URL；其 host、path 与 entitlement/AASA 相互对应。
 
 最小 legacy AASA 示例：
 
@@ -237,14 +237,14 @@ bundle exec pod install
 
 ## 初始化顺序 {#initialization-order}
 
-iOS 没有公开 vendor preInit API。用户授权后的 `Common.init()` 在主线程依次执行：
+iOS 没有公开 vendor preInit API。用户授权后的 `initializeUmeng(config)` 在主线程依次执行：
 
 1. 配置微信 Universal Link。
 2. 注册微信平台。
 3. 注册钉钉平台。
 4. `UMConfigure.initWithAppkey`。
 
-`Common.preInit(config)` 在此之前只处理 JS 快照，零 native/vendor 调用。Share 在 init 前 reject `E_NOT_INITIALIZED`；Analytics 在 init 前同步 no-op。
+只有已配置的平台会注册。初始化前分享返回 failed / not_initialized；统计在原生初始化前同步 no-op，不缓存或补发。
 
 ## 平台支持 {#platform-support}
 

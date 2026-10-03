@@ -991,6 +991,8 @@ test('explicit release increment selects an exact version for validation and rel
       'minor',
       '--squash-title',
       'feat(ci): enforce squash release contract',
+      '--squash-body',
+      'BREAKING CHANGE: replace initialization.',
       '--github-output',
       '/tmp/github-output',
     ]),
@@ -998,6 +1000,7 @@ test('explicit release increment selects an exact version for validation and rel
       githubOutput: '/tmp/github-output',
       increment: 'minor',
       squashTitle: 'feat(ci): enforce squash release contract',
+      squashBody: 'BREAKING CHANGE: replace initialization.',
     }
   );
   assert.equal(
@@ -1081,6 +1084,171 @@ test('squash title cannot understate the file-based release floor', () => {
   );
 });
 
+test('breaking squash titles preserve their declared major release floor', () => {
+  for (const title of [
+    'feat!: replace initialization',
+    'feat(umeng)!: replace initialization',
+    'fix(umeng)!: remove the global share host',
+  ]) {
+    assert.equal(publishContract.squashTitleReleaseLevel(title), 'major');
+    assert.equal(
+      publishContract.assertSquashTitleReleaseLevel({
+        title,
+        body: 'BREAKING CHANGE: replace the old public contract.',
+        minimumLevel: 'major',
+      }),
+      'major'
+    );
+  }
+  assert.throws(() =>
+    publishContract.assertSquashTitleReleaseLevel({
+      title: 'feat(umeng): replace initialization',
+      minimumLevel: 'major',
+    })
+  );
+  assert.throws(
+    () => publishContract.squashTitleReleaseLevel('feat(umeng)!!: invalid'),
+    /invalid squash title/i
+  );
+});
+
+test('breaking squash titles require a non-empty Angular footer in the body', () => {
+  for (const body of [
+    undefined,
+    '',
+    'Replaces initialization.',
+    'BREAKING CHANGE:',
+    'BREAKING CHANGE:   \n\n',
+    'BREAKING-CHANGE: replace initialization.',
+    'Mentioning BREAKING CHANGE: inline is not a footer.',
+    '- Migration -\n\nBREAKING CHANGE: replace initialization.',
+  ]) {
+    assert.throws(
+      () =>
+        publishContract.assertSquashTitleReleaseLevel({
+          title: 'feat(umeng)!: replace initialization',
+          body,
+          minimumLevel: 'minor',
+        }),
+      /non-empty BREAKING CHANGE.*body/i
+    );
+  }
+  for (const title of [
+    'feat(umeng)!: replace initialization',
+    'fix(umeng): replace initialization',
+  ]) {
+    assert.equal(
+      publishContract.assertSquashTitleReleaseLevel({
+        title,
+        body: 'Summary.\n\nBREAKING CHANGE: replace initialization.\n',
+        minimumLevel: 'major',
+      }),
+      'major'
+    );
+  }
+  assert.equal(
+    publishContract.assertSquashTitleReleaseLevel({
+      title: 'feat(umeng)!: replace initialization',
+      body: '---\n\nBREAKING CHANGE: replace initialization.',
+      minimumLevel: 'major',
+    }),
+    'major'
+  );
+  assert.deepEqual(parsePublishContractArgs(['--squash-body', '']), {
+    githubOutput: undefined,
+    increment: 'auto',
+    squashBody: '',
+  });
+  assert.throws(
+    () => parsePublishContractArgs(['--squash-body']),
+    /--squash-body requires a value/
+  );
+});
+
+test('Angular release version still requires the breaking footer', async () => {
+  const fixtureRoot = await mkdtemp(join(tmpdir(), 'umeng-breaking-release-'));
+  const manifest = JSON.parse(
+    await readFile(join(repositoryRoot, 'package.json'), 'utf8')
+  );
+  const env = {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_AUTHOR_NAME: 'Release contract test',
+    GIT_AUTHOR_EMAIL: 'release-contract@example.invalid',
+    GIT_COMMITTER_NAME: 'Release contract test',
+    GIT_COMMITTER_EMAIL: 'release-contract@example.invalid',
+  };
+  const run = (command, args) => {
+    const result = spawnSync(command, args, {
+      cwd: fixtureRoot,
+      env,
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr || result.error?.message);
+    return result.stdout.trim();
+  };
+  const releaseVersion = () =>
+    run(process.execPath, [
+      join(repositoryRoot, 'node_modules/release-it/bin/release-it.js'),
+      '--release-version',
+      '--ci',
+    ]);
+
+  try {
+    await writeFile(
+      join(fixtureRoot, 'package.json'),
+      JSON.stringify({
+        name: 'umeng-release-contract-fixture',
+        version: '1.2.3',
+        'release-it': {
+          git: false,
+          npm: { publish: false },
+          github: false,
+          plugins: manifest['release-it'].plugins,
+        },
+      })
+    );
+    await symlink(
+      join(repositoryRoot, 'node_modules'),
+      join(fixtureRoot, 'node_modules')
+    );
+    run('git', ['init', '--initial-branch=main']);
+    run('git', ['add', 'package.json']);
+    run('git', ['commit', '-m', 'chore: initial release']);
+    run('git', ['tag', 'v1.2.3']);
+    const title = 'feat(umeng)!: replace initialization';
+    run('git', ['commit', '--allow-empty', '-m', title]);
+    assert.equal(releaseVersion(), '1.2.4');
+    run('git', [
+      'commit',
+      '--amend',
+      '--allow-empty',
+      '-m',
+      `${title}\n\n- Migration -\n\nBREAKING CHANGE: replace initialization.`,
+    ]);
+    assert.equal(releaseVersion(), '1.2.4');
+    run('git', [
+      'commit',
+      '--amend',
+      '--allow-empty',
+      '-m',
+      `${title}\n\n---\n\nBREAKING CHANGE: replace initialization.`,
+    ]);
+    assert.equal(releaseVersion(), '2.0.0');
+    run('git', [
+      'commit',
+      '--amend',
+      '--allow-empty',
+      '-m',
+      `${title}\n\nBREAKING CHANGE: replace split initialization with one complete configuration.`,
+    ]);
+    assert.equal(releaseVersion(), '2.0.0');
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test('native package audit enumerates every Android main and Podspec iOS source', async () => {
   const fixtureRoot = await mkdtemp(join(tmpdir(), 'umeng-native-fixture-'));
 
@@ -1156,6 +1324,16 @@ test('consumer smoke matrix asserts default and source targets for root and mock
         conditionNames: ['source', 'react-native'],
         expectedPackagePath: 'src/mock.ts',
         specifier: '@unif/react-native-umeng/mock',
+      },
+      {
+        conditionNames: ['browser'],
+        expectedPackagePath: 'lib/module/index.web.js',
+        specifier: '@unif/react-native-umeng',
+      },
+      {
+        conditionNames: ['browser', 'source'],
+        expectedPackagePath: 'src/index.web.ts',
+        specifier: '@unif/react-native-umeng',
       },
     ]
   );

@@ -1,4 +1,4 @@
-import { PLATFORM_DISPLAY_NAMES, Platform } from '@unif/react-native-umeng';
+import { SHARE_TARGET_LABELS } from '../content/constants';
 
 import {
   createInitialPlatformState,
@@ -8,28 +8,28 @@ import {
 
 const previousItems: readonly PlatformStatus[] = [
   {
-    platform: Platform.WECHAT_SESSION,
+    target: 'wechat_session',
     installed: true,
-    displayName: PLATFORM_DISPLAY_NAMES[Platform.WECHAT_SESSION],
+    label: SHARE_TARGET_LABELS.wechat_session,
     freshness: 'fresh',
   },
   {
-    platform: Platform.DINGTALK,
+    target: 'dingtalk',
     installed: true,
-    displayName: PLATFORM_DISPLAY_NAMES[Platform.DINGTALK],
+    label: SHARE_TARGET_LABELS.dingtalk,
     freshness: 'fresh',
   },
 ];
 
 const unknownFeedback = {
   tone: 'error',
-  code: 'E_UNKNOWN',
+  code: 'sdk_failed',
   message: '发生未知错误，请稍后重试',
   restartRequired: false,
 } as const;
 
 describe('platformReducer', () => {
-  it('stores a successful refresh in SUPPORTED_PLATFORMS order', () => {
+  it('stores a successful refresh in SHARE_TARGETS order', () => {
     const loading = platformReducer(createInitialPlatformState(), {
       type: 'refreshStarted',
       requestId: 1,
@@ -39,14 +39,14 @@ describe('platformReducer', () => {
       requestId: 1,
       items: [
         {
-          platform: Platform.DINGTALK,
+          target: 'dingtalk',
           installed: false,
-          displayName: '钉钉',
+          label: '钉钉',
         },
         {
-          platform: Platform.WECHAT_SESSION,
+          target: 'wechat_session',
           installed: true,
-          displayName: '微信',
+          label: '微信',
         },
       ],
     });
@@ -54,15 +54,15 @@ describe('platformReducer', () => {
     expect(refreshed).toEqual({
       items: [
         {
-          platform: Platform.WECHAT_SESSION,
+          target: 'wechat_session',
           installed: true,
-          displayName: '微信',
+          label: '微信',
           freshness: 'fresh',
         },
         {
-          platform: Platform.DINGTALK,
+          target: 'dingtalk',
           installed: false,
-          displayName: '钉钉',
+          label: '钉钉',
           freshness: 'fresh',
         },
       ],
@@ -71,8 +71,8 @@ describe('platformReducer', () => {
       feedback: null,
       activeRefreshRequestId: null,
       latestRequestIds: {
-        [Platform.WECHAT_SESSION]: 1,
-        [Platform.DINGTALK]: 1,
+        ['wechat_session']: 1,
+        ['dingtalk']: 1,
       },
       feedbackRequestId: 1,
     });
@@ -95,15 +95,15 @@ describe('platformReducer', () => {
 
     expect(failed.items).toEqual([
       {
-        platform: Platform.WECHAT_SESSION,
+        target: 'wechat_session',
         installed: true,
-        displayName: '微信',
+        label: '微信',
         freshness: 'stale',
       },
       {
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: true,
-        displayName: '钉钉',
+        label: '钉钉',
         freshness: 'stale',
       },
     ]);
@@ -114,7 +114,7 @@ describe('platformReducer', () => {
     });
   });
 
-  it('updates only the platform returned by a single-platform check', () => {
+  it('updates only the target returned by a single-target check', () => {
     const previous = {
       ...createInitialPlatformState(),
       items: previousItems,
@@ -122,26 +122,26 @@ describe('platformReducer', () => {
     const checking = platformReducer(previous, {
       type: 'checkStarted',
       requestId: 1,
-      platform: Platform.DINGTALK,
+      target: 'dingtalk',
     });
     const checked = platformReducer(checking, {
       type: 'checkSucceeded',
       requestId: 1,
-      platform: Platform.DINGTALK,
+      target: 'dingtalk',
       installed: false,
     });
 
     expect(checked.items).toEqual([
       {
-        platform: Platform.WECHAT_SESSION,
+        target: 'wechat_session',
         installed: true,
-        displayName: '微信',
+        label: '微信',
         freshness: 'fresh',
       },
       {
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: false,
-        displayName: '钉钉',
+        label: '钉钉',
         freshness: 'fresh',
       },
     ]);
@@ -154,36 +154,36 @@ describe('platformReducer', () => {
     });
   });
 
-  it('adds a previously unknown platform after a successful check', () => {
+  it('adds a previously unknown target after a successful check', () => {
     const checked = platformReducer(
       platformReducer(createInitialPlatformState(), {
         type: 'checkStarted',
         requestId: 1,
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
       }),
       {
         type: 'checkSucceeded',
         requestId: 1,
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: true,
       }
     );
 
     expect(checked.items).toEqual([
       {
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: true,
-        displayName: '钉钉',
+        label: '钉钉',
         freshness: 'fresh',
       },
     ]);
   });
 
-  it('keeps another stale platform stale when a previously unknown target succeeds', () => {
+  it('keeps another stale target stale when a previously unknown target succeeds', () => {
     const staleWechat: PlatformStatus = {
-      platform: Platform.WECHAT_SESSION,
+      target: 'wechat_session',
       installed: true,
-      displayName: '微信',
+      label: '微信',
       freshness: 'stale',
     };
     const checked = platformReducer(
@@ -195,13 +195,13 @@ describe('platformReducer', () => {
         {
           type: 'checkStarted',
           requestId: 1,
-          platform: Platform.DINGTALK,
+          target: 'dingtalk',
         }
       ),
       {
         type: 'checkSucceeded',
         requestId: 1,
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: true,
       }
     );
@@ -209,9 +209,9 @@ describe('platformReducer', () => {
     expect(checked.items).toEqual([
       staleWechat,
       {
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: true,
-        displayName: '钉钉',
+        label: '钉钉',
         freshness: 'fresh',
       },
     ]);
@@ -226,26 +226,26 @@ describe('platformReducer', () => {
     const checking = platformReducer(previous, {
       type: 'checkStarted',
       requestId: 1,
-      platform: Platform.WECHAT_SESSION,
+      target: 'wechat_session',
     });
     const failed = platformReducer(checking, {
       type: 'checkFailed',
       requestId: 1,
-      platform: Platform.WECHAT_SESSION,
+      target: 'wechat_session',
       feedback: unknownFeedback,
     });
 
     expect(failed.items).toEqual([
       {
-        platform: Platform.WECHAT_SESSION,
+        target: 'wechat_session',
         installed: true,
-        displayName: '微信',
+        label: '微信',
         freshness: 'stale',
       },
       {
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: true,
-        displayName: '钉钉',
+        label: '钉钉',
         freshness: 'fresh',
       },
     ]);
@@ -281,30 +281,30 @@ describe('platformReducer', () => {
     const firstCheck = platformReducer(refreshed, {
       type: 'checkStarted',
       requestId: 3,
-      platform: Platform.WECHAT_SESSION,
+      target: 'wechat_session',
     });
     const secondCheck = platformReducer(firstCheck, {
       type: 'checkStarted',
       requestId: 4,
-      platform: Platform.WECHAT_SESSION,
+      target: 'wechat_session',
     });
     const checked = platformReducer(secondCheck, {
       type: 'checkSucceeded',
       requestId: 4,
-      platform: Platform.WECHAT_SESSION,
+      target: 'wechat_session',
       installed: false,
     });
     expect(
       platformReducer(checked, {
         type: 'checkFailed',
         requestId: 3,
-        platform: Platform.WECHAT_SESSION,
+        target: 'wechat_session',
         feedback: unknownFeedback,
       })
     ).toBe(checked);
   });
 
-  it('preserves a newer per-platform query when an overlapping refresh completes', () => {
+  it('preserves a newer per-target query when an overlapping refresh completes', () => {
     const refreshing = platformReducer(
       {
         ...createInitialPlatformState(),
@@ -318,12 +318,12 @@ describe('platformReducer', () => {
     const checking = platformReducer(refreshing, {
       type: 'checkStarted',
       requestId: 2,
-      platform: Platform.DINGTALK,
+      target: 'dingtalk',
     });
     const checked = platformReducer(checking, {
       type: 'checkSucceeded',
       requestId: 2,
-      platform: Platform.DINGTALK,
+      target: 'dingtalk',
       installed: false,
     });
     const refreshed = platformReducer(checked, {
@@ -331,29 +331,29 @@ describe('platformReducer', () => {
       requestId: 1,
       items: [
         {
-          platform: Platform.WECHAT_SESSION,
+          target: 'wechat_session',
           installed: false,
-          displayName: '微信',
+          label: '微信',
         },
         {
-          platform: Platform.DINGTALK,
+          target: 'dingtalk',
           installed: true,
-          displayName: '钉钉',
+          label: '钉钉',
         },
       ],
     });
 
     expect(refreshed.items).toEqual([
       {
-        platform: Platform.WECHAT_SESSION,
+        target: 'wechat_session',
         installed: false,
-        displayName: '微信',
+        label: '微信',
         freshness: 'fresh',
       },
       {
-        platform: Platform.DINGTALK,
+        target: 'dingtalk',
         installed: false,
-        displayName: '钉钉',
+        label: '钉钉',
         freshness: 'fresh',
       },
     ]);

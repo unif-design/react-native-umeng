@@ -14,6 +14,8 @@ export interface Spec extends TurboModule {
   initialize(config: Object): Promise<void>;
 
   isInited(): Promise<boolean>;
+
+  getConfiguredShareTargets(): Promise<Array<string>>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('UmengCommon');
+export default TurboModuleRegistry.get<Spec>('UmengCommon');

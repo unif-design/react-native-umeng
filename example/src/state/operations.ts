@@ -1,8 +1,7 @@
+import { SHARE_TARGETS, SHARE_TARGET_LABELS } from '../content/constants';
 import {
-  PLATFORM_DISPLAY_NAMES,
-  Platform,
-  SUPPORTED_PLATFORMS,
-  type PlatformInfo,
+  type ShareTarget,
+  type ShareTargetInfo,
   type ShareSheetOptions,
 } from '@unif/react-native-umeng';
 
@@ -25,17 +24,17 @@ export type SheetDraft = ShareContentDraft & {
 
 export type PlatformFreshness = 'fresh' | 'stale';
 
-export type PlatformStatus = PlatformInfo & {
+export type PlatformStatus = ShareTargetInfo & {
   readonly freshness: PlatformFreshness;
 };
 
 export type PlatformState = {
   readonly items: readonly PlatformStatus[];
   readonly refreshing: boolean;
-  readonly checking: readonly Platform[];
+  readonly checking: readonly ShareTarget[];
   readonly feedback: OperationFeedback | null;
   readonly activeRefreshRequestId: number | null;
-  readonly latestRequestIds: Readonly<Partial<Record<Platform, number>>>;
+  readonly latestRequestIds: Readonly<Partial<Record<ShareTarget, number>>>;
   readonly feedbackRequestId: number | null;
 };
 
@@ -44,7 +43,7 @@ export type PlatformAction =
   | {
       readonly type: 'refreshSucceeded';
       readonly requestId: number;
-      readonly items: readonly PlatformInfo[];
+      readonly items: readonly ShareTargetInfo[];
     }
   | {
       readonly type: 'refreshFailed';
@@ -54,18 +53,18 @@ export type PlatformAction =
   | {
       readonly type: 'checkStarted';
       readonly requestId: number;
-      readonly platform: Platform;
+      readonly target: ShareTarget;
     }
   | {
       readonly type: 'checkSucceeded';
       readonly requestId: number;
-      readonly platform: Platform;
+      readonly target: ShareTarget;
       readonly installed: boolean;
     }
   | {
       readonly type: 'checkFailed';
       readonly requestId: number;
-      readonly platform: Platform;
+      readonly target: ShareTarget;
       readonly feedback: OperationFeedback;
     };
 
@@ -84,31 +83,29 @@ export function createInitialPlatformState(): PlatformState {
 function orderPlatformStatuses(
   items: readonly PlatformStatus[]
 ): readonly PlatformStatus[] {
-  return SUPPORTED_PLATFORMS.flatMap((platform) => {
-    const item = items.find((candidate) => candidate.platform === platform);
+  return SHARE_TARGETS.flatMap((target) => {
+    const item = items.find((candidate) => candidate.target === target);
     return item === undefined ? [] : [item];
   });
 }
 
 function updateCheckedPlatform(
   items: readonly PlatformStatus[],
-  platform: Platform,
+  target: ShareTarget,
   installed: boolean
 ): readonly PlatformStatus[] {
-  if (items.some((item) => item.platform === platform)) {
+  if (items.some((item) => item.target === target)) {
     return items.map((item) =>
-      item.platform === platform
-        ? { ...item, installed, freshness: 'fresh' }
-        : item
+      item.target === target ? { ...item, installed, freshness: 'fresh' } : item
     );
   }
 
   return orderPlatformStatuses([
     ...items,
     {
-      platform,
+      target,
       installed,
-      displayName: PLATFORM_DISPLAY_NAMES[platform],
+      label: SHARE_TARGET_LABELS[target],
       freshness: 'fresh',
     },
   ]);
@@ -120,7 +117,7 @@ function markAllPlatformsStale(
   requestId: number
 ): readonly PlatformStatus[] {
   return items.map((item) =>
-    latestRequestIds[item.platform] !== requestId || item.freshness === 'stale'
+    latestRequestIds[item.target] !== requestId || item.freshness === 'stale'
       ? item
       : { ...item, freshness: 'stale' }
   );
@@ -128,10 +125,10 @@ function markAllPlatformsStale(
 
 function markPlatformStale(
   items: readonly PlatformStatus[],
-  platform: Platform
+  target: ShareTarget
 ): readonly PlatformStatus[] {
   return items.map((item) =>
-    item.platform === platform && item.freshness !== 'stale'
+    item.target === target && item.freshness !== 'stale'
       ? { ...item, freshness: 'stale' }
       : item
   );
@@ -141,10 +138,10 @@ function withRefreshRequest(
   latestRequestIds: PlatformState['latestRequestIds'],
   requestId: number
 ): PlatformState['latestRequestIds'] {
-  return SUPPORTED_PLATFORMS.reduce<Partial<Record<Platform, number>>>(
-    (requests, platform) => ({
+  return SHARE_TARGETS.reduce<Partial<Record<ShareTarget, number>>>(
+    (requests, target) => ({
       ...requests,
-      [platform]: requestId,
+      [target]: requestId,
     }),
     { ...latestRequestIds }
   );
@@ -152,17 +149,17 @@ function withRefreshRequest(
 
 function mergeRefreshItems(
   currentItems: readonly PlatformStatus[],
-  refreshedItems: readonly PlatformInfo[],
+  refreshedItems: readonly ShareTargetInfo[],
   latestRequestIds: PlatformState['latestRequestIds'],
   requestId: number
 ): readonly PlatformStatus[] {
-  return SUPPORTED_PLATFORMS.flatMap((platform) => {
-    if (latestRequestIds[platform] !== requestId) {
-      const current = currentItems.find((item) => item.platform === platform);
+  return SHARE_TARGETS.flatMap((target) => {
+    if (latestRequestIds[target] !== requestId) {
+      const current = currentItems.find((item) => item.target === target);
       return current === undefined ? [] : [current];
     }
 
-    const refreshed = refreshedItems.find((item) => item.platform === platform);
+    const refreshed = refreshedItems.find((item) => item.target === target);
     return refreshed === undefined
       ? []
       : [{ ...refreshed, freshness: 'fresh' as const }];
@@ -170,10 +167,10 @@ function mergeRefreshItems(
 }
 
 function removeCheckingPlatform(
-  checking: readonly Platform[],
-  platform: Platform
-): readonly Platform[] {
-  return checking.filter((candidate) => candidate !== platform);
+  checking: readonly ShareTarget[],
+  target: ShareTarget
+): readonly ShareTarget[] {
+  return checking.filter((candidate) => candidate !== target);
 }
 
 function assertNever(_action: never): never {
@@ -240,18 +237,18 @@ export function platformReducer(
     case 'checkStarted':
       return {
         ...state,
-        checking: state.checking.includes(action.platform)
+        checking: state.checking.includes(action.target)
           ? state.checking
-          : [...state.checking, action.platform],
+          : [...state.checking, action.target],
         feedback: null,
         latestRequestIds: {
           ...state.latestRequestIds,
-          [action.platform]: action.requestId,
+          [action.target]: action.requestId,
         },
         feedbackRequestId: action.requestId,
       };
     case 'checkSucceeded': {
-      if (state.latestRequestIds[action.platform] !== action.requestId) {
+      if (state.latestRequestIds[action.target] !== action.requestId) {
         return state;
       }
 
@@ -259,23 +256,23 @@ export function platformReducer(
         ...state,
         items: updateCheckedPlatform(
           state.items,
-          action.platform,
+          action.target,
           action.installed
         ),
-        checking: removeCheckingPlatform(state.checking, action.platform),
+        checking: removeCheckingPlatform(state.checking, action.target),
         feedback:
           state.feedbackRequestId === action.requestId ? null : state.feedback,
       };
     }
     case 'checkFailed': {
-      if (state.latestRequestIds[action.platform] !== action.requestId) {
+      if (state.latestRequestIds[action.target] !== action.requestId) {
         return state;
       }
 
       return {
         ...state,
-        items: markPlatformStale(state.items, action.platform),
-        checking: removeCheckingPlatform(state.checking, action.platform),
+        items: markPlatformStale(state.items, action.target),
+        checking: removeCheckingPlatform(state.checking, action.target),
         feedback:
           state.feedbackRequestId === action.requestId
             ? action.feedback
@@ -292,8 +289,8 @@ export function buildShareSheetOptions(draft: SheetDraft): ShareSheetOptions {
     title: draft.options.title,
     cancelText: draft.options.cancelText,
     subtitles: {
-      [Platform.WECHAT_SESSION]: draft.options.wechatSubtitle,
-      [Platform.DINGTALK]: draft.options.dingtalkSubtitle,
+      ['wechat_session']: draft.options.wechatSubtitle,
+      ['dingtalk']: draft.options.dingtalkSubtitle,
     },
     hideUninstalled: draft.options.hideUninstalled,
     presentation: draft.options.presentation,

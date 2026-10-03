@@ -54,6 +54,20 @@ export const consumerSmokeCases = [
     name: 'package-mock-source',
     specifier: '@unif/react-native-umeng/mock',
   },
+  {
+    conditionNames: ['browser'],
+    entry: 'entry-root-web-default.js',
+    expectedPackagePath: 'lib/module/index.web.js',
+    name: 'package-root-web-default',
+    specifier: '@unif/react-native-umeng',
+  },
+  {
+    conditionNames: ['browser', 'source'],
+    entry: 'entry-root-web-source.js',
+    expectedPackagePath: 'src/index.web.ts',
+    name: 'package-root-web-source',
+    specifier: '@unif/react-native-umeng',
+  },
 ];
 export const mockJestSmokeCases = [
   {
@@ -191,7 +205,13 @@ async function writeFixtureFiles(fixtureDir, rootManifest, tarballFilename) {
         `package.json#devDependencies must provide the consumer version for peer ${peerName}`
       );
     }
-    dependencies[peerName] = version;
+    const installed = JSON.parse(
+      await readFile(
+        join(repositoryRoot, 'node_modules', peerName, 'package.json'),
+        'utf8'
+      )
+    );
+    dependencies[peerName] = installed.version;
   }
 
   for (const toolName of smokeToolNames) {
@@ -201,7 +221,13 @@ async function writeFixtureFiles(fixtureDir, rootManifest, tarballFilename) {
         `package.json#devDependencies must provide the smoke tool version for ${toolName}`
       );
     }
-    dependencies[toolName] = version;
+    const installed = JSON.parse(
+      await readFile(
+        join(repositoryRoot, 'node_modules', toolName, 'package.json'),
+        'utf8'
+      )
+    );
+    dependencies[toolName] = installed.version;
   }
 
   const fixtureManifest = {
@@ -300,6 +326,7 @@ function isInside(root, candidate) {
 
 async function bundle(smoke) {
   let resolvedTarget;
+  const resolvedModules = [];
   const config = mergeConfig(getDefaultConfig(projectRoot), {
     projectRoot,
     // Metro CLI 的 loadConfig 也会把 projectRoot 加入 watchFolders；直接调用
@@ -323,6 +350,7 @@ async function bundle(smoke) {
 
         if (resolution.type === 'sourceFile') {
           const resolvedPath = fs.realpathSync(resolution.filePath);
+          resolvedModules.push(resolvedPath);
           if (!isInside(projectRoot, resolvedPath)) {
             throw new Error(
               \`\${smoke.name} resolved \${moduleName} outside isolated fixture: \${resolvedPath}\`
@@ -353,6 +381,10 @@ async function bundle(smoke) {
     );
   }
 
+  if (smoke.conditionNames?.includes('browser') && resolvedModules.some((path) => /NativeUmeng/.test(path))) {
+    throw new Error('Web consumer loaded a native Umeng module');
+  }
+
   const expectedTarget = fs.realpathSync(
     path.join(packageRoot, smoke.expectedPackagePath)
   );
@@ -371,20 +403,45 @@ async function bundle(smoke) {
   for (const smoke of smokeCases) {
     await bundle(smoke);
   }
-  console.log('Metro consumer smoke passed: default/source package root and mock.');
+  console.log('Metro consumer smoke passed: default/source native/Web package root and mock.');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
 `
     ),
-    writeFile(
-      join(fixtureDir, 'jest.default.config.cjs'),
-      createJestConfig()
-    ),
+    writeFile(join(fixtureDir, 'jest.default.config.cjs'), createJestConfig()),
     writeFile(
       join(fixtureDir, 'jest.source.config.cjs'),
       createJestConfig(['source'])
+    ),
+    writeFile(
+      join(fixtureDir, 'public.test.js'),
+      `
+jest.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
+  StyleSheet: { create: (styles) => styles },
+  TurboModuleRegistry: { get: (name) => ({
+    UmengCommon: { initialize: jest.fn().mockResolvedValue(undefined), isInited: jest.fn().mockResolvedValue(true), getConfiguredShareTargets: jest.fn().mockResolvedValue(['dingtalk']) },
+    UmengShare: { isInstalled: jest.fn().mockResolvedValue(true), shareText: jest.fn().mockResolvedValue({ code: 'success', platform: 'dingtalk' }) },
+    UmengAnalytics: { onEvent: jest.fn(), signIn: jest.fn(), signOut: jest.fn() },
+  })[name] },
+}));
+jest.mock('@unif/react-native-design', () => ({}));
+jest.mock('react-native-svg', () => ({}));
+const api = require('@unif/react-native-umeng');
+test('published independent operations consume grouped config and share requests', async () => {
+  await api.initializeUmeng({ appKey: 'consumer', dingtalk: { appId: 'ding' } });
+  await expect(api.isUmengInitialized()).resolves.toBe(true);
+  await expect(api.getShareTargets()).resolves.toEqual([{ target: 'dingtalk', label: '钉钉', installed: true }]);
+  await expect(api.share({ target: 'dingtalk', content: { type: 'text', text: 'hello' } })).resolves.toEqual({ status: 'success', target: 'dingtalk' });
+  expect(api.trackEvent({ name: 'event', attributes: { count: 1 } })).toBeUndefined();
+  expect(api.bindAnalyticsUser({ userId: 'user' })).toBeUndefined();
+  expect(api.clearAnalyticsUser()).toBeUndefined();
+  expect(api.useShareSheet).toEqual(expect.any(Function));
+  expect(api.Common).toBeUndefined();
+});
+`
     ),
     writeFile(
       join(fixtureDir, 'mock.test.js'),
@@ -409,56 +466,17 @@ const expectedMockPath = fs.realpathSync(
   )
 );
 
-const {
-  Platform,
-  Share,
-  shareCancel,
-  shareFailed,
-} = require('@unif/react-native-umeng/mock');
-
+const { share, shareCancelled, shareFailed } = require('@unif/react-native-umeng/mock');
+const request = { target: 'wechat_session', content: { type: 'text', text: 'hello' } };
 test('official mock resolves to the selected tarball export', () => {
   expect(resolvedMockPath).toBe(expectedMockPath);
 });
-
-test('official mock resolves successful shares', async () => {
-  await expect(
-    Share.shareText({
-      platform: Platform.WECHAT_SESSION,
-      text: 'hello',
-    })
-  ).resolves.toEqual({
-    code: 'success',
-    platform: Platform.WECHAT_SESSION,
-  });
-});
-
-test('official mock rejects cancellation with E_USER_CANCEL', async () => {
-  Share.shareText.mockRejectedValueOnce(
-    shareCancel(Platform.WECHAT_SESSION)
-  );
-
-  await expect(
-    Share.shareText({
-      platform: Platform.WECHAT_SESSION,
-      text: 'hello',
-    })
-  ).rejects.toMatchObject({ code: 'E_USER_CANCEL' });
-});
-
-test('official mock rejects failure with E_SHARE_FAILED', async () => {
-  Share.shareText.mockRejectedValueOnce(
-    shareFailed(Platform.WECHAT_SESSION, 'network error')
-  );
-
-  await expect(
-    Share.shareText({
-      platform: Platform.WECHAT_SESSION,
-      text: 'hello',
-    })
-  ).rejects.toMatchObject({
-    code: 'E_SHARE_FAILED',
-    message: 'network error',
-  });
+test('official mock provides all three share outcomes', async () => {
+  await expect(share(request)).resolves.toEqual({ status: 'success', target: 'wechat_session' });
+  share.mockResolvedValueOnce(shareCancelled());
+  await expect(share(request)).resolves.toEqual({ status: 'cancelled' });
+  share.mockResolvedValueOnce(shareFailed({ reason: 'sdk_failed', message: 'SDK failed' }, 'wechat_session'));
+  await expect(share(request)).resolves.toEqual({ status: 'failed', target: 'wechat_session', error: { reason: 'sdk_failed', message: 'SDK failed' } });
 });
 `
     ),
@@ -559,7 +577,9 @@ async function main() {
           '--config',
           smoke.config,
           '--runInBand',
+          '--watchman=false',
           'mock.test.js',
+          'public.test.js',
         ],
         fixtureDir,
         {
@@ -569,7 +589,7 @@ async function main() {
     }
 
     successMessage =
-      'Consumer verification passed (isolated install, exact default/source root and mock Metro targets, independent default/source official mock Jest).';
+      'Consumer verification passed (isolated install, exact default/source native/Web root and mock Metro targets, independent default/source public API and official mock Jest).';
   } catch (error) {
     primaryError = error;
   }

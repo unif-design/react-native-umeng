@@ -38,7 +38,7 @@ class UmengCommonModule(
       )
     } catch (error: IllegalStateException) {
       promise.reject(
-        "E_INVALID_OPTIONS",
+        "E_CONFIGURATION_LOCKED",
         error.message ?: "Umeng config cannot change",
         error,
       )
@@ -53,6 +53,15 @@ class UmengCommonModule(
 
   override fun isInited(promise: Promise) {
     promise.resolve(UmengBootstrap.isInited())
+  }
+
+  override fun getConfiguredShareTargets(promise: Promise) {
+    val targets = UmengBootstrap.configuredShareTargets()
+    if (targets == null) {
+      promise.reject("E_NOT_INITIALIZED", "Umeng must be initialized before querying share targets")
+      return
+    }
+    promise.resolve(Arguments.createArray().apply { targets.forEach { pushString(it) } })
   }
 
   companion object {

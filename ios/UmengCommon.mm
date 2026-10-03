@@ -18,18 +18,28 @@ RCT_EXPORT_MODULE(UmengCommon)
                                return;
                              }
 
-                             BOOL invalidOptions = [error.domain isEqualToString:UmengBootstrapErrorDomain] &&
-                                                   (error.code == UmengBootstrapErrorCodeInvalidConfig ||
-                                                    error.code == UmengBootstrapErrorCodeConfigChanged);
-                             // restartRequired 留在 NSError.userInfo 里跟着 reject 过桥 ——
-                             // JS 只把它原样存进 UmengError.nativeError,不解析 message 猜语义。
-                             reject(invalidOptions ? @"E_INVALID_OPTIONS" : @"E_UNKNOWN",
-                                    error.localizedDescription ?: @"Failed to initialize Umeng", error);
+                             NSString *code = @"E_UNKNOWN";
+                             if ([error.domain isEqualToString:UmengBootstrapErrorDomain]) {
+                               if (error.code == UmengBootstrapErrorCodeInvalidConfig)
+                                 code = @"E_INVALID_OPTIONS";
+                               if (error.code == UmengBootstrapErrorCodeConfigChanged)
+                                 code = @"E_CONFIGURATION_LOCKED";
+                             }
+                             reject(code, error.localizedDescription ?: @"Failed to initialize Umeng", error);
                            }];
 }
 
 - (void)isInited:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   resolve(@([[UmengBootstrap shared] isInited]));
+}
+
+- (void)getConfiguredShareTargets:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
+  NSArray<NSString *> *targets = [[UmengBootstrap shared] configuredShareTargets];
+  if (targets == nil) {
+    reject(@"E_NOT_INITIALIZED", @"Umeng must be initialized before querying share targets", nil);
+    return;
+  }
+  resolve(targets);
 }
 
 @end

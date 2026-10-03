@@ -8,6 +8,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import createAngularPreset from 'conventional-changelog-angular';
+import { CommitParser } from 'conventional-commits-parser';
 import semver from 'semver';
 
 import {
@@ -29,6 +31,7 @@ const publicContractFiles = [
   'src/index.ts',
   'src/mock.ts',
   'src/types.ts',
+  'src/UmengError.ts',
   'src/common.ts',
   'src/share.ts',
   'src/analytics.ts',
@@ -40,6 +43,9 @@ const publicContractFiles = [
 const initializationContractFiles = [
   'src/common.ts',
   'src/internal/initConfig.ts',
+  'src/internal/initConfig/index.ts',
+  'src/internal/initConfig/normalizeInitConfig.ts',
+  'src/internal/initConfig/types.ts',
   'src/NativeUmengCommon.ts',
   'android/src/main/java/com/unif/reactnativeumeng/UmengBootstrap.kt',
   'android/src/main/java/com/unif/reactnativeumeng/UmengBootstrapAdapter.kt',
@@ -185,7 +191,7 @@ export function minimumReleaseLevel({
 export function squashTitleReleaseLevel(title) {
   const normalizedTitle = typeof title === 'string' ? title.trim() : '';
   const match =
-    /^(?<type>[a-z][a-z0-9-]*)(?:\([^)]+\))?: (?<subject>\S(?:.*\S)?)$/.exec(
+    /^(?<type>[a-z][a-z0-9-]*)(?:\([^)]+\))?(?<breaking>!)?: (?<subject>\S(?:.*\S)?)$/.exec(
       normalizedTitle
     );
 
@@ -193,12 +199,30 @@ export function squashTitleReleaseLevel(title) {
     throw new Error(`invalid squash title: ${JSON.stringify(title)}`);
   }
 
-  // 本仓使用 Angular preset；它只把 feat subject 提升为 minor，其余合法 subject 为 patch。
+  // ! 声明不兼容变更；标题门禁必须允许并保留它。实际版本仍由下方
+  // release-it 校验，Angular preset 需要 commit body 中的 BREAKING CHANGE。
+  if (match.groups.breaking) return 'major';
+  // 非 breaking 标题中，Angular preset 只把 feat subject 提升为 minor。
   return match.groups.type === 'feat' ? 'minor' : 'patch';
 }
 
-export function assertSquashTitleReleaseLevel({ title, minimumLevel }) {
-  const titleLevel = squashTitleReleaseLevel(title);
+export function assertSquashTitleReleaseLevel({ title, body, minimumLevel }) {
+  const declaredLevel = squashTitleReleaseLevel(title);
+  // The shared Angular preset reads BREAKING CHANGE notes, not the ! marker.
+  // Parse the full message with the installed release toolchain: metadata
+  // sections can consume text that only looks like a breaking footer.
+  const commit = new CommitParser(createAngularPreset().parser).parse(
+    `${title}\n\n${typeof body === 'string' ? body : ''}`
+  );
+  const hasBreakingFooter =
+    Array.isArray(commit.notes) &&
+    commit.notes.some((note) => note.text.trim().length > 0);
+  if (declaredLevel === 'major' && !hasBreakingFooter) {
+    throw new Error(
+      'A breaking squash title requires a non-empty BREAKING CHANGE: footer in the squash body; Angular does not infer major from ! alone.'
+    );
+  }
+  const titleLevel = hasBreakingFooter ? 'major' : declaredLevel;
   const titleRank = releaseLevelRanks.get(titleLevel);
   const minimumRank = releaseLevelRanks.get(minimumLevel);
 
@@ -263,6 +287,7 @@ export function parsePublishContractArgs(args) {
   let githubOutput;
   let increment = 'auto';
   let squashTitle;
+  let squashBody;
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -295,6 +320,15 @@ export function parsePublishContractArgs(args) {
       continue;
     }
 
+    if (argument === '--squash-body') {
+      if (value === undefined) {
+        throw new Error('--squash-body requires a value');
+      }
+      squashBody = value;
+      index += 1;
+      continue;
+    }
+
     throw new Error(`unknown argument: ${argument}`);
   }
 
@@ -302,6 +336,7 @@ export function parsePublishContractArgs(args) {
     githubOutput,
     increment,
     ...(squashTitle === undefined ? {} : { squashTitle }),
+    ...(squashBody === undefined ? {} : { squashBody }),
   };
 }
 
@@ -463,9 +498,8 @@ async function conventionalVersion(manifest) {
 }
 
 async function main() {
-  const { githubOutput, increment, squashTitle } = parsePublishContractArgs(
-    process.argv.slice(2)
-  );
+  const { githubOutput, increment, squashTitle, squashBody } =
+    parsePublishContractArgs(process.argv.slice(2));
   const latestTag = run('git', ['describe', '--tags', '--abbrev=0']);
   const tagVersion = semver.valid(latestTag.replace(/^v/, ''));
   if (!tagVersion) {
@@ -565,7 +599,11 @@ async function main() {
       : semver.inc(tagVersion, minimumLevel);
 
   if (squashTitle) {
-    assertSquashTitleReleaseLevel({ title: squashTitle, minimumLevel });
+    assertSquashTitleReleaseLevel({
+      title: squashTitle,
+      body: squashBody,
+      minimumLevel,
+    });
   }
 
   if (

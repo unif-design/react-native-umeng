@@ -26,4 +26,4 @@ export interface Spec extends TurboModule {
   isInstalled(platform: string): Promise<boolean>;
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('UmengShare');
+export default TurboModuleRegistry.get<Spec>('UmengShare');

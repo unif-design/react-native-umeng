@@ -78,7 +78,7 @@ internal class UmengShareController<Host>(
     val mappedPlatform = mapPlatform(platform, request) ?: return
     val host = currentHost()
     if (host == null) {
-      request.resolve(false)
+      request.reject("E_UNAVAILABLE", "No current Activity; cannot query share targets", null)
       return
     }
 
@@ -154,7 +154,7 @@ internal class UmengShareController<Host>(
     val host =
       currentHost() ?: run {
         request.reject(
-          "E_UNKNOWN",
+          "E_UNAVAILABLE",
           "No current Activity; cannot invoke share",
           null,
         )

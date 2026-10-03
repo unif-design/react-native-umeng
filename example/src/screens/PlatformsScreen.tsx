@@ -1,3 +1,4 @@
+import { SHARE_TARGETS, SHARE_TARGET_LABELS } from '../content/constants';
 import {
   Button,
   Card,
@@ -6,11 +7,7 @@ import {
   useThemedStyles,
   type ColorTokens,
 } from '@unif/react-native-design';
-import {
-  PLATFORM_DISPLAY_NAMES,
-  SUPPORTED_PLATFORMS,
-  type Platform,
-} from '@unif/react-native-umeng';
+import { type ShareTarget } from '@unif/react-native-umeng';
 import { Text, View } from 'react-native';
 
 import { OperationFeedback } from '../components/OperationFeedback';
@@ -66,26 +63,25 @@ export function PlatformsScreen() {
       />
       <OperationFeedback feedback={platformState.feedback} />
       <View style={styles.list}>
-        {SUPPORTED_PLATFORMS.map((platform: Platform) => {
+        {SHARE_TARGETS.map((target: ShareTarget) => {
           const item = platformState.items.find(
-            (candidate) => candidate.platform === platform
+            (candidate) => candidate.target === target
           );
-          const displayName =
-            item?.displayName ?? PLATFORM_DISPLAY_NAMES[platform];
+          const label = item?.label ?? SHARE_TARGET_LABELS[target];
           const presentation = installationPresentation(item?.installed);
-          const checking = platformState.checking.includes(platform);
+          const checking = platformState.checking.includes(target);
           const stale = item?.freshness === 'stale';
 
           return (
-            <Card key={platform}>
+            <Card key={target}>
               <View style={styles.row}>
                 <StatusDot
                   status={presentation.status}
-                  accessibilityLabel={`${displayName}${presentation.label}${
+                  accessibilityLabel={`${label}${presentation.label}${
                     stale ? '，需复查' : ''
                   }`}
                 />
-                <Text style={styles.name}>{displayName}</Text>
+                <Text style={styles.name}>{label}</Text>
                 <Tag
                   label={presentation.label}
                   variant={presentation.variant}
@@ -93,12 +89,12 @@ export function PlatformsScreen() {
                 {stale ? <Tag label="需复查" variant="outline" /> : null}
               </View>
               <Button
-                label={`重新检测${displayName}`}
+                label={`重新检测${label}`}
                 variant="outline"
                 block
                 loading={checking}
                 onPress={() => {
-                  actions.checkPlatform(platform);
+                  actions.checkPlatform(target);
                 }}
               />
             </Card>

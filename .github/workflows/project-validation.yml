@@ -88,9 +88,10 @@ jobs:
       - name: Verify publish contract
         env:
           SQUASH_TITLE: ${{ github.event.pull_request.title }}
+          SQUASH_BODY: ${{ github.event.pull_request.body }}
         run: |
           if [ -n "$SQUASH_TITLE" ]; then
-            yarn verify:publish-contract --squash-title "$SQUASH_TITLE"
+            yarn verify:publish-contract --squash-title "$SQUASH_TITLE" --squash-body "$SQUASH_BODY"
           else
             yarn verify:publish-contract
           fi

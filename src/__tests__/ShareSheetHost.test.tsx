@@ -41,465 +41,497 @@ jest.mock('react-native-gesture-handler', () => {
       React.createElement(View, props, children),
   };
 });
-jest.mock('../share', () => ({
-  shareText: jest.fn(),
-  shareImage: jest.fn(),
-  shareLink: jest.fn(),
-  isInstalled: jest.fn(),
-  listPlatforms: jest.fn(),
+jest.mock('../NativeUmengCommon', () => ({
+  __esModule: true,
+  default: {
+    getConfiguredShareTargets: jest
+      .fn()
+      .mockResolvedValue(['wechat_session', 'dingtalk']),
+  },
+}));
+jest.mock('../NativeUmengShare', () => ({
+  __esModule: true,
+  default: {
+    isInstalled: jest.fn(),
+    shareText: jest.fn(),
+    shareImage: jest.fn(),
+    shareLink: jest.fn(),
+  },
 }));
 
+import { render, act, fireEvent, waitFor } from '@testing-library/react-native';
+import { Modal, View } from 'react-native';
 import {
-  render,
-  act,
-  cleanupAsync,
-  fireEvent,
-} from '@testing-library/react-native';
-import { Modal } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ShareSheetHost } from '../ShareSheet/ShareSheetHost';
-import { shareSheetController } from '../ShareSheet/ShareSheetController';
-import {
-  Platform,
-  type PlatformInfo,
+  useShareSheet,
+  type ShareSheetController,
   type ShareResult,
-  type ShareSheetOptions,
-  type ShareSheetPayload,
-} from '../types';
-import * as Share from '../share';
+} from '../index';
+import Native from '../NativeUmengShare';
 import { deferred } from './fixtures/deferred';
 
-const INSTALLED_PLATFORMS: PlatformInfo[] = [
-  {
-    platform: Platform.WECHAT_SESSION,
-    installed: true,
-    displayName: '微信',
-  },
-  { platform: Platform.DINGTALK, installed: true, displayName: '钉钉' },
-];
-const WECHAT_SUCCESS: ShareResult = {
-  code: 'success',
-  platform: Platform.WECHAT_SESSION,
-};
-const DINGTALK_SUCCESS: ShareResult = {
-  code: 'success',
-  platform: Platform.DINGTALK,
-};
-const TEXT_PAYLOAD: ShareSheetPayload = { type: 'text', text: 'hi' };
+let controller: ShareSheetController;
+function Harness({ host = true }: { host?: boolean }) {
+  const [sheet, element] = useShareSheet();
+  controller = sheet;
+  return host ? element : null;
+}
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest.mocked(Native!.isInstalled).mockResolvedValue(true);
+  jest
+    .mocked(Native!.shareText)
+    .mockResolvedValue({ code: 'success', platform: 'wechat_session' });
+});
 
-async function show(
-  payload: ShareSheetPayload = TEXT_PAYLOAD,
-  options?: ShareSheetOptions
-): Promise<{ pending: Promise<ShareResult> }> {
-  let promise!: Promise<ShareResult>;
+it('renders options, queries actual targets, and uses the same share operation', async () => {
+  const screen = render(<Harness />);
+  const onLayout = jest.fn();
+  const input = { type: 'text' as const, text: 'original' };
+  let pending!: Promise<ShareResult>;
   await act(async () => {
-    promise = shareSheetController.show(payload, options);
-    promise.catch(() => {});
-    await Promise.resolve();
+    pending = controller.open(input, {
+      title: '发送给同事',
+      subtitles: { dingtalk: '工作群' },
+      onLayout,
+    });
   });
-  // async 函数会自动吸收直接返回的 Promise；包一层对象以保留 pending 状态。
-  return { pending: promise };
-}
+  input.text = 'changed';
+  expect(screen.getByText('发送给同事')).toBeTruthy();
+  expect(screen.getByText('工作群 · 已安装')).toBeTruthy();
+  fireEvent(screen.getByTestId('umeng-share-sheet'), 'layout', {
+    nativeEvent: { layout: { height: 250 } },
+  });
+  expect(onLayout).toHaveBeenCalledWith(250);
+  await act(async () => {
+    fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
+  });
+  await expect(pending).resolves.toEqual({
+    status: 'success',
+    target: 'wechat_session',
+  });
+  expect(Native!.shareText).toHaveBeenCalledWith('wechat_session', 'original');
+});
 
-function expectRejectsWith(
-  promise: Promise<ShareResult>,
-  expected: Record<string, unknown>
-): Promise<void> {
-  return promise.then(
-    () => {
-      throw new Error('Expected the ShareSheet promise to reject');
-    },
-    (error: unknown) => {
-      expect(error).toMatchObject(expected);
-    }
+it('keeps the controller stable and requires this instance host', async () => {
+  const screen = render(<Harness host={false} />);
+  const first = controller;
+  await expect(
+    first.open({ type: 'text', text: 'hello' })
+  ).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'unavailable' },
+  });
+  screen.rerender(<Harness />);
+  expect(controller).toBe(first);
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = first.open({ type: 'text', text: 'hello' });
+  });
+  await expect(
+    first.open({ type: 'text', text: 'again' })
+  ).resolves.toMatchObject({ status: 'failed', error: { reason: 'busy' } });
+  await act(async () => {
+    fireEvent.press(screen.getByTestId('umeng-share-cancel'));
+  });
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  expect(Native!.shareText).not.toHaveBeenCalled();
+});
+
+it('keeps floating presentation in its window and preserves SDK result after abort and unmount', async () => {
+  const sdk = deferred<{ code: 'success'; platform: string }>();
+  jest.mocked(Native!.shareText).mockReturnValueOnce(sdk.promise);
+  const screen = render(<Harness />);
+  const signal = new AbortController();
+  const onDismiss = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'hello' },
+      { presentation: 'floating', signal: signal.signal, onDismiss }
+    );
+  });
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+  expect(
+    screen.getByTestId('umeng-share-floating-root').props.pointerEvents
+  ).toBe('box-none');
+  await act(async () => {
+    fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
+  });
+  await waitFor(() => expect(Native!.shareText).toHaveBeenCalledTimes(1));
+  signal.abort();
+  screen.unmount();
+  sdk.resolve({ code: 'success', platform: 'wechat_session' });
+  await expect(pending).resolves.toEqual({
+    status: 'success',
+    target: 'wechat_session',
+  });
+  expect(onDismiss).toHaveBeenCalledTimes(1);
+});
+
+it('uses native installed state and hides uninstalled entries only when requested', async () => {
+  jest
+    .mocked(Native!.isInstalled)
+    .mockImplementation(async (target) => target !== 'dingtalk');
+  const screen = render(<Harness />);
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'hello' },
+      { presentation: 'floating' }
+    );
+  });
+  expect(screen.getByText('钉钉')).toBeTruthy();
+  await act(async () => {
+    fireEvent.press(screen.getByTestId('umeng-share-cell-dingtalk'));
+  });
+  await expect(pending).resolves.toMatchObject({
+    status: 'failed',
+    target: 'dingtalk',
+    error: { reason: 'not_installed' },
+  });
+  expect(Native!.shareText).not.toHaveBeenCalled();
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'hello' },
+      { hideUninstalled: true, presentation: 'floating' }
+    );
+  });
+  expect(screen.queryByText('钉钉')).toBeNull();
+  await act(async () => {
+    fireEvent.press(screen.getByTestId('umeng-share-cancel'));
+  });
+  await pending;
+});
+
+it('cancels loading without letting a late query update the next presentation', async () => {
+  const query = deferred<boolean>();
+  jest.mocked(Native!.isInstalled).mockReturnValueOnce(query.promise);
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  let first!: Promise<ShareResult>;
+  await act(async () => {
+    first = controller.open(
+      { type: 'text', text: 'old' },
+      { signal: abort.signal, title: '旧面板' }
+    );
+  });
+  await act(async () => abort.abort());
+  await expect(first).resolves.toEqual({ status: 'cancelled' });
+  let second!: Promise<ShareResult>;
+  await act(async () => {
+    second = controller.open(
+      { type: 'text', text: 'new' },
+      { title: '新面板' }
+    );
+  });
+  await act(async () => query.resolve(true));
+  expect(screen.getByText('新面板')).toBeTruthy();
+  expect(screen.queryByText('旧面板')).toBeNull();
+  await act(async () =>
+    fireEvent.press(screen.getByTestId('umeng-share-cancel'))
   );
-}
+  await second;
+});
 
-function expectResolvesTo(
-  promise: Promise<ShareResult>,
-  expected: ShareResult
-): Promise<void> {
-  return promise.then((result) => {
-    expect(result).toEqual(expected);
-  });
-}
-
-describe('ShareSheetHost', () => {
-  let consoleError: jest.SpyInstance;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
-    (Share.listPlatforms as jest.Mock).mockResolvedValue(INSTALLED_PLATFORMS);
-  });
-
-  afterEach(async () => {
-    await cleanupAsync();
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(consoleError).not.toHaveBeenCalled();
-    consoleError.mockRestore();
-  });
-
-  it('rejects when querying platforms fails instead of rendering every platform as uninstalled', async () => {
-    const query = deferred<PlatformInfo[]>();
-    (Share.listPlatforms as jest.Mock).mockReturnValue(query.promise);
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show();
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_UNKNOWN',
-      message: 'Failed to query installed share platforms',
-    });
-
-    await act(async () => {
-      query.reject(null);
-      await rejection;
-    });
-
-    expect(screen.queryByTestId('umeng-share-cell-wechat_session')).toBeNull();
-    expect(screen.queryByTestId('umeng-share-cell-dingtalk')).toBeNull();
-    expect(screen.UNSAFE_getByType(Modal).props.visible).toBe(false);
-  });
-
-  it('ignores session A platform results that arrive after session B is ready', async () => {
-    const queryA = deferred<PlatformInfo[]>();
-    const queryB = deferred<PlatformInfo[]>();
-    (Share.listPlatforms as jest.Mock)
-      .mockReturnValueOnce(queryA.promise)
-      .mockReturnValueOnce(queryB.promise);
-    const screen = render(<ShareSheetHost />);
-
-    const { pending: sessionA } = await show();
-    const sessionARejection = expectRejectsWith(sessionA, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      screen.UNSAFE_getByType(Modal).props.onRequestClose();
-      await sessionARejection;
-    });
-
-    const { pending: sessionB } = await show();
-    await act(async () => {
-      queryB.resolve([
-        {
-          platform: Platform.DINGTALK,
-          installed: true,
-          displayName: '钉钉',
-        },
-      ]);
-      await Promise.resolve();
-    });
-    expect(screen.queryByTestId('umeng-share-cell-dingtalk')).not.toBeNull();
-    expect(screen.queryByTestId('umeng-share-cell-wechat_session')).toBeNull();
-
-    await act(async () => {
-      queryA.resolve([
-        {
-          platform: Platform.WECHAT_SESSION,
-          installed: true,
-          displayName: '微信',
-        },
-      ]);
-      await Promise.resolve();
-    });
-    expect(screen.queryByTestId('umeng-share-cell-dingtalk')).not.toBeNull();
-    expect(screen.queryByTestId('umeng-share-cell-wechat_session')).toBeNull();
-
-    const sessionBRejection = expectRejectsWith(sessionB, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
-      await sessionBRejection;
-    });
-  });
-
-  it('uses the synchronous sharing transition to ignore a platform double press', async () => {
-    const nativeShare = deferred<ShareResult>();
-    (Share.shareText as jest.Mock).mockReturnValue(nativeShare.promise);
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show({
-      type: 'text',
-      text: 'double',
-    });
-    const cell = screen.getByTestId('umeng-share-cell-wechat_session');
-
-    act(() => {
-      fireEvent.press(cell);
-      fireEvent.press(cell);
-    });
-
-    expect(Share.shareText).toHaveBeenCalledTimes(1);
-    expect(Share.shareText).toHaveBeenCalledWith({
-      platform: Platform.WECHAT_SESSION,
-      text: 'double',
-    });
-
-    const resolution = expectResolvesTo(promise, WECHAT_SUCCESS);
-    await act(async () => {
-      nativeShare.resolve(WECHAT_SUCCESS);
-      await resolution;
-    });
-  });
-
-  it('closes the modal while sharing and accepts a cancellation callback', async () => {
-    const nativeShare = deferred<ShareResult>();
-    (Share.shareText as jest.Mock).mockReturnValue(nativeShare.promise);
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show();
-    const modal = screen.UNSAFE_getByType(Modal);
-    const backdrop = screen.getByLabelText('关闭');
-    const cancel = screen.getByTestId('umeng-share-cancel');
-
-    act(() => {
-      fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
-    });
-    expect(screen.UNSAFE_getByType(Modal).props.visible).toBe(false);
-
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      modal.props.onRequestClose();
-      fireEvent.press(cancel);
-      fireEvent.press(backdrop);
-      await rejection;
-      nativeShare.resolve(WECHAT_SUCCESS);
-      await Promise.resolve();
-    });
-  });
-
-  it('renders floating presentation without a scrim and reports its height', async () => {
-    const onSheetLayout = jest.fn();
-    const onDismiss = jest.fn();
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show(TEXT_PAYLOAD, {
-      presentation: 'floating',
-      onSheetLayout,
-      onDismiss,
-    });
-
-    expect(() => screen.UNSAFE_getByType(Modal)).toThrow();
-    expect(screen.queryByLabelText('关闭')).toBeNull();
-    expect(screen.getByTestId('umeng-share-floating-root')).toHaveProp(
-      'pointerEvents',
-      'box-none'
+it('does not let an old layout or dismissal callback affect a new sheet', async () => {
+  const screen = render(<Harness />);
+  const oldLayout = jest.fn();
+  let first!: Promise<ShareResult>;
+  await act(async () => {
+    first = controller.open(
+      { type: 'text', text: 'old' },
+      { onLayout: oldLayout }
     );
-
-    fireEvent(screen.getByTestId('umeng-share-sheet'), 'layout', {
-      nativeEvent: {
-        layout: { x: 0, y: 0, width: 390, height: 260 },
-      },
-    });
-    expect(onSheetLayout).toHaveBeenCalledWith(260);
-
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
-      await rejection;
-    });
-    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
-
-  it('keeps floating controls available while native sharing is in flight', async () => {
-    const nativeShare = deferred<ShareResult>();
-    const onDismiss = jest.fn();
-    (Share.shareText as jest.Mock).mockReturnValue(nativeShare.promise);
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show(TEXT_PAYLOAD, {
-      presentation: 'floating',
-      onDismiss,
-    });
-
-    act(() => {
-      fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
-    });
-    expect(screen.getByTestId('umeng-share-floating-root')).toBeTruthy();
-    expect(screen.getByTestId('umeng-share-cancel')).toBeTruthy();
-
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
-      await rejection;
-      nativeShare.resolve(WECHAT_SUCCESS);
-      await Promise.resolve();
-    });
-
-    expect(screen.queryByTestId('umeng-share-floating-root')).toBeNull();
-    expect(onDismiss).toHaveBeenCalledTimes(1);
+  const oldModal = screen.UNSAFE_getByType(Modal).props;
+  const oldSheet = screen.getByTestId('umeng-share-sheet').props;
+  await act(async () => {
+    oldModal.onShow();
+    fireEvent.press(screen.getByTestId('umeng-share-cancel'));
   });
-
-  it('fires modal onDismiss only after the native modal finishes closing', async () => {
-    const onDismiss = jest.fn();
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show(TEXT_PAYLOAD, { onDismiss });
-    act(() => {
-      screen.UNSAFE_getByType(Modal).props.onShow();
-    });
-
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
-      await rejection;
-    });
-    expect(onDismiss).not.toHaveBeenCalled();
-
-    act(() => {
-      screen.UNSAFE_getByType(Modal).props.onDismiss();
-    });
-    expect(onDismiss).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not let a late native result from unmounted session A settle session B', async () => {
-    const nativeA = deferred<ShareResult>();
-    (Share.shareText as jest.Mock)
-      .mockReturnValueOnce(nativeA.promise)
-      .mockResolvedValueOnce(DINGTALK_SUCCESS);
-    const hostA = render(<ShareSheetHost />);
-    const { pending: sessionA } = await show({ type: 'text', text: 'A' });
-    act(() => {
-      fireEvent.press(hostA.getByTestId('umeng-share-cell-wechat_session'));
-    });
-    const sessionARejection = expectRejectsWith(sessionA, {
-      code: 'E_UNKNOWN',
-      message:
-        'The active <ShareSheetHost /> unmounted before the share completed.',
-    });
-    hostA.unmount();
-    await sessionARejection;
-
-    const hostB = render(<ShareSheetHost />);
-    const { pending: sessionB } = await show({ type: 'text', text: 'B' });
-    await act(async () => {
-      nativeA.resolve(WECHAT_SUCCESS);
-      await Promise.resolve();
-    });
-
-    expect(hostB.UNSAFE_getByType(Modal).props.visible).toBe(true);
-    const sessionBResolution = expectResolvesTo(sessionB, DINGTALK_SUCCESS);
-    await act(async () => {
-      fireEvent.press(hostB.getByTestId('umeng-share-cell-dingtalk'));
-      await sessionBResolution;
-    });
-    expect(Share.shareText).toHaveBeenNthCalledWith(2, {
-      platform: Platform.DINGTALK,
-      text: 'B',
-    });
-  });
-
-  it('rejects the pending session when its owner Host unmounts', async () => {
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show();
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_UNKNOWN',
-      message:
-        'The active <ShareSheetHost /> unmounted before the share completed.',
-    });
-
-    screen.unmount();
-    await rejection;
-  });
-
-  it('renders the active sheet only in the latest registered Host', async () => {
-    const screen = render(
-      <>
-        <ShareSheetHost />
-        <ShareSheetHost />
-      </>
+  await first;
+  await act(async () => oldModal.onDismiss());
+  let second!: Promise<ShareResult>;
+  await act(async () => {
+    second = controller.open(
+      { type: 'text', text: 'new' },
+      { title: 'New sheet' }
     );
-    const { pending: promise } = await show();
+  });
+  await act(async () => {
+    oldModal.onShow();
+    oldModal.onDismiss();
+    oldSheet.onLayout({ nativeEvent: { layout: { height: 999 } } });
+  });
+  expect(oldLayout).not.toHaveBeenCalled();
+  expect(screen.getByText('New sheet')).toBeTruthy();
+  await act(async () =>
+    fireEvent.press(screen.getByTestId('umeng-share-cancel'))
+  );
+  await expect(second).resolves.toEqual({ status: 'cancelled' });
+});
 
-    expect(
-      screen.UNSAFE_getAllByType(Modal).filter((modal) => modal.props.visible)
-    ).toHaveLength(1);
-    expect(
-      screen.getAllByTestId('umeng-share-cell-wechat_session')
-    ).toHaveLength(1);
+it('keeps a dismissal before onShow attached to its original native Modal', async () => {
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  const firstDismissed = jest.fn();
+  const rejectedReentryDismissed = jest.fn();
+  let first!: Promise<ShareResult>;
+  await act(async () => {
+    first = controller.open(
+      { type: 'text', text: 'first' },
+      { signal: abort.signal, onDismiss: firstDismissed }
+    );
+  });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => abort.abort());
+  await expect(first).resolves.toEqual({ status: 'cancelled' });
+  expect(firstDismissed).not.toHaveBeenCalled();
+  expect(nativeModal.props.visible).toBe(true);
 
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_USER_CANCEL',
+  let reentry!: Promise<ShareResult>;
+  await act(async () => {
+    reentry = controller.open(
+      { type: 'text', text: 'reentry' },
+      { onDismiss: rejectedReentryDismissed }
+    );
+  });
+  // RN Modal reads its latest props when the native animation completes.
+  // Retaining an old props object would miss the production race.
+  await act(async () => nativeModal.props.onShow());
+  expect(nativeModal.props.visible).toBe(false);
+  await act(async () => nativeModal.props.onDismiss());
+  expect(rejectedReentryDismissed).not.toHaveBeenCalled();
+  expect(firstDismissed).toHaveBeenCalledTimes(1);
+  await expect(reentry).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'busy' },
+  });
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+
+  const nextDismissed = jest.fn();
+  let next!: Promise<ShareResult>;
+  await act(async () => {
+    next = controller.open(
+      { type: 'text', text: 'next' },
+      { onDismiss: nextDismissed }
+    );
+  });
+  const nextModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nextModal.props.onShow());
+  await act(async () =>
+    fireEvent.press(screen.getByTestId('umeng-share-cancel'))
+  );
+  await expect(next).resolves.toEqual({ status: 'cancelled' });
+  await act(async () => nextModal.props.onDismiss());
+  expect(nextDismissed).toHaveBeenCalledTimes(1);
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+});
+
+it('cancels before a Modal commits without requiring native presentation events', async () => {
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  const dismissed = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'never presented' },
+      { signal: abort.signal, onDismiss: dismissed }
+    );
+    abort.abort();
+    abort.abort();
+  });
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+
+  const nextDismissed = jest.fn();
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'next' },
+      { onDismiss: nextDismissed }
+    );
+  });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nativeModal.props.onShow());
+  const close = nativeModal.props.onRequestClose;
+  await act(async () => {
+    close();
+    close();
+  });
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  const didDismiss = nativeModal.props.onDismiss;
+  await act(async () => {
+    didDismiss();
+    didDismiss();
+  });
+  expect(nextDismissed).toHaveBeenCalledTimes(1);
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+});
+
+it.each(['opening', 'shown', 'closing'] as const)(
+  'replaces an unmounted %s host without delivering its events to the replacement',
+  async (phase) => {
+    const screen = render(<Harness />);
+    const originalController = controller;
+    const dismissed = jest.fn();
+    const resolved = jest.fn();
+    const abort = new AbortController();
+    let first!: Promise<ShareResult>;
+    await act(async () => {
+      first = controller.open(
+        { type: 'text', text: 'old' },
+        { signal: abort.signal, onDismiss: dismissed }
+      );
+      first.then(resolved);
+    });
+    const originalModal = screen.UNSAFE_getByType(Modal);
+    if (phase !== 'opening')
+      await act(async () => originalModal.props.onShow());
+    if (phase === 'closing') await act(async () => abort.abort());
+    const oldCallbacks = originalModal.props;
+    screen.rerender(<Harness host={false} />);
+    await expect(first).resolves.toEqual({ status: 'cancelled' });
+    expect(dismissed).toHaveBeenCalledTimes(1);
+    expect(resolved).toHaveBeenCalledTimes(1);
+
+    screen.rerender(<Harness />);
+    expect(controller).toBe(originalController);
+    const nextDismissed = jest.fn();
+    let next!: Promise<ShareResult>;
+    await act(async () => {
+      next = controller.open(
+        { type: 'text', text: 'new' },
+        { title: '新面板', onDismiss: nextDismissed }
+      );
     });
     await act(async () => {
-      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
-      await rejection;
+      oldCallbacks.onShow();
+      oldCallbacks.onRequestClose();
+      oldCallbacks.onDismiss();
+      oldCallbacks.onDismiss();
+      abort.abort();
     });
+    expect(nextDismissed).not.toHaveBeenCalled();
+    expect(screen.getByText('新面板')).toBeTruthy();
+    const nextModal = screen.UNSAFE_getByType(Modal);
+    await act(async () => nextModal.props.onShow());
+    await act(async () => nextModal.props.onRequestClose());
+    await expect(next).resolves.toEqual({ status: 'cancelled' });
+    await act(async () => nextModal.props.onDismiss());
+    expect(nextDismissed).toHaveBeenCalledTimes(1);
+    expect(dismissed).toHaveBeenCalledTimes(1);
+    expect(resolved).toHaveBeenCalledTimes(1);
+    expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+  }
+);
+
+it('keeps old native events isolated when the hook instance is replaced', async () => {
+  const screen = render(
+    <View>
+      <Harness key="old" />
+    </View>
+  );
+  const originalController = controller;
+  const dismissed = jest.fn();
+  let first!: Promise<ShareResult>;
+  await act(async () => {
+    first = controller.open(
+      { type: 'text', text: 'old' },
+      { onDismiss: dismissed }
+    );
   });
-
-  it('keeps a visible uninstalled platform clickable and rejects without a native call', async () => {
-    (Share.listPlatforms as jest.Mock).mockResolvedValue([
-      {
-        platform: Platform.WECHAT_SESSION,
-        installed: false,
-        displayName: '微信',
-      },
-      INSTALLED_PLATFORMS[1],
-    ]);
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show(TEXT_PAYLOAD, {
-      hideUninstalled: false,
-    });
-    const cell = screen.getByTestId('umeng-share-cell-wechat_session');
-
-    expect(cell.props.disabled).toBeUndefined();
-    expect(cell.props.accessibilityState?.disabled).toBeUndefined();
-
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_PLATFORM_NOT_INSTALLED',
-      message: '微信 未安装',
-    });
-    await act(async () => {
-      fireEvent.press(cell);
-      await rejection;
-    });
-    expect(Share.shareText).not.toHaveBeenCalled();
+  const oldCallbacks = screen.UNSAFE_getByType(Modal).props;
+  screen.rerender(
+    <View>
+      <Harness key="new" />
+    </View>
+  );
+  await expect(first).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(controller).not.toBe(originalController);
+  const nextDismissed = jest.fn();
+  let next!: Promise<ShareResult>;
+  await act(async () => {
+    next = controller.open(
+      { type: 'text', text: 'new' },
+      { onDismiss: nextDismissed }
+    );
   });
-
-  it('does not render an uninstalled platform when hideUninstalled is true', async () => {
-    (Share.listPlatforms as jest.Mock).mockResolvedValue([
-      {
-        platform: Platform.WECHAT_SESSION,
-        installed: false,
-        displayName: '微信',
-      },
-      INSTALLED_PLATFORMS[1],
-    ]);
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show(TEXT_PAYLOAD, {
-      hideUninstalled: true,
-    });
-
-    expect(screen.queryByTestId('umeng-share-cell-wechat_session')).toBeNull();
-    expect(screen.queryByTestId('umeng-share-cell-dingtalk')).not.toBeNull();
-
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
-      await rejection;
-    });
+  await act(async () => {
+    oldCallbacks.onShow();
+    oldCallbacks.onRequestClose();
+    oldCallbacks.onDismiss();
   });
+  expect(nextDismissed).not.toHaveBeenCalled();
+  const nextModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nextModal.props.onShow());
+  await act(async () => nextModal.props.onRequestClose());
+  await expect(next).resolves.toEqual({ status: 'cancelled' });
+  await act(async () => nextModal.props.onDismiss());
+  expect(nextDismissed).toHaveBeenCalledTimes(1);
+});
 
-  it('mounts GestureHandlerRootView inside the Modal content', async () => {
-    const screen = render(<ShareSheetHost />);
-    const { pending: promise } = await show();
-    const modal = screen.UNSAFE_getByType(Modal);
-
-    expect(modal.findByType(GestureHandlerRootView)).toBeTruthy();
-
-    const rejection = expectRejectsWith(promise, {
-      code: 'E_USER_CANCEL',
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('umeng-share-cancel'));
-      await rejection;
-    });
+it('settles a native dismissal before selection exactly once', async () => {
+  const screen = render(<Harness />);
+  const dismissed = jest.fn();
+  const resolved = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'hello' },
+      { onDismiss: dismissed }
+    );
+    pending.then(resolved);
   });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nativeModal.props.onShow());
+  const didDismiss = nativeModal.props.onDismiss;
+  await act(async () => {
+    didDismiss();
+    didDismiss();
+  });
+  expect(resolved).toHaveBeenCalledTimes(1);
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(Native!.shareText).not.toHaveBeenCalled();
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+});
+
+it('releases the abort listener after dismissal while preserving the pending SDK receipt', async () => {
+  const sdk = deferred<{ code: 'success'; platform: string }>();
+  jest.mocked(Native!.shareText).mockReturnValueOnce(sdk.promise);
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  const removeListener = jest.spyOn(abort.signal, 'removeEventListener');
+  const dismissed = jest.fn();
+  const resolved = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'hello' },
+      { signal: abort.signal, onDismiss: dismissed }
+    );
+    pending.then(resolved);
+  });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nativeModal.props.onShow());
+  await act(async () =>
+    fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'))
+  );
+  await act(async () => nativeModal.props.onDismiss());
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(removeListener).toHaveBeenCalledTimes(1);
+  expect(resolved).not.toHaveBeenCalled();
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+  abort.abort();
+  screen.unmount();
+  sdk.resolve({ code: 'success', platform: 'wechat_session' });
+  await expect(pending).resolves.toEqual({
+    status: 'success',
+    target: 'wechat_session',
+  });
+  expect(removeListener).toHaveBeenCalledTimes(1);
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(resolved).toHaveBeenCalledTimes(1);
 });

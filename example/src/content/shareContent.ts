@@ -1,13 +1,13 @@
 import {
-  Platform,
+  type ShareTarget,
   UmengError,
-  type ShareImageOptions,
-  type ShareLinkOptions,
-  type ShareSheetPayload,
-  type ShareTextOptions,
+  type ShareImageContent,
+  type ShareLinkContent,
+  type ShareContent,
+  type ShareRequest,
 } from '@unif/react-native-umeng';
 
-export type ShareContentType = ShareSheetPayload['type'];
+export type ShareContentType = ShareContent['type'];
 
 export type ShareContentDraft = {
   readonly text: string;
@@ -45,7 +45,10 @@ function requireHttpsUrl(value: string): string {
     // 统一落入不含原始 URL 的安全错误，避免把 query/凭据带入反馈与日志。
   }
 
-  throw new UmengError('E_INVALID_OPTIONS', HTTPS_ERROR_MESSAGE);
+  throw new UmengError({
+    reason: 'invalid_input',
+    message: HTTPS_ERROR_MESSAGE,
+  });
 }
 
 function optionalText(value: string): string | undefined {
@@ -56,17 +59,17 @@ function optionalHttpsUrl(value: string): string | undefined {
   return value.trim().length > 0 ? requireHttpsUrl(value) : undefined;
 }
 
-type ImageContent = Omit<ShareImageOptions, 'platform'>;
+type ImageContent = Omit<ShareImageContent, 'type'>;
 
 function buildImageContent(draft: ShareContentDraft): ImageContent {
   const thumb = optionalHttpsUrl(draft.thumb);
   return {
-    image: requireHttpsUrl(draft.image),
-    ...(thumb === undefined ? {} : { thumb }),
+    imageUrl: requireHttpsUrl(draft.image),
+    ...(thumb === undefined ? {} : { thumbnailUrl: thumb }),
   };
 }
 
-type LinkContent = Omit<ShareLinkOptions, 'platform'>;
+type LinkContent = Omit<ShareLinkContent, 'type'>;
 
 function buildLinkContent(draft: ShareContentDraft): LinkContent {
   const description = optionalText(draft.description);
@@ -75,11 +78,11 @@ function buildLinkContent(draft: ShareContentDraft): LinkContent {
     title: draft.title,
     url: requireHttpsUrl(draft.url),
     ...(description === undefined ? {} : { description }),
-    ...(thumb === undefined ? {} : { thumb }),
+    ...(thumb === undefined ? {} : { thumbnailUrl: thumb }),
   };
 }
 
-export function buildSheetPayload(draft: SheetPayloadDraft): ShareSheetPayload {
+export function buildSheetPayload(draft: SheetPayloadDraft): ShareContent {
   switch (draft.type) {
     case 'text':
       return { type: 'text', text: draft.text };
@@ -91,36 +94,9 @@ export function buildSheetPayload(draft: SheetPayloadDraft): ShareSheetPayload {
 }
 
 export function buildDirectOptions(
-  type: 'text',
-  platform: Platform,
-  draft: ShareContentDraft
-): ShareTextOptions;
-export function buildDirectOptions(
-  type: 'image',
-  platform: Platform,
-  draft: ShareContentDraft
-): ShareImageOptions;
-export function buildDirectOptions(
-  type: 'link',
-  platform: Platform,
-  draft: ShareContentDraft
-): ShareLinkOptions;
-export function buildDirectOptions(
   type: ShareContentType,
-  platform: Platform,
+  target: ShareTarget,
   draft: ShareContentDraft
-): ShareTextOptions | ShareImageOptions | ShareLinkOptions;
-export function buildDirectOptions(
-  type: ShareContentType,
-  platform: Platform,
-  draft: ShareContentDraft
-): ShareTextOptions | ShareImageOptions | ShareLinkOptions {
-  switch (type) {
-    case 'text':
-      return { platform, text: draft.text };
-    case 'image':
-      return { platform, ...buildImageContent(draft) };
-    case 'link':
-      return { platform, ...buildLinkContent(draft) };
-  }
+): ShareRequest {
+  return { target, content: buildSheetPayload({ ...draft, type }) };
 }

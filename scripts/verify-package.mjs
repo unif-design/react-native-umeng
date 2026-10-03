@@ -1,10 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import {
-  mkdtemp,
-  readFile,
-  readdir,
-  stat,
-} from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,8 +15,10 @@ const requiredFiles = [
   'README.md',
   'LICENSE',
   'src/index.ts',
+  'src/index.web.ts',
   'src/mock.ts',
   'lib/module/index.js',
+  'lib/module/index.web.js',
   'lib/module/mock.js',
   'lib/typescript/src/index.d.ts',
   'lib/typescript/src/mock.d.ts',
@@ -114,9 +111,7 @@ export async function collectProductionNativeFiles(root = repositoryRoot) {
     '\\$&'
   );
   if (
-    !new RegExp(
-      `s\\.source_files\\s*=\\s*["']${escapedGlob}["']`
-    ).test(podspec)
+    !new RegExp(`s\\.source_files\\s*=\\s*["']${escapedGlob}["']`).test(podspec)
   ) {
     throw new Error(
       `ReactNativeUmeng.podspec must declare source_files as ${podspecIOSSourceGlob}`

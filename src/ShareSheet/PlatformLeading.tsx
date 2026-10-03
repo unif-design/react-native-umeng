@@ -1,13 +1,9 @@
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useTheme } from '@unif/react-native-design';
-import { PLATFORM_BRAND_COLORS, Platform } from '../types';
+import type { PlatformLeadingProps } from './types';
+import { platformLeadingStyles as styles } from './styles';
 import { WeChatGlyph } from './WeChatGlyph';
 import { DingTalkGlyph } from './DingTalkGlyph';
-
-export interface PlatformLeadingProps {
-  platform: Platform;
-  size?: number;
-}
 
 /**
  * 32×32 圆角 8 容器:
@@ -20,15 +16,15 @@ export const PlatformLeading = ({
 }: PlatformLeadingProps) => {
   const theme = useTheme();
 
-  if (platform === Platform.WECHAT_SESSION) {
+  if (platform === 'wechat_session') {
     return (
       <View
         style={[
           styles.container,
+          styles.wechat,
           {
             width: size,
             height: size,
-            backgroundColor: PLATFORM_BRAND_COLORS[Platform.WECHAT_SESSION],
           },
         ]}
       >
@@ -36,7 +32,7 @@ export const PlatformLeading = ({
       </View>
     );
   }
-  if (platform === Platform.DINGTALK) {
+  if (platform === 'dingtalk') {
     return (
       <View
         style={[
@@ -54,11 +50,3 @@ export const PlatformLeading = ({
   }
   return null;
 };
-
-const styles = StyleSheet.create({
-  container: {
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   publish-title:
-    if: github.event.changes.title != null
+    if: github.event.changes.title != null || github.event.changes.body != null
     concurrency:
       group: publish-title-${{ github.ref }}
       cancel-in-progress: true
@@ -24,4 +24,5 @@ jobs:
       - name: Verify publish contract
         env:
           SQUASH_TITLE: ${{ github.event.pull_request.title }}
-        run: yarn verify:publish-contract --squash-title "$SQUASH_TITLE"
+          SQUASH_BODY: ${{ github.event.pull_request.body }}
+        run: yarn verify:publish-contract --squash-title "$SQUASH_TITLE" --squash-body "$SQUASH_BODY"

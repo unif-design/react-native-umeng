@@ -4,7 +4,11 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
-const b = { ...require('./llms/bundle'), ...require('./llms/markdown'), stripMdxNoise: require('./llms/markdown').convertMdxBody };
+const b = {
+  ...require('./llms/bundle'),
+  ...require('./llms/markdown'),
+  stripMdxNoise: require('./llms/markdown').convertMdxBody,
+};
 require('./build-llms-core.test.js');
 require('./build-llms-site.test.js');
 
@@ -47,7 +51,10 @@ test('同一行闭合的 LiveDemo 不会吞掉后文', () => {
 });
 
 test('自闭合 LiveDemo 缺少示例内容时明确失败', () => {
-  assert.throws(() => b.stripMdxNoise('<LiveDemo />\n\n## 后文\n正文\n'), /LiveDemo/);
+  assert.throws(
+    () => b.stripMdxNoise('<LiveDemo />\n\n## 后文\n正文\n'),
+    /LiveDemo/
+  );
 });
 
 test('formatIndexLine 正确处理 description', () => {
@@ -82,7 +89,7 @@ test('全文目录包含标题', () => {
   assert(b.buildToc(['A', 'B']).includes('- A'));
 });
 
-test('main 生成保留项目子路径的索引与当前 Common/Share 契约', () => {
+test('main 生成保留项目子路径的索引与当前初始化与分享契约', () => {
   const websiteRoot = path.join(__dirname, '..');
   execFileSync(process.execPath, [path.join(__dirname, 'build-llms.js')], {
     cwd: websiteRoot,
@@ -103,20 +110,14 @@ test('main 生成保留项目子路径的索引与当前 Common/Share 契约', (
     full.startsWith('# Unif Umeng — 全文文档聚合\n'),
     'llms-full.txt 标题应来自站点配置'
   );
-  assert(
-    llms.includes('](md/intro.md)'),
-    '相对索引链接应保留部署项目路径'
-  );
+  assert(llms.includes('](md/intro.md)'), '相对索引链接应保留部署项目路径');
   assert(!llms.includes('](/md/'), '索引中不得出现部署后失效的根路径链接');
+  assert(full.includes('initializeUmeng(config)'), '全文应包含单一初始化契约');
+  assert(full.includes('not_initialized'), '全文应包含初始化门禁错误码');
+  assert(full.includes('controller.open'), '全文应包含公开 Share API');
   assert(
-    full.includes('Common.preInit(config)'),
-    '全文应包含 Common.preInit 契约'
-  );
-  assert(full.includes('E_NOT_INITIALIZED'), '全文应包含初始化门禁错误码');
-  assert(full.includes('Share.openSheet'), '全文应包含公开 Share API');
-  assert(
-    full.includes("code: 'success'"),
-    '全文应说明 ShareResult 只有 success'
+    full.includes("status: 'cancelled'"),
+    '全文应说明 ShareResult 包含取消结果'
   );
 });
 

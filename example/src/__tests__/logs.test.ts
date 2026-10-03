@@ -6,7 +6,7 @@ describe('showcase logs', () => {
       now: new Date(2026, 7, 3, 10, 20, 30, 123),
       level: 'info',
       scope: 'analytics',
-      message: 'JS 已调用 Analytics.onEvent',
+      message: 'JS 已调用 trackEvent',
       // 日志 API 不接受任意 config/payload；运行时也不得把额外字段扩散到日志。
       // @ts-expect-error payload 不是安全日志输入的一部分。
       payload: { appkey: 'secret' },
@@ -18,7 +18,7 @@ describe('showcase logs', () => {
         timestamp: '2026-08-03 10:20:30.123',
         level: 'info',
         scope: 'analytics',
-        message: 'JS 已调用 Analytics.onEvent',
+        message: 'JS 已调用 trackEvent',
       },
     ]);
     expect(JSON.stringify(logs)).not.toContain('secret');

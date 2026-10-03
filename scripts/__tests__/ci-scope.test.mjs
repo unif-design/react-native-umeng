@@ -38,11 +38,14 @@ test('shared runtime and verification tooling keep their actual consumers', () =
   assert.equal(selected('consumer', { android: true }), true);
   assert.equal(selected('javascript', { ios: true }), false);
 });
-test('PR title edits retain publish-level verification without restarting Project Validation', () => {
+test('PR title and body edits retain publish-level verification without restarting Project Validation', () => {
   assert.doesNotMatch(project, /- edited/);
   const title = read('.github/workflows/publish-title.yml');
   assert.match(title, /types: \[edited\]/);
-  assert.match(title, /if: github\.event\.changes\.title != null/);
+  assert.match(
+    title,
+    /if: github\.event\.changes\.title != null \|\| github\.event\.changes\.body != null/
+  );
   assert.match(title, /fetch-depth: 0/);
   assert.match(title, /yarn verify:publish-contract --squash-title/);
   assert.doesNotMatch(
@@ -50,6 +53,13 @@ test('PR title edits retain publish-level verification without restarting Projec
     /yarn prepare|build:ios|build:android|verify:consumers/
   );
   assert.match(project, /yarn verify:publish-contract --squash-title/);
+  for (const workflow of [title, project]) {
+    assert.match(
+      workflow,
+      /SQUASH_BODY: \$\{\{ github\.event\.pull_request\.body \}\}/
+    );
+    assert.match(workflow, /--squash-body "\$SQUASH_BODY"/);
+  }
 });
 test('native obligations execute in standard required jobs even on a Turbo hit', () => {
   const ci = read('.github/workflows/ci.yml');

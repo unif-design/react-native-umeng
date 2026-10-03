@@ -1,81 +1,14 @@
 ---
-sidebar_position: 2
-title: 统计埋点
-description: '记录自定义事件与统计用户标识。'
+title: 统计接入
+description: 由应用安排统计时机和账号关联。
 ---
 
-# 统计埋点
+# 统计接入
 
-本页介绍如何用 `@unif/react-native-umeng` 记录 U-App 移动统计 —— 自定义事件与账号登录 / 登出埋点。
+应用取得真实授权并完成 `initializeUmeng(config)` 后，在对应业务动作中调用 `trackEvent({ name, attributes })`。三个统计 API 都是同步 `void`，无需 await，也不以返回代表云端接收。
 
-:::warning 三个方法都是同步 `void`,不要 await
-`Analytics.onEvent` / `signIn` / `signOut` **没有返回 Promise**,直接同步调用即可。`await` 一个 `undefined` 没有意义。
-:::
+真实登录成功后调用 `bindAnalyticsUser({ userId, provider })`，业务退出后调用 `clearAnalyticsUser()`。库不读取账号、不判断登录成功，不持久化第二份登录事实。
 
----
+属性只接受字符串或有限数字。保留事件名与原始属性语义；数字到原生字符串的转换由库处理。SDK 未就绪的调用不会触达厂商或排队补发。
 
-## 自定义事件 {#on-event}
-
-```ts
-import { Analytics } from '@unif/react-native-umeng';
-
-Analytics.onEvent('login'); // 无参数
-Analytics.onEvent('share_click', { source: 'detail' }); // 字符串参数
-Analytics.onEvent('page_view', { page: 'home', duration: 30 }); // 含数字参数
-```
-
-| 参数      | 类型                                | 说明                          |
-| --------- | ----------------------------------- | ----------------------------- |
-| `eventId` | `string`                            | 事件 ID(需与友盟后台配置一致) |
-| `params`  | `Record<string, string \| number>?` | 事件属性,可选                 |
-
-:::note 数字参数自动字符串化
-`params` 里 value 为 `number` 时会自动 `String()` 转成字符串 —— 友盟 iOS 的 attributes 强制要求 `NSString`。所以 `{ duration: 30 }` 上报时是 `"30"`,你不必手动转。
-:::
-
----
-
-## 账号登录埋点 {#sign-in}
-
-```ts
-Analytics.signIn('user-123', 'WX'); // provider 可选
-```
-
-| 参数       | 类型      | 说明                            |
-| ---------- | --------- | ------------------------------- |
-| `userId`   | `string`  | 业务用户 ID                     |
-| `provider` | `string?` | 登录方式标识,如 `'WX'` / `'DD'` |
-
-## 账号登出埋点 {#sign-out}
-
-```ts
-Analytics.signOut();
-```
-
----
-
-## 易错点:不要 await `Analytics.*` {#no-await}
-
-```ts
-// ❌ Incorrect:它们是同步 void,await 一个 undefined 没意义
-await Analytics.onEvent('login');
-const ok = await Analytics.signIn('user-123'); // ok 永远是 undefined
-```
-
-```ts
-// ✅ Correct:直接同步调用
-Analytics.onEvent('login');
-Analytics.signIn('user-123', 'WX');
-Analytics.signOut();
-```
-
----
-
-:::warning 采集需先 `Common.init()`
-`Analytics.*` 的数据上报依赖 `Common.init()` 已完成。Android 与 iOS 在 init 前都会在 native adapter/vendor 之前同步 no-op，不缓存或补发该事件。初始化顺序见[初始化与用户同意](./privacy-pipl)。
-:::
-
-## 相关
-
-- [Analytics API](../api/analytics) —— 完整签名
-- [Common API](../api/common) —— preInit / init / isInited
+[统计 API](../api/analytics) · [隐私时机](./privacy-pipl)

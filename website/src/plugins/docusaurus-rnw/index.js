@@ -1,14 +1,14 @@
 /**
  * 让 Docusaurus 能直接 import `@unif/react-native-umeng` 源码并在浏览器渲染：
  *   - `react-native` → `react-native-web` 别名
- *   - `@unif/react-native-umeng$` → `<repo>/src/index.ts`(显式 alias 兜底,
+ *   - `@unif/react-native-umeng$` → `<repo>/src/index.web.ts`(显式 alias 兜底,
  *      webpack 5 不识 package.json 的 `exports.source` 条件;同时保持源码 hot reload)
  *   - `@unif/react-native-design` 走 node_modules(当前验证 0.30.0),不 alias
  *   - 把 `<repo>/src/**` 与 ESM-shipped 的几个 RN 库纳入 babel-loader 处理范围
  *   - reanimated 4 需要 `react-native-worklets/plugin`,必须放在 babel plugins 链最后
  *
  * Native module(NativeUmengCommon/Share/Analytics)在浏览器里没有原生侧,
- * 只能渲染 ShareSheet UI 预览,真实 Share/Analytics 调用要在 RN runtime。
+ * Web 入口明确报告 unsupported，真实分享及统计交接在 RN runtime。
  */
 'use strict';
 
@@ -83,13 +83,13 @@ module.exports = function reactNativeWebPlugin(context) {
             // 在该 RN 组件的 wrapper 旁边加 `<Comp>.web.tsx` 条件入口用 CSS 等价物重写。
             'react-native/Libraries': false,
             'react-native/src': false,
-            // 把 npm 包名 `@unif/react-native-umeng` 显式指向 src/index.ts 源码:
+            // 把 npm 包名 `@unif/react-native-umeng` 显式指向 src/index.web.ts 源码:
             //  - webpack 5 默认不识 package.json 的 `exports.source` 条件,直接 import npm 名
             //    会拿到 lib/module/index.js(bob 编译产物),热更新链路断;
             //  - 即便仓库内通过 yarn workspaces 把 npm 名 symlink 到本地源码,源码里又有 `@/*`
             //    barrel,也得让 webpack 解析到源码本体而非编译产物。
             //  - `$` 精确匹配,不影响 `@unif/react-native-umeng/<subpath>` 写法。
-            '@unif/react-native-umeng$': path.resolve(srcDir, 'index.ts'),
+            '@unif/react-native-umeng$': path.resolve(srcDir, 'index.web.ts'),
           },
           // RNW / 多平台库会用 .web.js / .web.tsx 等后缀提供 web-specific 实现。
           extensions: [

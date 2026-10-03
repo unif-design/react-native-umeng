@@ -23,12 +23,12 @@ iOS 首次运行或原生依赖变化后：
 ## 操作顺序
 
 1. 在“运行时凭据”页填写测试配置；真实值不写入源码或日志。
-2. 点击“预初始化”，仅保存本次配置。
-3. 用户明确同意隐私协议后，点击初始化。
+2. 点击“确认配置”，由示例保存本次待提交配置。
+3. 用户明确同意隐私协议后，点击初始化，调用 initializeUmeng(config)。
 4. 查看微信／钉钉安装状态，再进入分享面板或直接分享。
 5. 在 Analytics 页测试事件和统计用户标识。
 
-分享只有成功才 resolve，取消和失败由 `UmengError` 区分。库 API 接受 HTTP／HTTPS URL，示例仅放行 HTTPS。
+分享结果由 status 区分 success、cancelled 和 failed；面板使用本实例的 controller.open。库 API 接受 HTTP／HTTPS URL，示例仅放行 HTTPS。
 
 ## 接入与验证
 

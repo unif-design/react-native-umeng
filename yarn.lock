@@ -6249,6 +6249,8 @@ __metadata:
     "@types/react-test-renderer": "npm:^19"
     "@unif/react-native-design": "npm:^0.30.1"
     commitlint: "npm:^21.2.1"
+    conventional-changelog-angular: "npm:9.2.1"
+    conventional-commits-parser: "npm:7.1.2"
     del-cli: "npm:^7.0.0"
     eslint: "npm:^9.39.5"
     eslint-config-prettier: "npm:^10.1.8"
@@ -8212,7 +8214,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"conventional-changelog-angular@npm:^9.0.0, conventional-changelog-angular@npm:^9.2.1":
+"conventional-changelog-angular@npm:9.2.1, conventional-changelog-angular@npm:^9.0.0, conventional-changelog-angular@npm:^9.2.1":
   version: 9.2.1
   resolution: "conventional-changelog-angular@npm:9.2.1"
   dependencies:
@@ -8277,7 +8279,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"conventional-commits-parser@npm:^7.0.0, conventional-commits-parser@npm:^7.1.0":
+"conventional-commits-parser@npm:7.1.2, conventional-commits-parser@npm:^7.0.0, conventional-commits-parser@npm:^7.1.0":
   version: 7.1.2
   resolution: "conventional-commits-parser@npm:7.1.2"
   dependencies:

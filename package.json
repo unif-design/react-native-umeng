@@ -6,8 +6,12 @@
   "types": "./lib/typescript/src/index.d.ts",
   "exports": {
     ".": {
-      "source": "./src/index.ts",
       "types": "./lib/typescript/src/index.d.ts",
+      "browser": {
+        "source": "./src/index.web.ts",
+        "default": "./lib/module/index.web.js"
+      },
+      "source": "./src/index.ts",
       "default": "./lib/module/index.js"
     },
     "./mock": {
@@ -90,6 +94,8 @@
     "@types/react-test-renderer": "^19",
     "@unif/react-native-design": "^0.30.1",
     "commitlint": "^21.2.1",
+    "conventional-changelog-angular": "9.2.1",
+    "conventional-commits-parser": "7.1.2",
     "del-cli": "^7.0.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
@@ -227,5 +233,6 @@
       "jest"
     ],
     "version": "0.62.0"
-  }
+  },
+  "browser": "./lib/module/index.web.js"
 }

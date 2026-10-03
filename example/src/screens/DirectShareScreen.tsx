@@ -6,7 +6,7 @@ import {
   type ColorTokens,
   type IconName,
 } from '@unif/react-native-design';
-import { Platform } from '@unif/react-native-umeng';
+import type { ShareTarget } from '@unif/react-native-umeng';
 import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -42,14 +42,14 @@ const SHARE_TYPES: readonly {
 ];
 
 const SHARE_PLATFORMS: readonly {
-  readonly platform: Platform;
+  readonly target: ShareTarget;
   readonly platformName: string;
 }[] = [
   {
-    platform: Platform.WECHAT_SESSION,
+    target: 'wechat_session',
     platformName: '微信会话',
   },
-  { platform: Platform.DINGTALK, platformName: '钉钉' },
+  { target: 'dingtalk', platformName: '钉钉' },
 ];
 
 const makeStyles = (colors: ColorTokens) => ({
@@ -153,10 +153,10 @@ export function DirectShareScreen() {
           </View>
           {SHARE_PLATFORMS.map((sharePlatform) => {
             const installed = state.platforms.items.find(
-              (item) => item.platform === sharePlatform.platform
+              (item) => item.target === sharePlatform.target
             );
             return (
-              <View key={sharePlatform.platform} style={styles.matrixRow}>
+              <View key={sharePlatform.target} style={styles.matrixRow}>
                 <View style={styles.platformCell}>
                   <Text
                     style={styles.platformHeader}
@@ -185,7 +185,7 @@ export function DirectShareScreen() {
                         onPress={() => {
                           actions.shareDirect(
                             shareType.type,
-                            sharePlatform.platform,
+                            sharePlatform.target,
                             content
                           );
                         }}
