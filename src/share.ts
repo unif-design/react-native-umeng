@@ -1,12 +1,8 @@
 import NativeUmengCommon from './NativeUmengCommon';
 import NativeUmengShare from './NativeUmengShare';
 import { normalizeError, toFailure, unavailable } from './internal/errors';
-import {
-  isShareTarget,
-  requireObject,
-  snapshotContent,
-  invalidInput,
-} from './internal/shareContent';
+import { isShareTarget, snapshotContent } from './internal/shareContent';
+import { invalidInput, requireObject } from './internal/inputValidation';
 import { SHARE_TARGET_LABELS } from './internal/shareTargets';
 import { UmengError } from './UmengError';
 import type {

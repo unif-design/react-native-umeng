@@ -4,7 +4,7 @@ import {
   invalidInput,
   requireObject,
   requireString,
-} from './internal/shareContent';
+} from './internal/inputValidation';
 import type { AnalyticsEvent, AnalyticsUser } from './types';
 
 /** Synchronous handoff; return does not confirm upload to the analytics service. */

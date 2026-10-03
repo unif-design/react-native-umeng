@@ -28,6 +28,6 @@ export default defineConfig([
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module' },
   },
   {
-    ignores: ['node_modules/', 'lib/', 'website/'],
+    ignores: ['node_modules/', 'lib/', 'website/', 'android/build/'],
   },
 ]);

@@ -1,11 +1,10 @@
 import { toFailure } from '../internal/errors';
 import {
   invalidInput,
-  isShareTarget,
   requireObject,
   requireString,
-  snapshotContent,
-} from '../internal/shareContent';
+} from '../internal/inputValidation';
+import { isShareTarget, snapshotContent } from '../internal/shareContent';
 import type {
   ShareContent,
   ShareResult,
@@ -92,7 +91,8 @@ export class ShareSheetSession implements ShareSheetController {
   ): Promise<ShareResult> {
     try {
       const snapshot = snapshotContent(content);
-      const callOptions = snapshotOptions(options);
+      const { signal, onDismiss, ...presentationOptions } =
+        snapshotOptions(options);
       if (this.active || this.dismissing)
         return Promise.resolve({
           status: 'failed',
@@ -110,8 +110,7 @@ export class ShareSheetSession implements ShareSheetController {
               'Render the host returned by this useShareSheet instance before opening it',
           },
         });
-      if (callOptions.signal?.aborted)
-        return Promise.resolve({ status: 'cancelled' });
+      if (signal?.aborted) return Promise.resolve({ status: 'cancelled' });
       const id = ++this.sequence;
       return new Promise((resolve) => {
         const onAbort = () => this.dismiss(id);
@@ -119,17 +118,18 @@ export class ShareSheetSession implements ShareSheetController {
           id,
           phase: 'loading',
           dismissed: false,
-          onDismiss: callOptions.onDismiss,
+          onDismiss,
           resolve,
-          stopListening: () =>
-            callOptions.signal?.removeEventListener('abort', onAbort),
+          stopListening: signal
+            ? () => signal.removeEventListener('abort', onAbort)
+            : undefined,
         };
-        callOptions.signal?.addEventListener('abort', onAbort, { once: true });
+        signal?.addEventListener('abort', onAbort, { once: true });
         this.listener?.({
           kind: 'show',
           sessionId: id,
           content: snapshot,
-          options: callOptions,
+          options: presentationOptions,
         });
       });
     } catch (error) {
@@ -161,9 +161,12 @@ export class ShareSheetSession implements ShareSheetController {
     const session = this.active;
     if (session?.id !== id) return;
     this.active = null;
-    session.stopListening();
+    session.stopListening?.();
+    session.stopListening = undefined;
     if (!session.dismissed) this.dismissing = session;
-    session.resolve(result);
+    const resolve = session.resolve;
+    session.resolve = undefined;
+    resolve?.(result);
     this.hide(session);
   }
   dismiss(id: number): void {
@@ -181,8 +184,16 @@ export class ShareSheetSession implements ShareSheetController {
           : null;
     if (!session || session.dismissed) return;
     session.dismissed = true;
+    session.stopListening?.();
+    session.stopListening = undefined;
+    const onDismiss = session.onDismiss;
+    session.onDismiss = undefined;
     if (this.dismissing === session) this.dismissing = null;
-    notify(session.onDismiss);
+    // An ended presentation cancels selection, but an SDK request still owns
+    // its result and remains active until its receipt arrives.
+    if (this.active === session && session.phase !== 'sharing')
+      this.settle(id, { status: 'cancelled' });
+    notify(onDismiss);
   }
   private hide(session: PendingShareSheetSession): void {
     if (session.dismissed) return;

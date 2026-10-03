@@ -60,7 +60,7 @@ jest.mock('../NativeUmengShare', () => ({
 }));
 
 import { render, act, fireEvent, waitFor } from '@testing-library/react-native';
-import { Modal } from 'react-native';
+import { Modal, View } from 'react-native';
 import {
   useShareSheet,
   type ShareSheetController,
@@ -269,4 +269,269 @@ it('does not let an old layout or dismissal callback affect a new sheet', async 
     fireEvent.press(screen.getByTestId('umeng-share-cancel'))
   );
   await expect(second).resolves.toEqual({ status: 'cancelled' });
+});
+
+it('keeps a dismissal before onShow attached to its original native Modal', async () => {
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  const firstDismissed = jest.fn();
+  const rejectedReentryDismissed = jest.fn();
+  let first!: Promise<ShareResult>;
+  await act(async () => {
+    first = controller.open(
+      { type: 'text', text: 'first' },
+      { signal: abort.signal, onDismiss: firstDismissed }
+    );
+  });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => abort.abort());
+  await expect(first).resolves.toEqual({ status: 'cancelled' });
+  expect(firstDismissed).not.toHaveBeenCalled();
+  expect(nativeModal.props.visible).toBe(true);
+
+  let reentry!: Promise<ShareResult>;
+  await act(async () => {
+    reentry = controller.open(
+      { type: 'text', text: 'reentry' },
+      { onDismiss: rejectedReentryDismissed }
+    );
+  });
+  // RN Modal reads its latest props when the native animation completes.
+  // Retaining an old props object would miss the production race.
+  await act(async () => nativeModal.props.onShow());
+  expect(nativeModal.props.visible).toBe(false);
+  await act(async () => nativeModal.props.onDismiss());
+  expect(rejectedReentryDismissed).not.toHaveBeenCalled();
+  expect(firstDismissed).toHaveBeenCalledTimes(1);
+  await expect(reentry).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'busy' },
+  });
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+
+  const nextDismissed = jest.fn();
+  let next!: Promise<ShareResult>;
+  await act(async () => {
+    next = controller.open(
+      { type: 'text', text: 'next' },
+      { onDismiss: nextDismissed }
+    );
+  });
+  const nextModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nextModal.props.onShow());
+  await act(async () =>
+    fireEvent.press(screen.getByTestId('umeng-share-cancel'))
+  );
+  await expect(next).resolves.toEqual({ status: 'cancelled' });
+  await act(async () => nextModal.props.onDismiss());
+  expect(nextDismissed).toHaveBeenCalledTimes(1);
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+});
+
+it('cancels before a Modal commits without requiring native presentation events', async () => {
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  const dismissed = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'never presented' },
+      { signal: abort.signal, onDismiss: dismissed }
+    );
+    abort.abort();
+    abort.abort();
+  });
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+
+  const nextDismissed = jest.fn();
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'next' },
+      { onDismiss: nextDismissed }
+    );
+  });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nativeModal.props.onShow());
+  const close = nativeModal.props.onRequestClose;
+  await act(async () => {
+    close();
+    close();
+  });
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  const didDismiss = nativeModal.props.onDismiss;
+  await act(async () => {
+    didDismiss();
+    didDismiss();
+  });
+  expect(nextDismissed).toHaveBeenCalledTimes(1);
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+});
+
+it.each(['opening', 'shown', 'closing'] as const)(
+  'replaces an unmounted %s host without delivering its events to the replacement',
+  async (phase) => {
+    const screen = render(<Harness />);
+    const originalController = controller;
+    const dismissed = jest.fn();
+    const resolved = jest.fn();
+    const abort = new AbortController();
+    let first!: Promise<ShareResult>;
+    await act(async () => {
+      first = controller.open(
+        { type: 'text', text: 'old' },
+        { signal: abort.signal, onDismiss: dismissed }
+      );
+      first.then(resolved);
+    });
+    const originalModal = screen.UNSAFE_getByType(Modal);
+    if (phase !== 'opening')
+      await act(async () => originalModal.props.onShow());
+    if (phase === 'closing') await act(async () => abort.abort());
+    const oldCallbacks = originalModal.props;
+    screen.rerender(<Harness host={false} />);
+    await expect(first).resolves.toEqual({ status: 'cancelled' });
+    expect(dismissed).toHaveBeenCalledTimes(1);
+    expect(resolved).toHaveBeenCalledTimes(1);
+
+    screen.rerender(<Harness />);
+    expect(controller).toBe(originalController);
+    const nextDismissed = jest.fn();
+    let next!: Promise<ShareResult>;
+    await act(async () => {
+      next = controller.open(
+        { type: 'text', text: 'new' },
+        { title: '新面板', onDismiss: nextDismissed }
+      );
+    });
+    await act(async () => {
+      oldCallbacks.onShow();
+      oldCallbacks.onRequestClose();
+      oldCallbacks.onDismiss();
+      oldCallbacks.onDismiss();
+      abort.abort();
+    });
+    expect(nextDismissed).not.toHaveBeenCalled();
+    expect(screen.getByText('新面板')).toBeTruthy();
+    const nextModal = screen.UNSAFE_getByType(Modal);
+    await act(async () => nextModal.props.onShow());
+    await act(async () => nextModal.props.onRequestClose());
+    await expect(next).resolves.toEqual({ status: 'cancelled' });
+    await act(async () => nextModal.props.onDismiss());
+    expect(nextDismissed).toHaveBeenCalledTimes(1);
+    expect(dismissed).toHaveBeenCalledTimes(1);
+    expect(resolved).toHaveBeenCalledTimes(1);
+    expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+  }
+);
+
+it('keeps old native events isolated when the hook instance is replaced', async () => {
+  const screen = render(
+    <View>
+      <Harness key="old" />
+    </View>
+  );
+  const originalController = controller;
+  const dismissed = jest.fn();
+  let first!: Promise<ShareResult>;
+  await act(async () => {
+    first = controller.open(
+      { type: 'text', text: 'old' },
+      { onDismiss: dismissed }
+    );
+  });
+  const oldCallbacks = screen.UNSAFE_getByType(Modal).props;
+  screen.rerender(
+    <View>
+      <Harness key="new" />
+    </View>
+  );
+  await expect(first).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(controller).not.toBe(originalController);
+  const nextDismissed = jest.fn();
+  let next!: Promise<ShareResult>;
+  await act(async () => {
+    next = controller.open(
+      { type: 'text', text: 'new' },
+      { onDismiss: nextDismissed }
+    );
+  });
+  await act(async () => {
+    oldCallbacks.onShow();
+    oldCallbacks.onRequestClose();
+    oldCallbacks.onDismiss();
+  });
+  expect(nextDismissed).not.toHaveBeenCalled();
+  const nextModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nextModal.props.onShow());
+  await act(async () => nextModal.props.onRequestClose());
+  await expect(next).resolves.toEqual({ status: 'cancelled' });
+  await act(async () => nextModal.props.onDismiss());
+  expect(nextDismissed).toHaveBeenCalledTimes(1);
+});
+
+it('settles a native dismissal before selection exactly once', async () => {
+  const screen = render(<Harness />);
+  const dismissed = jest.fn();
+  const resolved = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'hello' },
+      { onDismiss: dismissed }
+    );
+    pending.then(resolved);
+  });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nativeModal.props.onShow());
+  const didDismiss = nativeModal.props.onDismiss;
+  await act(async () => {
+    didDismiss();
+    didDismiss();
+  });
+  expect(resolved).toHaveBeenCalledTimes(1);
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(Native!.shareText).not.toHaveBeenCalled();
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+});
+
+it('releases the abort listener after dismissal while preserving the pending SDK receipt', async () => {
+  const sdk = deferred<{ code: 'success'; platform: string }>();
+  jest.mocked(Native!.shareText).mockReturnValueOnce(sdk.promise);
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  const removeListener = jest.spyOn(abort.signal, 'removeEventListener');
+  const dismissed = jest.fn();
+  const resolved = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'hello' },
+      { signal: abort.signal, onDismiss: dismissed }
+    );
+    pending.then(resolved);
+  });
+  const nativeModal = screen.UNSAFE_getByType(Modal);
+  await act(async () => nativeModal.props.onShow());
+  await act(async () =>
+    fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'))
+  );
+  await act(async () => nativeModal.props.onDismiss());
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(removeListener).toHaveBeenCalledTimes(1);
+  expect(resolved).not.toHaveBeenCalled();
+  expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
+  abort.abort();
+  screen.unmount();
+  sdk.resolve({ code: 'success', platform: 'wechat_session' });
+  await expect(pending).resolves.toEqual({
+    status: 'success',
+    target: 'wechat_session',
+  });
+  expect(removeListener).toHaveBeenCalledTimes(1);
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(resolved).toHaveBeenCalledTimes(1);
 });

@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useCallback,
+} from 'react';
 import {
   Modal,
   Platform,
@@ -29,18 +35,30 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
     require('react-native-gesture-handler') as typeof import('react-native-gesture-handler');
   const styles = useThemedStyles(makeSheetStyles);
   const [state, setState] = useState<SheetState>(INITIAL_SHEET_STATE);
-  const presentedSessionRef = useRef<number | null>(null);
+  const modalSessionRef = useRef<number | null>(null);
   const floatingSessionRef = useRef<number | null>(null);
+  const [shownSessionId, setShownSessionId] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (state.phase === 'ready' && state.options.presentation !== 'floating') {
+      // Track the committed Modal before its native entrance animation finishes.
+      modalSessionRef.current = state.sessionId;
+    }
+  }, [state.phase, state.options.presentation, state.sessionId]);
 
   const notifyDismissed = useCallback(
     (sessionId: number | null) => {
       if (sessionId === null) return;
-      if (presentedSessionRef.current === sessionId) {
-        presentedSessionRef.current = null;
+      if (modalSessionRef.current === sessionId) {
+        modalSessionRef.current = null;
       }
       if (floatingSessionRef.current === sessionId) {
         floatingSessionRef.current = null;
       }
+      setShownSessionId((current) => (current === sessionId ? null : current));
+      setState((current) =>
+        current.sessionId === sessionId ? INITIAL_SHEET_STATE : current
+      );
       controller.completeDismiss(sessionId);
     },
     [controller]
@@ -83,19 +101,23 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
         const isFloating = floatingSessionRef.current === e.sessionId;
         setState((current) =>
           current.sessionId === e.sessionId
-            ? { ...current, phase: 'closed' }
+            ? { ...current, phase: 'closing' }
             : current
         );
         if (
           isFloating ||
           Platform.OS !== 'ios' ||
-          presentedSessionRef.current !== e.sessionId
+          modalSessionRef.current !== e.sessionId
         ) {
           notifyDismissed(e.sessionId);
         }
       }
     });
-    return registration;
+    return () => {
+      modalSessionRef.current = null;
+      floatingSessionRef.current = null;
+      registration();
+    };
   }, [controller, notifyDismissed]);
 
   const handlePlatformPress = useCallback(
@@ -130,6 +152,9 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
     },
     [controller, state.options, state.sessionId]
   );
+
+  if (state.phase === 'closed' || state.phase === 'loadingPlatforms')
+    return null;
 
   const title = state.options.title ?? '分享至';
   const cancelText = state.options.cancelText ?? '取消';
@@ -204,16 +229,23 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
 
   return (
     <Modal
-      visible={state.phase === 'ready'}
+      key={state.sessionId}
+      // If cancellation arrives during entrance, let onShow acknowledge that
+      // native actually presented before requesting dismissal. Otherwise a
+      // coalesced true/false update can omit onDismiss and leave the call busy.
+      visible={state.phase === 'ready' || shownSessionId !== state.sessionId}
       transparent
       animationType="slide"
       statusBarTranslucent
       onRequestClose={handleCancel}
       onShow={() => {
-        if (controller.isPresenting(state.sessionId))
-          presentedSessionRef.current = state.sessionId;
+        if (modalSessionRef.current === state.sessionId)
+          setShownSessionId(state.sessionId);
       }}
-      onDismiss={() => notifyDismissed(state.sessionId)}
+      onDismiss={() => {
+        if (modalSessionRef.current === state.sessionId)
+          notifyDismissed(state.sessionId);
+      }}
     >
       <GestureHandlerRootView style={styles.root}>
         {/* backdrop 点击取消；内层 sheet 的空 onPress 用来拦截冒泡。 */}

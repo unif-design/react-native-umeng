@@ -1,23 +1,7 @@
-import { UmengError } from '../UmengError';
 import type { ShareContent, ShareTarget } from '../types';
 import { isHttpUrl } from './isHttpUrl';
+import { invalidInput, requireObject, requireString } from './inputValidation';
 
-export function invalidInput(message: string): never {
-  throw new UmengError({ reason: 'invalid_input', message });
-}
-export function requireObject(
-  value: unknown,
-  field: string
-): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    return invalidInput(`${field} must be an object`);
-  return value as Record<string, unknown>;
-}
-export function requireString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || !value.trim())
-    return invalidInput(`${field} must be a non-empty string`);
-  return value;
-}
 export function isShareTarget(value: unknown): value is ShareTarget {
   return value === 'wechat_session' || value === 'dingtalk';
 }

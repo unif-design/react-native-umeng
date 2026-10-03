@@ -1,18 +1,22 @@
 import type {
   ShareContent,
   ShareResult,
-  ShareSheetCallOptions,
   ShareSheetOptions,
   ShareTarget,
   ShareTargetInfo,
 } from '../types';
 import type { ShareSheetSession } from './ShareSheetController';
 
+export type ShareSheetPresentationOptions = Omit<
+  ShareSheetOptions,
+  'onDismiss'
+>;
+
 export interface ShareSheetShowEvent {
   kind: 'show';
   sessionId: number;
   content: Readonly<ShareContent>;
-  options: ShareSheetCallOptions;
+  options: ShareSheetPresentationOptions;
 }
 export interface ShareSheetDismissEvent {
   kind: 'dismiss';
@@ -25,14 +29,14 @@ export interface PendingShareSheetSession {
   phase: 'loading' | 'ready' | 'sharing';
   dismissed: boolean;
   onDismiss?: () => void;
-  stopListening(): void;
-  resolve(result: ShareResult): void;
+  stopListening?(): void;
+  resolve?(result: ShareResult): void;
 }
 export interface SheetState {
   sessionId: number | null;
-  phase: 'closed' | 'loadingPlatforms' | 'ready' | 'sharing';
+  phase: 'closed' | 'loadingPlatforms' | 'ready' | 'closing';
   content: Readonly<ShareContent> | null;
-  options: ShareSheetOptions;
+  options: ShareSheetPresentationOptions;
   platforms: readonly ShareTargetInfo[];
 }
 export interface ShareSheetHostProps {
