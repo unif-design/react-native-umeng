@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@callstack/liquid-glass": "0.8.2",
-    "@unif/react-native-design": "0.35.0",
+    "@unif/react-native-design": "0.36.0",
     "@unif/react-native-umeng": "workspace:*",
     "react": "19.2.3",
     "react-native": "0.86.3",

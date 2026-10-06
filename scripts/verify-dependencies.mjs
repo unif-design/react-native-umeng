@@ -60,7 +60,7 @@ const requiredWebsiteReactNativeDevelopmentGraph = {
 };
 const lockedPackageContracts = {
   '@unif/react-native-design': {
-    version: '0.35.0',
+    version: '0.36.0',
     peerDependencies: {
       '@callstack/liquid-glass': '>=0.8.2 <0.9.0',
       react: '>=19.2.3 <20.0.0',

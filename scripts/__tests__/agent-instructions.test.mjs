@@ -11,14 +11,14 @@ import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 const expectedPeerRanges = {
   react: '>=19.2.3 <20.0.0',
   '@callstack/liquid-glass': '>=0.8.2 <0.9.0',
-  '@unif/react-native-design': '^0.35.0',
+  '@unif/react-native-design': '>=0.35.0',
   'react-native-reanimated': '>=4.5.3 <4.7.0',
   'react-native-worklets': '>=0.11.3 <0.13.0',
 };
 const expectedDevRanges = {
   react: '19.2.3',
   '@callstack/liquid-glass': '0.8.2',
-  '@unif/react-native-design': '0.35.0',
+  '@unif/react-native-design': '0.36.0',
   'react-native-reanimated': '^4.6.0',
   'react-native-worklets': '^0.12.1',
 };
