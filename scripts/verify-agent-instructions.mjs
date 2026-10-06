@@ -37,7 +37,7 @@ const activeMarkdownEntries = [
 const expectedDependencyRanges = {
   react: { peer: '>=19.2.3 <20.0.0', dev: '19.2.3' },
   '@callstack/liquid-glass': { peer: '>=0.8.2 <0.9.0', dev: '0.8.2' },
-  '@unif/react-native-design': { peer: '^0.35.0', dev: '0.35.0' },
+  '@unif/react-native-design': { peer: '>=0.35.0', dev: '0.36.0' },
   'react-native-reanimated': {
     peer: '>=4.5.3 <4.7.0',
     dev: '^4.6.0',
