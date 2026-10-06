@@ -39,7 +39,7 @@ yarn add @unif/react-native-umeng \
   'react-native-worklets@^0.12.1'
 ```
 
-2.0 起使用 Design 0.35 与 Liquid Glass。升级 1.x 宿主时，移除旧 `@sbaiahmed1/react-native-blur`，安装上述依赖并重新执行 iOS Pods 安装；初始化、分享和统计公共 API 保持不变。
+1.1 起使用 Design 0.35 与 Liquid Glass。从 1.0 升级时，移除旧 `@sbaiahmed1/react-native-blur`，安装上述依赖并重新执行 iOS Pods 安装；初始化、分享和统计公共 API 保持不变。
 
 各包的作用与版本约束:
 
