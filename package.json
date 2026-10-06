@@ -1,6 +1,6 @@
 {
   "name": "@unif/react-native-umeng",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Unif React Native 友盟接入：微信会话、钉钉分享和应用统计",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

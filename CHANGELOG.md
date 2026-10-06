@@ -1,5 +1,11 @@
 # Changelog
 
+# [1.2.0](https://github.com/unif-design/react-native-umeng/compare/v1.1.0...v1.2.0) (2026-10-06)
+
+### Features
+
+* **deps:** support minimum Design versions ([#102](https://github.com/unif-design/react-native-umeng/issues/102)) ([a83584e](https://github.com/unif-design/react-native-umeng/commit/a83584e5813f0256d75f2ebe74de99da3e6718c5))
+
 # [1.1.0](https://github.com/unif-design/react-native-umeng/compare/v1.0.0...v1.1.0) (2026-10-06)
 
 ### Features
