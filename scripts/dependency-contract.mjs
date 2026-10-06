@@ -3,19 +3,18 @@ import assert from 'node:assert/strict';
 /**
  * 跨 manifest 共享的依赖 range。值有两种写法:
  *   - 字符串:peer 与安装侧(dev / example / website)同值
- *   - `{ peer, install }`:两者语义不同 —— **peer 是对外兼容范围(该宽)**,
- *     写窄了会把下游卡在旧版;**install 是本仓验证基线(该窄且确定)**。
- *     ⚠️ peer 里别用 `^`:0.x 下它锁 minor(`^0.21.1` 不含 0.22),
- *     等于把上游每次 minor 都变成 breaking。
+ *   - `{ peer, install }`:两者语义不同:peer 是对外兼容范围，
+ *     install 是本仓验证基线。范围依据实际依赖契约与验证结果维护。
  */
 export const sharedDependencyRanges = {
-  '@sbaiahmed1/react-native-blur': {
-    peer: '>=4',
-    install: '6.0.1',
+  react: { peer: '>=19.2.3 <20.0.0', install: '19.2.3' },
+  '@callstack/liquid-glass': {
+    peer: '>=0.8.2 <0.9.0',
+    install: '0.8.2',
   },
   '@unif/react-native-design': {
-    peer: '>=0.26.0',
-    install: '^0.30.1',
+    peer: '^0.35.0',
+    install: '0.35.0',
   },
   'react-native-reanimated': {
     peer: '>=4.5.3 <4.7.0',

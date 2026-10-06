@@ -35,8 +35,9 @@ const activeMarkdownEntries = [
  *     新版本按其目标支持矩阵同步本表、manifest 与消费验证，不继承旧下限。
  */
 const expectedDependencyRanges = {
-  '@sbaiahmed1/react-native-blur': { peer: '>=4', dev: '6.0.1' },
-  '@unif/react-native-design': { peer: '>=0.26.0', dev: '^0.30.1' },
+  react: { peer: '>=19.2.3 <20.0.0', dev: '19.2.3' },
+  '@callstack/liquid-glass': { peer: '>=0.8.2 <0.9.0', dev: '0.8.2' },
+  '@unif/react-native-design': { peer: '^0.35.0', dev: '0.35.0' },
   'react-native-reanimated': {
     peer: '>=4.5.3 <4.7.0',
     dev: '^4.6.0',

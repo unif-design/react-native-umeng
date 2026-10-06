@@ -10,8 +10,8 @@ peer dependencies：
 
 ```sh
 yarn add @unif/react-native-umeng \
-  '@sbaiahmed1/react-native-blur@>=4' \
-  '@unif/react-native-design@>=0.26.0' \
+  '@callstack/liquid-glass@>=0.8.2 <0.9.0' \
+  '@unif/react-native-design@^0.35.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
   'react-native-reanimated@>=4.5.3 <4.7.0' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \

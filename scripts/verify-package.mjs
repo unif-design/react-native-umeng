@@ -191,7 +191,7 @@ async function main() {
 
     let reports;
     try {
-      reports = JSON.parse(result.stdout);
+      reports = Object.values(JSON.parse(result.stdout));
     } catch (error) {
       throw new Error(
         `npm pack returned invalid JSON: ${error.message}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`

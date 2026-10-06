@@ -1783,6 +1783,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@callstack/liquid-glass@npm:0.8.2":
+  version: 0.8.2
+  resolution: "@callstack/liquid-glass@npm:0.8.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/3eb3340b335eba263d75a2301fa5afc7e1202a5b306915949abdb4d23bd10ed8edeebf6604a281ff4dbfb6ab363e8c987caf6f2d9418c0eef5ffdd4b32865954
+  languageName: node
+  linkType: hard
+
 "@colors/colors@npm:1.5.0":
   version: 1.5.0
   resolution: "@colors/colors@npm:1.5.0"
@@ -5144,16 +5154,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sbaiahmed1/react-native-blur@npm:6.0.1":
-  version: 6.0.1
-  resolution: "@sbaiahmed1/react-native-blur@npm:6.0.1"
-  peerDependencies:
-    react: ">=18.2.0"
-    react-native: ">=0.80.0"
-  checksum: 10c0/78ba3923589ffa26aab7dfdc1159b94260e5d3f2d1ae6a65635aa568276a66cab236343dd881a5b893ebaf9934c0e1ce77971147b0f4795274c7b3f7bab1a7d7
-  languageName: node
-  linkType: hard
-
 "@sideway/address@npm:^4.1.5":
   version: 4.1.5
   resolution: "@sideway/address@npm:4.1.5"
@@ -6142,11 +6142,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@unif/react-native-design@npm:^0.30.1":
-  version: 0.30.1
-  resolution: "@unif/react-native-design@npm:0.30.1"
+"@unif/react-native-design@npm:0.35.0":
+  version: 0.35.0
+  resolution: "@unif/react-native-design@npm:0.35.0"
   peerDependencies:
-    "@sbaiahmed1/react-native-blur": ">=4"
+    "@callstack/liquid-glass": ">=0.8.2 <0.9.0"
     react: ">=19.2.3 <20.0.0"
     react-native: ">=0.86.0"
     react-native-gesture-handler: ">=3.0.0 <4.0.0"
@@ -6155,7 +6155,7 @@ __metadata:
     react-native-safe-area-context: ">=5"
     react-native-svg: ">=15"
     react-native-worklets: ">=0.11.0 <0.13.0"
-  checksum: 10c0/ae7cb295c2a5508a1cfa6ff7943ac9f9cb1fea9dea03b7123c150a913ff9e9a7ac19285c2b6105c82f97e0a4ababc4ede4694e13568d18d5bba81aa426d375b4
+  checksum: 10c0/bd37df9617252dd3cd6959d2bde4e45f77633674411750aad8489e29f9808941996768d20bb1979aa798d2326921b2eeeadfbbad9ebeb1ea97f7318065635c1c
   languageName: node
   linkType: hard
 
@@ -6166,6 +6166,7 @@ __metadata:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-env": "npm:^7.25.3"
     "@babel/runtime": "npm:^7.25.0"
+    "@callstack/liquid-glass": "npm:0.8.2"
     "@react-native-community/cli": "npm:20.1.0"
     "@react-native-community/cli-platform-android": "npm:20.1.0"
     "@react-native-community/cli-platform-ios": "npm:20.1.0"
@@ -6173,12 +6174,11 @@ __metadata:
     "@react-native/jest-preset": "npm:0.86.3"
     "@react-native/metro-config": "npm:0.86.3"
     "@react-native/typescript-config": "npm:0.86.3"
-    "@sbaiahmed1/react-native-blur": "npm:6.0.1"
     "@testing-library/react-native": "npm:^13.3.3"
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.2.0"
     "@types/react-test-renderer": "npm:^19"
-    "@unif/react-native-design": "npm:^0.30.1"
+    "@unif/react-native-design": "npm:0.35.0"
     "@unif/react-native-umeng": "workspace:*"
     jest: "npm:^29.7.0"
     react: "npm:19.2.3"
@@ -6201,6 +6201,7 @@ __metadata:
   dependencies:
     "@babel/core": "npm:^7.25.2"
     "@babel/preset-flow": "npm:^7.27.1"
+    "@callstack/liquid-glass": "npm:0.8.2"
     "@docusaurus/core": "npm:^3.10.1"
     "@docusaurus/module-type-aliases": "npm:^3.10.1"
     "@docusaurus/preset-classic": "npm:^3.10.1"
@@ -6208,9 +6209,8 @@ __metadata:
     "@docusaurus/types": "npm:^3.10.1"
     "@mdx-js/react": "npm:^3.0.0"
     "@react-native/metro-config": "npm:0.86.3"
-    "@sbaiahmed1/react-native-blur": "npm:6.0.1"
     "@types/react": "npm:^19.2.0"
-    "@unif/react-native-design": "npm:^0.30.1"
+    "@unif/react-native-design": "npm:0.35.0"
     "@unif/react-native-umeng": "workspace:*"
     clsx: "npm:^2.0.0"
     prism-react-renderer: "npm:^2.3.0"
@@ -6233,6 +6233,7 @@ __metadata:
   resolution: "@unif/react-native-umeng@workspace:."
   dependencies:
     "@babel/core": "npm:^7.25.2"
+    "@callstack/liquid-glass": "npm:0.8.2"
     "@commitlint/config-conventional": "npm:^21.2.0"
     "@eslint/compat": "npm:^2.0.3"
     "@eslint/eslintrc": "npm:^3.3.5"
@@ -6242,12 +6243,11 @@ __metadata:
     "@react-native/jest-preset": "npm:0.86.3"
     "@react-native/metro-config": "npm:0.86.3"
     "@release-it/conventional-changelog": "npm:^12.0.0"
-    "@sbaiahmed1/react-native-blur": "npm:6.0.1"
     "@testing-library/react-native": "npm:^13.3.3"
     "@types/jest": "npm:^29.5.14"
     "@types/react": "npm:^19.2.0"
     "@types/react-test-renderer": "npm:^19"
-    "@unif/react-native-design": "npm:^0.30.1"
+    "@unif/react-native-design": "npm:0.35.0"
     commitlint: "npm:^21.2.1"
     conventional-changelog-angular: "npm:9.2.1"
     conventional-commits-parser: "npm:7.1.2"
@@ -6278,9 +6278,9 @@ __metadata:
     typescript: "npm:^6.0.2"
     unified: "npm:^11.0.5"
   peerDependencies:
-    "@sbaiahmed1/react-native-blur": ">=4"
-    "@unif/react-native-design": ">=0.26.0"
-    react: "*"
+    "@callstack/liquid-glass": ">=0.8.2 <0.9.0"
+    "@unif/react-native-design": ^0.35.0
+    react: ">=19.2.3 <20.0.0"
     react-native: ">=0.86.0"
     react-native-gesture-handler: ">=3.0.0 <4.0.0"
     react-native-reanimated: ">=4.5.3 <4.7.0"
