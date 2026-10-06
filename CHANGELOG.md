@@ -1,5 +1,34 @@
 # Changelog
 
+# [1.1.0](https://github.com/unif-design/react-native-umeng/compare/v1.0.0...v1.1.0) (2026-10-06)
+
+### Features
+
+* **deps:** adopt design liquid glass runtime ([5056ec6](https://github.com/unif-design/react-native-umeng/commit/5056ec65113a621897be4251972db603024e2608))
+
+### BREAKING CHANGES
+
+* **deps:** 必装 Design peer 改为 `^0.35.0`，React 支持范围为 `>=19.2.3 <20.0.0`，新增 `@callstack/liquid-glass >=0.8.2 <0.9.0` 并移除旧 blur peer。宿主需更新原生依赖并重建；初始化、分享与统计公共 API 保持不变。
+
+  ## 验证
+
+  - [x] 正式 npm Design 0.35.0 在三个 workspace 实际安装；immutable 安装通过
+  - [x] 类型与 Lint
+  - [x] 库 11 suites / 67 tests，example 9 suites / 53 tests
+  - [x] 65 项发布门禁，以及 dependency / example / agent instruction 契约
+  - [x] Bob、194 文件 / 27 原生源码的打包检查
+  - [x] 隔离消费者：独立安装、default/source、native/Web、公开 mock 的 Metro 与 Jest 接线
+  - [x] Website 类型、生产构建与 llms 生成检查
+  - [x] Pods 安装 / codegen，资源 bundle 最低 iOS 15.1；本地新实现 iOS 设备目标无签名 Debug 编译通过
+  - [ ] 真机初始化、分享外部应用、统计 SDK 与读屏验收
+
+  ## 发布与范围
+
+  - Owner 最新明确要求按小版本发布 **1.1.0**；版本由原 Release 工作流显式选择 minor 生成。保留实际依赖迁移说明与自动 major 闸门，禁止触发 major。
+  - 已核对安装的 Design 0.35.0 正式包，锁文件没有临时 file/tarball 路径。
+  - CocoaPods 1.15.2 符合当前 Gemfile 的 xcodeproj 约束；本次真实重建 Pod 锁，保留其合法校验值变化，不为历史 1.16.2 footer 放宽工具约束。
+  - 关联 Design PR：https://github.com/unif-design/react-native-design/pull/142 。Portal 消费升级另行处理。
+
 # [1.0.0](https://github.com/unif-design/react-native-umeng/compare/v0.9.0...v1.0.0) (2026-10-03)
 
 * feat(umeng)!: implement initialization and per-host sharing contract ([e746175](https://github.com/unif-design/react-native-umeng/commit/e746175bcc14c0c155bbfa855b440b4b0be10111))
