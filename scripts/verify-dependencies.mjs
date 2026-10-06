@@ -9,7 +9,7 @@ import {
 
 const rootDir = process.cwd();
 const designPeers = [
-  '@sbaiahmed1/react-native-blur',
+  '@callstack/liquid-glass',
   'react',
   'react-native',
   'react-native-gesture-handler',
@@ -60,9 +60,9 @@ const requiredWebsiteReactNativeDevelopmentGraph = {
 };
 const lockedPackageContracts = {
   '@unif/react-native-design': {
-    version: '0.30.1',
+    version: '0.35.0',
     peerDependencies: {
-      '@sbaiahmed1/react-native-blur': '>=4',
+      '@callstack/liquid-glass': '>=0.8.2 <0.9.0',
       react: '>=19.2.3 <20.0.0',
       'react-native': '>=0.86.0',
       'react-native-gesture-handler': '>=3.0.0 <4.0.0',
@@ -224,8 +224,8 @@ assert.equal(
 );
 assert.equal(
   root.peerDependencies.react,
-  '*',
-  'package.json must keep the public react peer unchanged',
+  '>=19.2.3 <20.0.0',
+  'package.json React peer must match the supported Design runtime',
 );
 assert.equal(
   example.dependencies.react,

@@ -512,7 +512,7 @@ async function main() {
     );
     let packReports;
     try {
-      packReports = JSON.parse(packResult.stdout);
+      packReports = Object.values(JSON.parse(packResult.stdout));
     } catch (error) {
       throw new Error(
         `npm pack returned invalid JSON: ${error.message}\nstdout:\n${packResult.stdout}\nstderr:\n${packResult.stderr}`

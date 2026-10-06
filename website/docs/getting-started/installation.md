@@ -29,8 +29,8 @@ description: '安装依赖，配置原生权限、构建环境与宿主接线。
 
 ```sh
 yarn add @unif/react-native-umeng \
-  '@sbaiahmed1/react-native-blur@6.0.1' \
-  '@unif/react-native-design@^0.30.0' \
+  '@callstack/liquid-glass@0.8.2' \
+  '@unif/react-native-design@0.35.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
   'react-native-reanimated@^4.6.0' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
@@ -39,13 +39,15 @@ yarn add @unif/react-native-umeng \
   'react-native-worklets@^0.12.1'
 ```
 
+1.1 起使用 Design 0.35 与 Liquid Glass。从 1.0 升级时，移除旧 `@sbaiahmed1/react-native-blur`，安装上述依赖并重新执行 iOS Pods 安装；初始化、分享和统计公共 API 保持不变。
+
 各包的作用与版本约束:
 
 | 包                                 | 版本约束           | 作用                                                    |
 | ---------------------------------- | ------------------ | ------------------------------------------------------- |
-| `@sbaiahmed1/react-native-blur`    | `>=4`              | design 根入口的静态依赖                                 |
-| `@unif/react-native-design`        | `>=0.26.0`         | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`)      |
-| `react`                            | `*`                | RN 工程已有                                             |
+| `@callstack/liquid-glass`          | `>=0.8.2 <0.9.0`   | Design Liquid Glass 原生材质                            |
+| `@unif/react-native-design`        | `^0.35.0`          | 分享面板 UI(`Cell` / `Button` / `useThemedStyles`)      |
+| `react`                            | `>=19.2.3 <20.0.0` | RN 工程已有                                             |
 | `react-native`                     | `>=0.86.0`         | RN 工程已有;本仓当前验证基线为 RN 0.86.3                |
 | `react-native-gesture-handler`     | `>=3.0.0 <4.0.0`   | design 手势底层与 ShareSheet Modal 内部 root            |
 | `react-native-reanimated`          | `>=4.5.3 <4.7.0`   | design 根入口运行时依赖;当前验证 4.6.x                  |
