@@ -5,13 +5,14 @@
 [运行示例](README.md)中的命令只用于本仓 monorepo。独立消费者不要安装
 [`example/package.json`](./package.json) 中的
 `@unif/react-native-umeng: workspace:*`；`workspace:*` 仅用于本仓。请在消费者
-App 根目录从 npm 公共入口安装 library、Design 和除 React / React Native 外的全部
+App 根目录从 npm 公共入口安装 library、Design、Icons 和除 React / React Native 外的全部
 peer dependencies：
 
 ```sh
 yarn add @unif/react-native-umeng \
   '@callstack/liquid-glass@>=0.8.2 <0.9.0' \
-  '@unif/react-native-design@>=0.41.0' \
+  '@unif/react-native-design@>=1.0.0' \
+  '@unif/react-native-icons@>=0.1.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
   'react-native-reanimated@>=4.5.3 <4.7.0' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \

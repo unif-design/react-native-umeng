@@ -1,3 +1,4 @@
+import { TrashOutlined } from '@unif/react-native-icons';
 import {
   Card,
   IconButton,
@@ -62,7 +63,7 @@ export function LogsScreen() {
       onBack={actions.back}
       right={
         <IconButton
-          icon="trash"
+          icon={TrashOutlined}
           accessibilityLabel="清空日志"
           variant="neutral"
           disabled={state.logs.length === 0}

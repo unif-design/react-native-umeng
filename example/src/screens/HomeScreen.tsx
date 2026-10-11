@@ -1,4 +1,12 @@
 import {
+  DashboardStarOutlined,
+  GridOutlined,
+  ListOutlined,
+  SendOutlined,
+  ShareOutlined,
+  ShieldCheckOutlined,
+} from '@unif/react-native-icons';
+import {
   EntryCard,
   Grid,
   useThemedStyles,
@@ -16,11 +24,11 @@ type HomeGridItem = GridItem & {
 };
 
 const HOME_ITEMS: HomeGridItem[] = [
-  { id: 'platforms', icon: 'grid', label: '平台状态' },
-  { id: 'sheet', icon: 'share', label: '分享面板' },
-  { id: 'direct', icon: 'send', label: '直接分享' },
-  { id: 'analytics', icon: 'dashboard-star', label: 'Analytics' },
-  { id: 'logs', icon: 'list', label: '运行日志' },
+  { id: 'platforms', icon: GridOutlined, label: '平台状态' },
+  { id: 'sheet', icon: ShareOutlined, label: '分享面板' },
+  { id: 'direct', icon: SendOutlined, label: '直接分享' },
+  { id: 'analytics', icon: DashboardStarOutlined, label: 'Analytics' },
+  { id: 'logs', icon: ListOutlined, label: '运行日志' },
 ];
 
 const makeStyles = (colors: ColorTokens) => ({
@@ -42,7 +50,7 @@ export function HomeScreen() {
     <ShowcaseScaffold title="分享展厅" subtitle="@unif/react-native-umeng">
       <View style={styles.summary}>
         <EntryCard
-          icon="shield-check"
+          icon={ShieldCheckOutlined}
           title="初始化完成"
           sub={`${state.platforms.items.length} 个平台状态已载入`}
         />

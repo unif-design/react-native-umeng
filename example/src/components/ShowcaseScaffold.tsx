@@ -1,3 +1,4 @@
+import { ArrowLeftOutlined } from '@unif/react-native-icons';
 import {
   NavBar,
   useThemedStyles,
@@ -49,7 +50,7 @@ export function ShowcaseScaffold({
         left={
           onBack
             ? {
-                icon: 'arrow-left',
+                icon: ArrowLeftOutlined,
                 onPress: onBack,
                 accessibilityLabel: '返回',
               }
