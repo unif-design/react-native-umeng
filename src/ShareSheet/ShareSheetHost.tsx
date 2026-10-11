@@ -13,7 +13,12 @@ import {
   Text,
   type LayoutChangeEvent,
 } from 'react-native';
-import { Cell, Button, useThemedStyles } from '@unif/react-native-design';
+import {
+  Cell,
+  Button,
+  GlassLayer,
+  useThemedStyles,
+} from '@unif/react-native-design';
 import type { ShareContent, ShareTargetInfo } from '../types';
 import { getShareTargets, share } from '../share';
 import { toFailure } from '../internal/errors';
@@ -168,6 +173,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
 
   const sheetContent = (
     <>
+      <GlassLayer style={styles.glass} testID="umeng-share-glass" />
       <View style={styles.head}>
         <Text style={styles.title}>{title}</Text>
       </View>
@@ -176,6 +182,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
           <Cell
             key={info.target}
             testID={`umeng-share-cell-${info.target}`}
+            style={styles.platform}
             title={info.label}
             desc={`${subtitles[info.target] ?? SHARE_TARGET_SUBTITLES[info.target]} · ${info.installed ? '已安装' : '未安装'}`}
             // Design 0.21 起 Cell.leading 是 `IconName | { kind:'display'; node }` ——

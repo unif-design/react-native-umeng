@@ -28,13 +28,12 @@ import {
 } from '../verify-publish-contract.mjs';
 import {
   assertSharedDependencyRanges,
-  sharedDependencyRanges,
   sharedRangesFor,
 } from '../dependency-contract.mjs';
 
 /** peer range 只在 dependency-contract 里声明一份,断言从那里推导,别再抄字面量。 */
 const designPeerRange =
-  sharedDependencyRanges['@unif/react-native-design'].peer;
+  sharedRangesFor('peerDependencies')['@unif/react-native-design'];
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
@@ -344,21 +343,19 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
     )
   );
 
-  // peer 与安装侧分段:装了 install range 的 manifest 冒充 peerDependencies 必须被拒,
-  // 否则「peer 该宽 / 安装侧该窄」这条分段规则形同虚设。
-  assert.notEqual(
+  // 组织内 Design 的 peer 与 install 使用同一下限，精确版本由锁文件记录。
+  assert.equal(
     designPeerRange,
     sharedRangesFor('dependencies')['@unif/react-native-design']
   );
-  const peerRangesWithInstallDesign = {
+  const peerRangesWithExactDesign = {
     ...sharedRangesFor('peerDependencies'),
-    '@unif/react-native-design':
-      sharedRangesFor('dependencies')['@unif/react-native-design'],
+    '@unif/react-native-design': '0.41.0',
   };
   assert.throws(
     () =>
       assertSharedDependencyRanges(
-        { peerDependencies: peerRangesWithInstallDesign },
+        { peerDependencies: peerRangesWithExactDesign },
         'peerDependencies',
         'fixture/package.json'
       ),
