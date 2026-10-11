@@ -1,5 +1,11 @@
 # Changelog
 
+# [1.3.0](https://github.com/unif-design/react-native-umeng/compare/v1.2.0...v1.3.0) (2026-10-11)
+
+### Features
+
+* add system glass share sheet surfaces ([#104](https://github.com/unif-design/react-native-umeng/issues/104)) ([bd6b896](https://github.com/unif-design/react-native-umeng/commit/bd6b89668c194475dfeae4718971bf90b9e6a5ae))
+
 # [1.2.0](https://github.com/unif-design/react-native-umeng/compare/v1.1.0...v1.2.0) (2026-10-06)
 
 ### Features
