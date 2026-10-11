@@ -1,6 +1,6 @@
 jest.mock('@unif/react-native-design', () => {
   const React = require('react');
-  const { Text, TouchableOpacity } = require('react-native');
+  const { Text, TouchableOpacity, View } = require('react-native');
   const colors = {
     surfaceContainer: '#f0f0f0',
     surface: '#fff',
@@ -12,6 +12,7 @@ jest.mock('@unif/react-native-design', () => {
     useTheme: () => ({ scheme: 'light', colors, shadow: {} }),
     // 组件用 useThemedStyles(maker)：用 mock 色板调真实 makeStyles，产出真实 StyleSheet。
     useThemedStyles: (maker: any) => maker(colors, {}),
+    GlassLayer: (props: any) => React.createElement(View, props),
     Cell: ({ title, desc, onPress, disabled, testID }: any) => {
       const pressableProps: Record<string, unknown> = { testID, onPress };
       if (disabled !== undefined) {

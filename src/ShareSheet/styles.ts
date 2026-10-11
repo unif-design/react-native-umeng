@@ -15,6 +15,7 @@ export const makeSheetStyles = (c: ColorTokens) =>
       elevation: 1100,
     },
     backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: c.scrim },
+    glass: { borderTopLeftRadius: 20, borderTopRightRadius: 20 },
     sheet: {
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
@@ -22,8 +23,9 @@ export const makeSheetStyles = (c: ColorTokens) =>
       paddingTop: 12,
       // 固定底部留白覆盖 home indicator(umeng 不引 safe-area-context 依赖)
       paddingBottom: 34,
-      backgroundColor: c.surface,
+      overflow: 'hidden',
     },
+    platform: { backgroundColor: 'transparent' },
     head: { paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
     title: {
       fontSize: 15,
