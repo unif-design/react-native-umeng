@@ -1,5 +1,17 @@
 # Changelog
 
+# [2.0.0](https://github.com/unif-design/react-native-umeng/compare/v1.3.0...v2.0.0) (2026-10-11)
+
+### Features
+
+* **icons:** consume named icon components ([e7e79e5](https://github.com/unif-design/react-native-umeng/commit/e7e79e5aa365c112e60cfecf58af10c30268500f))
+
+### BREAKING CHANGES
+
+* **icons:** 宿主必须安装 `@unif/react-native-design >=1.0.0` 和 `@unif/react-native-icons >=0.1.0`。
+
+  验证：正式依赖安装后的类型、Lint、11 suites / 67 tests、example 测试、65 项发布规则、依赖／包／独立消费者校验、Bob、文档生成器测试、Website 类型与构建均通过。CocoaPods 使用本机既有安装验证；本次未运行微信／钉钉真机分享验收。
+
 # [1.3.0](https://github.com/unif-design/react-native-umeng/compare/v1.2.0...v1.3.0) (2026-10-11)
 
 ### Features
