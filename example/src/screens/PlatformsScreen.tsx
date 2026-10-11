@@ -1,3 +1,4 @@
+import { RefreshOutlined } from '@unif/react-native-icons';
 import { SHARE_TARGETS, SHARE_TARGET_LABELS } from '../content/constants';
 import {
   Button,
@@ -53,7 +54,7 @@ export function PlatformsScreen() {
     <ShowcaseScaffold title="平台状态" onBack={actions.back}>
       <Button
         label="刷新平台列表"
-        leftIcon="refresh"
+        leftIcon={RefreshOutlined}
         variant="secondary"
         block
         loading={platformState.refreshing}

@@ -1,3 +1,4 @@
+import { ShareOutlined } from '@unif/react-native-icons';
 import {
   Button,
   Form,
@@ -159,7 +160,7 @@ export function SheetScreen() {
 
       <Button
         label="打开分享面板"
-        leftIcon="share"
+        leftIcon={ShareOutlined}
         block
         disabled={type !== 'text' && !previewReady}
         onPress={() => {

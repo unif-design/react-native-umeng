@@ -185,9 +185,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
             style={styles.platform}
             title={info.label}
             desc={`${subtitles[info.target] ?? SHARE_TARGET_SUBTITLES[info.target]} · ${info.installed ? '已安装' : '未安装'}`}
-            // Design 0.21 起 Cell.leading 是 `IconName | { kind:'display'; node }` ——
-            // 平台 logo 是品牌图形(微信绿底白 glyph / 钉钉多色),不在 Icon 目录里,
-            // 故走 display 分支显式标注。
+            // 品牌 logo 保持多色图形，以 Cell 的展示节点传入。
             leading={{
               kind: 'display',
               node: <PlatformLeading platform={info.target} />,

@@ -350,7 +350,7 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
   );
   const peerRangesWithExactDesign = {
     ...sharedRangesFor('peerDependencies'),
-    '@unif/react-native-design': '0.41.0',
+    '@unif/react-native-design': '1.0.0',
   };
   assert.throws(
     () =>
@@ -1196,8 +1196,8 @@ test('Angular release version still requires the breaking footer', async () => {
     await writeFile(
       join(fixtureRoot, 'package.json'),
       JSON.stringify({
-        name: 'umeng-release-contract-fixture',
-        version: '1.2.3',
+        'name': 'umeng-release-contract-fixture',
+        'version': '1.2.3',
         'release-it': {
           git: false,
           npm: { publish: false },

@@ -30,7 +30,7 @@ description: '安装依赖，配置原生权限、构建环境与宿主接线。
 ```sh
 yarn add @unif/react-native-umeng \
   '@callstack/liquid-glass@0.8.2' \
-  '@unif/react-native-design@>=0.41.0' \
+  '@unif/react-native-design@>=1.0.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
   'react-native-reanimated@^4.6.0' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
@@ -46,7 +46,8 @@ yarn add @unif/react-native-umeng \
 | 包                                 | 版本约束           | 作用                                                    |
 | ---------------------------------- | ------------------ | ------------------------------------------------------- |
 | `@callstack/liquid-glass`          | `>=0.8.2 <0.9.0`   | Design Liquid Glass 原生材质                            |
-| `@unif/react-native-design`        | `>=0.41.0`          | 分享面板 UI 与 `GlassLayer` 材质      |
+| `@unif/react-native-icons`         | `>=0.1.0`          | 独立命名图标组件                                        |
+| `@unif/react-native-design`        | `>=1.0.0`          | 分享面板 UI 与 `GlassLayer` 材质                        |
 | `react`                            | `>=19.2.3 <20.0.0` | RN 工程已有                                             |
 | `react-native`                     | `>=0.86.0`         | RN 工程已有;本仓当前验证基线为 RN 0.86.3                |
 | `react-native-gesture-handler`     | `>=3.0.0 <4.0.0`   | design 手势底层与 ShareSheet Modal 内部 root            |

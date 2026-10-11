@@ -1,10 +1,16 @@
 import {
+  FileOutlined,
+  ImageOutlined,
+  ShareOutlined,
+} from '@unif/react-native-icons';
+import type { ComponentType } from 'react';
+import type { IconProps } from '@unif/react-native-icons';
+import {
   Card,
   IconButton,
   Segmented,
   useThemedStyles,
   type ColorTokens,
-  type IconName,
 } from '@unif/react-native-design';
 import type { ShareTarget } from '@unif/react-native-umeng';
 import { useCallback, useState } from 'react';
@@ -34,11 +40,11 @@ const TYPE_ITEMS = [
 const SHARE_TYPES: readonly {
   readonly type: DirectShareType;
   readonly typeName: string;
-  readonly icon: IconName;
+  readonly icon: ComponentType<IconProps>;
 }[] = [
-  { type: 'text', typeName: '文本', icon: 'file' },
-  { type: 'image', typeName: '图片', icon: 'image' },
-  { type: 'link', typeName: '链接', icon: 'share' },
+  { type: 'text', typeName: '文本', icon: FileOutlined },
+  { type: 'image', typeName: '图片', icon: ImageOutlined },
+  { type: 'link', typeName: '链接', icon: ShareOutlined },
 ];
 
 const SHARE_PLATFORMS: readonly {
