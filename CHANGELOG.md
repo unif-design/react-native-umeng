@@ -1,5 +1,11 @@
 # Changelog
 
+# [2.1.0](https://github.com/unif-design/react-native-umeng/compare/v2.0.0...v2.1.0) (2026-10-16)
+
+### Features
+
+* support React Native 0.88 hosts ([99c8230](https://github.com/unif-design/react-native-umeng/commit/99c8230935ed301959b3dfb3ea98dbdc75a92366))
+
 # [2.0.0](https://github.com/unif-design/react-native-umeng/compare/v1.3.0...v2.0.0) (2026-10-11)
 
 ### Features
