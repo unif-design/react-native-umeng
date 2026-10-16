@@ -21,6 +21,8 @@ description: '安装依赖，配置原生权限、构建环境与宿主接线。
 本库是 TurboModule 桥,仓库开发基线为 **React Native 0.86.3 New Architecture**。旧架构(Bridge)不在目标范围；支持范围以本页依赖清单和包声明为准。
 :::
 
+RN 0.88 宿主采用 Expo 58、React 19.3、Reanimated 4.7 与 Worklets 0.13 的配套组合。该组合已在 Portal 消费端通过类型检查、双平台 production JS bundle，以及 Android/iOS arm64 Debug 完整编译。初始化、微信/钉钉分享及回调仍需宿主真机验收。
+
 ---
 
 ## 1. 安装依赖 {#安装依赖}
