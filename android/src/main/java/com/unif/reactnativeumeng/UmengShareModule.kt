@@ -282,7 +282,7 @@ class UmengShareModule(
   private val controller =
     UmengShareController<Activity>(
       isInitialized = UmengBootstrap::isInited,
-      currentHost = { currentActivity },
+      currentHost = { reactApplicationContext.currentActivity },
       adapterFactory = ::ProductionUmengShareAdapter,
       uiDispatcher = AndroidShareUiDispatcher(),
       reportLifecycleError = { error ->
@@ -298,7 +298,7 @@ class UmengShareModule(
 
   override fun invalidate() {
     try {
-      controller.invalidate(currentActivity)
+      controller.invalidate(reactApplicationContext.currentActivity)
     } finally {
       try {
         reactApplicationContext.removeActivityEventListener(this)
@@ -330,7 +330,7 @@ class UmengShareModule(
   override fun onHostPause() = Unit
 
   override fun onHostDestroy() {
-    controller.onHostDestroy(currentActivity)
+    controller.onHostDestroy(reactApplicationContext.currentActivity)
   }
 
   override fun getName(): String = NAME

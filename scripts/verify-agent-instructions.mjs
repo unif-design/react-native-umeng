@@ -40,11 +40,11 @@ const expectedDependencyRanges = {
   '@unif/react-native-design': '>=1.0.0',
   '@unif/react-native-icons': '>=0.1.0',
   'react-native-reanimated': {
-    peer: '>=4.5.3 <4.7.0',
+    peer: '>=4.5.3 <4.8.0',
     dev: '^4.6.0',
   },
   'react-native-worklets': {
-    peer: '>=0.11.3 <0.13.0',
+    peer: '>=0.11.3 <0.14.0',
     dev: '^0.12.1',
   },
 };
