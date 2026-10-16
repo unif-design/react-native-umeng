@@ -13,8 +13,8 @@ const expectedPeerRanges = {
   '@callstack/liquid-glass': '>=0.8.2 <0.9.0',
   '@unif/react-native-design': '>=1.0.0',
   '@unif/react-native-icons': '>=0.1.0',
-  'react-native-reanimated': '>=4.5.3 <4.7.0',
-  'react-native-worklets': '>=0.11.3 <0.13.0',
+  'react-native-reanimated': '>=4.5.3 <4.8.0',
+  'react-native-worklets': '>=0.11.3 <0.14.0',
 };
 const expectedDevRanges = {
   'react': '19.2.3',

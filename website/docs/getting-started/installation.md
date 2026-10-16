@@ -21,6 +21,8 @@ description: '安装依赖，配置原生权限、构建环境与宿主接线。
 本库是 TurboModule 桥,仓库开发基线为 **React Native 0.86.3 New Architecture**。旧架构(Bridge)不在目标范围；支持范围以本页依赖清单和包声明为准。
 :::
 
+RN 0.88 宿主采用 Expo 58、React 19.3、Reanimated 4.7 与 Worklets 0.13 的配套组合。该组合已在 Portal 消费端通过类型检查、双平台 production JS bundle，以及 Android/iOS arm64 Debug 完整编译。初始化、微信/钉钉分享及回调仍需宿主真机验收。
+
 ---
 
 ## 1. 安装依赖 {#安装依赖}
@@ -51,11 +53,11 @@ yarn add @unif/react-native-umeng \
 | `react`                            | `>=19.2.3 <20.0.0` | RN 工程已有                                             |
 | `react-native`                     | `>=0.86.0`         | RN 工程已有;本仓当前验证基线为 RN 0.86.3                |
 | `react-native-gesture-handler`     | `>=3.0.0 <4.0.0`   | design 手势底层与 ShareSheet Modal 内部 root            |
-| `react-native-reanimated`          | `>=4.5.3 <4.7.0`   | design 根入口运行时依赖;当前验证 4.6.x                  |
+| `react-native-reanimated`          | `>=4.5.3 <4.8.0`   | design 根入口运行时依赖;当前验证 4.6.x                  |
 | `react-native-reanimated-carousel` | `>=5.0.0 <6.0.0`   | design 根入口静态依赖                                   |
 | `react-native-safe-area-context`   | `>=5`              | design 根入口静态依赖                                   |
 | `react-native-svg`                 | `>=15`             | 面板平台图标与 design 图标                              |
-| `react-native-worklets`            | `>=0.11.3 <0.13.0` | Reanimated / design 运行时与 Babel 转换;当前验证 0.12.x |
+| `react-native-worklets`            | `>=0.11.3 <0.14.0` | Reanimated / design 运行时与 Babel 转换;当前验证 0.12.x |
 
 范围以安装版本的 `package.json#peerDependencies` 为准。
 
