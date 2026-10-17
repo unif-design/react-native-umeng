@@ -89,7 +89,11 @@ class ShareRequestRegistryTest {
       settlements += value
     }
 
-    override fun reject(code: String, message: String, cause: Throwable?) {
+    override fun reject(
+      code: String,
+      message: String,
+      cause: Throwable?,
+    ) {
       settlements += code
     }
   }

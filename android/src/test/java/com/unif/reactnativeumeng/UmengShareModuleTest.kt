@@ -764,11 +764,15 @@ class UmengShareModuleTest {
   fun `diagnostic callback failure cannot escape the Activity listener`() {
     val failure = IllegalStateException("vendor activity result failed")
     var reported: Throwable? = null
-    val controller = controller(
-      initialized = true,
-      adapter = RecordingShareAdapter(activityResultFailure = failure),
-      reportLifecycleError = { reported = it; throw IllegalStateException("logger failed") },
-    )
+    val controller =
+      controller(
+        initialized = true,
+        adapter = RecordingShareAdapter(activityResultFailure = failure),
+        reportLifecycleError = {
+          reported = it
+          throw IllegalStateException("logger failed")
+        },
+      )
 
     controller.onActivityResult("activity", 7, 8, null)
 
@@ -777,10 +781,11 @@ class UmengShareModuleTest {
 
   @Test
   fun `share invocation without an exception message still rejects`() {
-    val controller = controller(
-      initialized = true,
-      adapter = RecordingShareAdapter(shareFailure = IllegalStateException()),
-    )
+    val controller =
+      controller(
+        initialized = true,
+        adapter = RecordingShareAdapter(shareFailure = IllegalStateException()),
+      )
     val promise = RecordingPromise()
 
     controller.shareText("wechat_session", "hello", promise)
@@ -793,13 +798,15 @@ class UmengShareModuleTest {
     for (failure in listOf(IllegalStateException(), IllegalStateException("queue unavailable"))) {
       for (failDuringPost in listOf(false, true)) {
         val adapter = RecordingShareAdapter()
-        val dispatcher = object : ShareUiDispatcher {
-          override fun isOnUiThread(): Boolean {
-            if (!failDuringPost) throw failure
-            return false
+        val dispatcher =
+          object : ShareUiDispatcher {
+            override fun isOnUiThread(): Boolean {
+              if (!failDuringPost) throw failure
+              return false
+            }
+
+            override fun post(block: () -> Unit): Boolean = throw failure
           }
-          override fun post(block: () -> Unit): Boolean = throw failure
-        }
         val controller = controller(initialized = true, adapter = adapter, dispatcher = dispatcher)
         val promise = RecordingPromise()
 

@@ -191,9 +191,10 @@ class UmengCallbackComponentsTest {
     for (sameFailure in listOf(false, true)) {
       val first = IllegalStateException("wechat disable failed")
       val second = if (sameFailure) first else IllegalStateException("dingtalk disable failed")
-      val writer = StatefulComponentWriter(failureFor = { state ->
-        if (state.className == WECHAT_ACTIVITY) first else second
-      })
+      val writer =
+        StatefulComponentWriter(failureFor = { state ->
+          if (state.className == WECHAT_ACTIVITY) first else second
+        })
       val components = UmengCallbackComponents("com.example.app", writer)
 
       val thrown = expectThrows<IllegalStateException> { components.disableAll() }
