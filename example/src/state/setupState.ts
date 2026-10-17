@@ -147,8 +147,6 @@ export function buildInitConfig(
       !isAbsoluteHttpsUrl(wechatUniversalLink)
     ) {
       errors.wechatUniversalLink = '请输入带 host 的绝对 HTTPS Universal Link';
-    } else if (isPlaceholder(wechatUniversalLink)) {
-      errors.wechatUniversalLink = '请替换 Universal Link 占位值';
     }
 
     config.wechat = { appId: wechatAppId, appSecret: wechatAppSecret };

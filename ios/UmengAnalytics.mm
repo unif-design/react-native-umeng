@@ -26,10 +26,8 @@ RCT_EXPORT_MODULE(UmengAnalytics)
 
 - (instancetype)initWithIsInitialized:(BOOL (^)(void))isInitialized adapter:(id<UmengAnalyticsSDKAdapter>)adapter {
   self = [super init];
-  if (self) {
-    _isInitialized = [isInitialized copy];
-    _adapter = adapter;
-  }
+  _isInitialized = [isInitialized copy];
+  _adapter = adapter;
   return self;
 }
 

@@ -26,7 +26,7 @@ class UmengCommonModule(
         }
       promise.reject(
         "E_UNKNOWN",
-        error.message ?: "Umeng initialization failed",
+        error.message,
         error,
         metadata,
       )

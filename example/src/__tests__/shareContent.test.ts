@@ -167,3 +167,16 @@ describe('share content builders', () => {
     );
   });
 });
+
+it('omits blank link description and thumbnail from the native request', () => {
+  expect(
+    buildDirectOptions('link', 'dingtalk', {
+      ...validDraft,
+      description: ' ',
+      thumb: '',
+    })
+  ).toEqual({
+    target: 'dingtalk',
+    content: { type: 'link', title: validDraft.title, url: validDraft.url },
+  });
+});

@@ -102,3 +102,21 @@ describe('showcase logs', () => {
     expect(previous).toHaveLength(1);
   });
 });
+
+it('ignores a malformed stored sequence without colliding with valid same-instant entries', () => {
+  const now = new Date(2026, 9, 16, 12, 0, 0);
+  const first = appendLog([], {
+    now,
+    level: 'info',
+    scope: 'setup',
+    message: 'first',
+  });
+  const bad = { ...first[0]!, id: `log-${now.getTime()}-invalid` };
+  const next = appendLog([bad, ...first], {
+    now,
+    level: 'warning',
+    scope: 'share',
+    message: 'second',
+  });
+  expect(next[0]?.id).toBe(`log-${now.getTime()}-2`);
+});

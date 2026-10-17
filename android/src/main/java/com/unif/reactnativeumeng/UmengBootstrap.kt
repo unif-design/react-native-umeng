@@ -65,14 +65,14 @@ internal class UmengBootstrapStateMachine(
       if (config.hasWechat) {
         runVendorCall {
           adapter.setWeixin(
-            requireNotNull(config.wechatAppId),
-            requireNotNull(config.wechatAppSecret),
+            config.wechatAppId!!,
+            config.wechatAppSecret!!,
           )
         }
       }
       if (config.hasDingTalk) {
         runVendorCall {
-          adapter.setDing(requireNotNull(config.dingtalkAppId))
+          adapter.setDing(config.dingtalkAppId!!)
         }
       }
       runVendorCall {
@@ -97,9 +97,11 @@ internal class UmengBootstrapStateMachine(
   fun configuredShareTargets(): List<String>? =
     synchronized(lock) {
       if (!isInited()) return@synchronized null
+      // INITIALIZED is committed only after a validated configuration is stored.
+      val config = acceptedConfig!!
       buildList {
-        if (acceptedConfig?.hasWechat == true) add("wechat_session")
-        if (acceptedConfig?.hasDingTalk == true) add("dingtalk")
+        if (config.hasWechat) add("wechat_session")
+        if (config.hasDingTalk) add("dingtalk")
       }
     }
 

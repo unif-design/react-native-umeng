@@ -16,7 +16,7 @@ jest.mock('../../../src/NativeUmengShare', () => ({
 }));
 
 import { act, fireEvent, render } from '@testing-library/react-native';
-import { StyleSheet, Modal, View } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Modal, View } from 'react-native';
 import { GlassLayer, ThemeProvider, useTheme } from '@unif/react-native-design';
 import {
   useShareSheet,
@@ -34,7 +34,13 @@ function Panel() {
   surface = useTheme().colors.surface;
   return host;
 }
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  jest
+    .spyOn(AccessibilityInfo, 'isReduceTransparencyEnabled')
+    .mockResolvedValue(true);
+});
+afterEach(() => jest.restoreAllMocks());
 
 it.each([
   { scheme: 'light', presentation: 'floating' },

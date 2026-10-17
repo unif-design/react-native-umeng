@@ -263,3 +263,143 @@ it('holds one share channel and the original content snapshot until the native r
     'original'
   );
 });
+
+it.each([null, ['dingtalk', 'dingtalk']])(
+  'rejects malformed configured targets: %p',
+  async (targets) => {
+    mockCommon.getConfiguredShareTargets.mockResolvedValueOnce(targets);
+    await expect(api.getShareTargets()).rejects.toMatchObject({
+      reason: 'invalid_response',
+    });
+    expect(mockNative.isInstalled).not.toHaveBeenCalled();
+  }
+);
+
+it('rejects non-boolean installed state', async () => {
+  mockNative.isInstalled.mockResolvedValueOnce('true');
+  await expect(api.getShareTargets()).rejects.toMatchObject({
+    reason: 'invalid_response',
+  });
+});
+
+it.each([
+  [
+    { code: 'cancel', platform: 'wechat_session' },
+    { status: 'cancelled', target: 'wechat_session' },
+  ],
+  [
+    { code: 'failed', platform: 'wechat_session', message: 'SDK rejected' },
+    {
+      status: 'failed',
+      target: 'wechat_session',
+      error: { reason: 'sdk_failed', message: 'SDK rejected' },
+    },
+  ],
+  [
+    { code: 'failed', platform: 'wechat_session', message: ' ' },
+    {
+      status: 'failed',
+      target: 'wechat_session',
+      error: { reason: 'sdk_failed', message: 'Share failed' },
+    },
+  ],
+  [
+    { code: 'failed', platform: 'wechat_session' },
+    {
+      status: 'failed',
+      target: 'wechat_session',
+      error: { reason: 'sdk_failed', message: 'Share failed' },
+    },
+  ],
+])('preserves the SDK receipt outcome %p', async (receipt, expected) => {
+  mockNative.shareText.mockResolvedValueOnce(receipt);
+  await expect(
+    api.share({
+      target: 'wechat_session',
+      content: { type: 'text', text: 'hello' },
+    })
+  ).resolves.toEqual(expected);
+});
+
+it.each([12, [], { code: 'success', platform: 'wechat_session', message: 7 }])(
+  'rejects a malformed SDK receipt %p',
+  async (receipt) => {
+    mockNative.shareText.mockResolvedValueOnce(receipt);
+    await expect(
+      api.share({
+        target: 'wechat_session',
+        content: { type: 'text', text: 'hello' },
+      })
+    ).resolves.toMatchObject({
+      status: 'failed',
+      error: { reason: 'invalid_response' },
+    });
+  }
+);
+
+it.each([
+  null,
+  [],
+  { target: 'unknown' },
+  { target: 'dingtalk', content: { type: 'other' } },
+  {
+    target: 'dingtalk',
+    content: {
+      type: 'link',
+      title: 'title',
+      url: 'https://example.com',
+      description: 3,
+    },
+  },
+])('rejects invalid share input before native: %p', async (input) => {
+  await expect(api.share(input as never)).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'invalid_input' },
+  });
+  expect(mockCommon.getConfiguredShareTargets).not.toHaveBeenCalled();
+});
+
+it('forwards link thumbnails and omitted descriptions', async () => {
+  await api.share({
+    target: 'wechat_session',
+    content: {
+      type: 'link',
+      title: 'title',
+      url: 'https://example.com',
+      thumbnailUrl: 'https://example.com/thumb.png',
+    },
+  });
+  expect(mockNative.shareLink).toHaveBeenCalledWith(
+    'wechat_session',
+    'title',
+    'https://example.com',
+    undefined,
+    'https://example.com/thumb.png'
+  );
+});
+
+it.each([null, 'SDK exception'])(
+  'normalizes non-object SDK failures %p',
+  async (error) => {
+    mockNative.shareText.mockRejectedValueOnce(error);
+    await expect(
+      api.share({
+        target: 'wechat_session',
+        content: { type: 'text', text: 'hello' },
+      })
+    ).resolves.toMatchObject({
+      status: 'failed',
+      error: { reason: 'sdk_failed' },
+    });
+  }
+);
+
+it('preserves a cancellation raised by an input getter before a target is selected', async () => {
+  const input = {
+    get target(): 'dingtalk' {
+      throw { code: 'E_USER_CANCEL' };
+    },
+    content: { type: 'text' as const, text: 'hello' },
+  };
+  await expect(api.share(input)).resolves.toEqual({ status: 'cancelled' });
+});

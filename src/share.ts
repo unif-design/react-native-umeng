@@ -115,21 +115,21 @@ export async function share(
         reason: 'not_installed',
         message: `${SHARE_TARGET_LABELS[target]} 未安装`,
       });
-    if (!NativeUmengShare) throw unavailable();
+    // installed() has checked this immutable module binding before returning.
     let receipt: unknown;
     switch (content.type) {
       case 'text':
-        receipt = await NativeUmengShare.shareText(target, content.text);
+        receipt = await NativeUmengShare!.shareText(target, content.text);
         break;
       case 'image':
-        receipt = await NativeUmengShare.shareImage(
+        receipt = await NativeUmengShare!.shareImage(
           target,
           content.imageUrl,
           content.thumbnailUrl
         );
         break;
       case 'link':
-        receipt = await NativeUmengShare.shareLink(
+        receipt = await NativeUmengShare!.shareLink(
           target,
           content.title,
           content.url,

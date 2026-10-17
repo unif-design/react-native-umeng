@@ -2,7 +2,7 @@ import React
 import ReactNativeUmeng
 import UIKit
 
-// 只做 Scene lifecycle 编译夹具；example 没有注册 scene manifest。
+// 供仍使用 application 回调转发的消费者参考；本 example 注册 SceneDelegate。
 final class SceneDelegateFixture: UIResponder, UIWindowSceneDelegate {
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
     for context in URLContexts {

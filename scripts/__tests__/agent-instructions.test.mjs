@@ -7,7 +7,7 @@ import test from 'node:test';
 import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 
 // 刻意不从 verify-agent-instructions 的契约推导:那样测试会自证,契约被改坏也照过。
-// Design 的 peer 与 install 使用同一下限；实际验证版本由锁文件记录。
+// peer 保留兼容范围；dev 明确 RN 0.88 正式版的实际验证基线。
 const expectedPeerRanges = {
   'react': '>=19.2.3 <20.0.0',
   '@callstack/liquid-glass': '>=0.8.2 <0.9.0',
@@ -17,12 +17,12 @@ const expectedPeerRanges = {
   'react-native-worklets': '>=0.11.3 <0.14.0',
 };
 const expectedDevRanges = {
-  'react': '19.2.3',
+  'react': '19.3.0',
   '@callstack/liquid-glass': '0.8.2',
-  '@unif/react-native-design': '>=1.0.0',
-  '@unif/react-native-icons': '>=0.1.0',
-  'react-native-reanimated': '^4.6.0',
-  'react-native-worklets': '^0.12.1',
+  '@unif/react-native-design': '^1.6.2',
+  '@unif/react-native-icons': '^0.4.1',
+  'react-native-reanimated': '4.7.1',
+  'react-native-worklets': '0.13.0',
 };
 
 async function write(relativeRoot, relativePath, content) {

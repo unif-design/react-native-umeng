@@ -46,3 +46,23 @@ it('rejects missing identifiers synchronously', () => {
   );
   expect(Native!.signIn).not.toHaveBeenCalled();
 });
+
+it('allows events without attributes and a user without a provider', () => {
+  trackEvent({ name: 'opened' });
+  bindAnalyticsUser({ userId: 'user' });
+  expect(Native!.onEvent).toHaveBeenCalledWith('opened', {});
+  expect(Native!.signIn).toHaveBeenCalledWith('user', undefined);
+});
+
+it.each([
+  ['onEvent', () => trackEvent({ name: 'event' })],
+  ['signIn', () => bindAnalyticsUser({ userId: 'user' })],
+  ['signOut', () => clearAnalyticsUser()],
+] as const)('normalizes %s SDK exceptions synchronously', (method, invoke) => {
+  jest.mocked(Native![method]).mockImplementationOnce(() => {
+    throw new Error('SDK exception');
+  });
+  expect(invoke).toThrow(
+    expect.objectContaining({ reason: 'sdk_failed', message: 'SDK exception' })
+  );
+});

@@ -52,8 +52,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
   }, [state.phase, state.options.presentation, state.sessionId]);
 
   const notifyDismissed = useCallback(
-    (sessionId: number | null) => {
-      if (sessionId === null) return;
+    (sessionId: number) => {
       if (modalSessionRef.current === sessionId) {
         modalSessionRef.current = null;
       }
@@ -102,7 +101,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
           }
         };
         openWithPlatforms();
-      } else if (e.kind === 'dismiss') {
+      } else {
         const isFloating = floatingSessionRef.current === e.sessionId;
         setState((current) =>
           current.sessionId === e.sessionId
@@ -141,9 +140,8 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
   );
 
   const handleCancel = useCallback(() => {
-    if (state.sessionId !== null) {
-      controller.dismiss(state.sessionId);
-    }
+    // Only ready/closing renders register this closure with a control.
+    controller.dismiss(state.sessionId!);
   }, [controller, state.sessionId]);
 
   const handleSheetLayout = useCallback(
@@ -192,9 +190,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
             }}
             arrow
             onPress={() => {
-              if (state.sessionId !== null && state.content !== null) {
-                handlePlatformPress(state.sessionId, state.content, info);
-              }
+              handlePlatformPress(state.sessionId!, state.content!, info);
             }}
           />
         ))}
@@ -249,7 +245,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
       }}
       onDismiss={() => {
         if (modalSessionRef.current === state.sessionId)
-          notifyDismissed(state.sessionId);
+          notifyDismissed(state.sessionId!);
       }}
     >
       <GestureHandlerRootView style={styles.root}>

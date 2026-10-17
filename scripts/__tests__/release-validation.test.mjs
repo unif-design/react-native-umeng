@@ -343,9 +343,9 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
     )
   );
 
-  // 组织内 Design 的 peer 与 install 使用同一下限，精确版本由锁文件记录。
+  // Public compatibility and the development baseline have separate contracts.
   assert.equal(
-    designPeerRange,
+    '^1.6.2',
     sharedRangesFor('dependencies')['@unif/react-native-design']
   );
   const peerRangesWithExactDesign = {
@@ -377,11 +377,11 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
         'dependencies',
         'fixture/package.json'
       ),
-    /react-native-worklets.*\^0\.12\.1/
+    /react-native-worklets.*0\.13\.0/
   );
 });
 
-test('workspace development graph matches the React Native 0.86.3 fixture', async () => {
+test('workspace development graph matches the React Native 0.88.0 fixture', async () => {
   const [root, example, website] = await Promise.all(
     [
       '../../package.json',
@@ -392,40 +392,40 @@ test('workspace development graph matches the React Native 0.86.3 fixture', asyn
     )
   );
 
-  assert.equal(root.devDependencies['react-native'], '0.86.3');
-  assert.equal(root.devDependencies['@react-native/babel-preset'], '0.86.3');
-  assert.equal(root.devDependencies['@react-native/eslint-config'], '0.86.3');
-  assert.equal(root.devDependencies['@react-native/jest-preset'], '0.86.3');
-  assert.equal(root.devDependencies['@react-native/metro-config'], '0.86.3');
+  assert.equal(root.devDependencies['react-native'], '0.88.0');
+  assert.equal(root.devDependencies['@react-native/babel-preset'], '0.88.0');
+  assert.equal(root.devDependencies['@react-native/eslint-config'], '0.88.0');
+  assert.equal(root.devDependencies['@react-native/jest-preset'], '0.88.0');
+  assert.equal(root.devDependencies['@react-native/metro-config'], '0.88.0');
   assert.equal(root.peerDependencies['react-native'], '>=0.86.0');
 
-  assert.equal(example.dependencies.react, '19.2.3');
-  assert.equal(example.dependencies['react-native'], '0.86.3');
-  assert.equal(example.devDependencies['@react-native/babel-preset'], '0.86.3');
-  assert.equal(example.devDependencies['@react-native/jest-preset'], '0.86.3');
-  assert.equal(example.devDependencies['@react-native/metro-config'], '0.86.3');
+  assert.equal(example.dependencies.react, '19.3.0');
+  assert.equal(example.dependencies['react-native'], '0.88.0');
+  assert.equal(example.devDependencies['@react-native/babel-preset'], '0.88.0');
+  assert.equal(example.devDependencies['@react-native/jest-preset'], '0.88.0');
+  assert.equal(example.devDependencies['@react-native/metro-config'], '0.88.0');
   assert.equal(
     example.devDependencies['@react-native/typescript-config'],
-    '0.86.3'
+    '0.88.0'
   );
   assert.equal(
     example.devDependencies['@react-native-community/cli'],
-    '20.1.0'
+    '20.2.0'
   );
   assert.equal(
     example.devDependencies['@react-native-community/cli-platform-android'],
-    '20.1.0'
+    '20.2.0'
   );
   assert.equal(
     example.devDependencies['@react-native-community/cli-platform-ios'],
-    '20.1.0'
+    '20.2.0'
   );
-  assert.equal(example.devDependencies['react-test-renderer'], '19.2.3');
+  assert.equal(example.devDependencies['react-test-renderer'], '19.3.0');
 
-  assert.equal(website.dependencies.react, '19.2.3');
-  assert.equal(website.dependencies['react-dom'], '19.2.3');
-  assert.equal(website.dependencies['react-native'], '0.86.3');
-  assert.equal(website.devDependencies['@react-native/metro-config'], '0.86.3');
+  assert.equal(website.dependencies.react, '19.3.0');
+  assert.equal(website.dependencies['react-dom'], '19.3.0');
+  assert.equal(website.dependencies['react-native'], '0.88.0');
+  assert.equal(website.devDependencies['@react-native/metro-config'], '0.88.0');
 });
 
 test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', async () => {
@@ -459,7 +459,7 @@ test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', a
 
     const lockfile = await readFile(join(repositoryRoot, 'yarn.lock'), 'utf8');
     const reactNativePackageStanza =
-      /^"react-native@npm:0\.86\.3":\n  version: 0\.86\.3\n  resolution: "react-native@npm:0\.86\.3"/m;
+      /^"react-native@npm:0\.88\.0":\n  version: 0\.88\.0\n  resolution: "react-native@npm:0\.88\.0"/m;
     assert.match(lockfile, reactNativePackageStanza);
 
     const lockfileWithUnrelated085 = `${lockfile}

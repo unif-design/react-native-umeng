@@ -13,7 +13,7 @@ jest.mock('@unif/react-native-design', () => {
     // 组件用 useThemedStyles(maker)：用 mock 色板调真实 makeStyles，产出真实 StyleSheet。
     useThemedStyles: (maker: any) => maker(colors, {}),
     GlassLayer: (props: any) => React.createElement(View, props),
-    Cell: ({ title, desc, onPress, disabled, testID }: any) => {
+    Cell: ({ title, desc, leading, onPress, disabled, testID }: any) => {
       const pressableProps: Record<string, unknown> = { testID, onPress };
       if (disabled !== undefined) {
         pressableProps.disabled = disabled;
@@ -22,6 +22,7 @@ jest.mock('@unif/react-native-design', () => {
       return React.createElement(
         TouchableOpacity,
         pressableProps,
+        leading?.node,
         React.createElement(Text, null, title),
         desc && React.createElement(Text, null, desc)
       );
@@ -69,6 +70,7 @@ import {
 } from '../index';
 import Native from '../NativeUmengShare';
 import { deferred } from './fixtures/deferred';
+import { startTransition } from 'react';
 
 let controller: ShareSheetController;
 function Harness({ host = true }: { host?: boolean }) {
@@ -525,7 +527,7 @@ it('releases the abort listener after dismissal while preserving the pending SDK
   expect(removeListener).toHaveBeenCalledTimes(1);
   expect(resolved).not.toHaveBeenCalled();
   expect(screen.UNSAFE_queryByType(Modal)).toBeNull();
-  abort.abort();
+  await act(async () => abort.abort());
   screen.unmount();
   sdk.resolve({ code: 'success', platform: 'wechat_session' });
   await expect(pending).resolves.toEqual({
@@ -535,4 +537,130 @@ it('releases the abort listener after dismissal while preserving the pending SDK
   expect(removeListener).toHaveBeenCalledTimes(1);
   expect(dismissed).toHaveBeenCalledTimes(1);
   expect(resolved).toHaveBeenCalledTimes(1);
+});
+
+it('cancels a lower-priority opening before its React state commits', async () => {
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  const dismissed = jest.fn();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    startTransition(() => {
+      pending = controller.open(
+        { type: 'text', text: 'transition' },
+        {
+          presentation: 'floating',
+          signal: abort.signal,
+          onDismiss: dismissed,
+        }
+      );
+    });
+    abort.abort();
+  });
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId('umeng-share-floating-root')).toBeNull();
+});
+
+it('settles a failed native target query without displaying a partial sheet', async () => {
+  jest
+    .mocked(Native!.isInstalled)
+    .mockRejectedValueOnce(new Error('SDK unavailable'));
+  const screen = render(<Harness />);
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open({ type: 'text', text: 'hello' });
+  });
+  await expect(pending).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'sdk_failed' },
+  });
+  expect(screen.queryByTestId('umeng-share-sheet')).toBeNull();
+});
+
+it('ignores rapid repeated target selection and keeps touches inside the sheet', async () => {
+  const sdk = deferred<{ code: 'success'; platform: string }>();
+  jest.mocked(Native!.shareText).mockReturnValueOnce(sdk.promise);
+  const screen = render(<Harness />);
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open({ type: 'text', text: 'hello' });
+  });
+  fireEvent.press(screen.getByTestId('umeng-share-sheet'));
+  const target = screen.getByTestId('umeng-share-cell-wechat_session');
+  await act(async () => {
+    fireEvent.press(target);
+    fireEvent.press(target);
+  });
+  expect(Native!.shareText).toHaveBeenCalledTimes(1);
+  await act(async () =>
+    sdk.resolve({ code: 'success', platform: 'wechat_session' })
+  );
+  await expect(pending).resolves.toEqual({
+    status: 'success',
+    target: 'wechat_session',
+  });
+});
+
+it('renders default and custom glyph sizes and safely handles an unknown target', () => {
+  const { PlatformLeading } = require('../ShareSheet/PlatformLeading');
+  const { WeChatGlyph } = require('../ShareSheet/WeChatGlyph');
+  const { DingTalkGlyph } = require('../ShareSheet/DingTalkGlyph');
+  const { Svg } = require('react-native-svg');
+  const screen = render(
+    <View>
+      <WeChatGlyph />
+      <DingTalkGlyph />
+      <WeChatGlyph size={29} color="#112233" />
+      <PlatformLeading platform="dingtalk" size={48} />
+      <PlatformLeading platform="unknown" />
+    </View>
+  );
+  const svg = screen.UNSAFE_getAllByType(Svg);
+  expect(svg.map((element) => element.props.width)).toEqual([18, 22, 29, 33]);
+  expect(svg[2]!.props.fill).toBe('#112233');
+});
+
+it('finishes a floating dismissal after an external abort', async () => {
+  const screen = render(<Harness />);
+  const dismissed = jest.fn();
+  const abort = new AbortController();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    pending = controller.open(
+      { type: 'text', text: 'legacy root' },
+      {
+        presentation: 'floating',
+        onDismiss: dismissed,
+        signal: abort.signal,
+      }
+    );
+  });
+  await act(async () => abort.abort());
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+  expect(dismissed).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId('umeng-share-floating-root')).toBeNull();
+});
+
+it('replays a ready update correctly when platform discovery completes during a transition', async () => {
+  const screen = render(<Harness />);
+  const abort = new AbortController();
+  let pending!: Promise<ShareResult>;
+  await act(async () => {
+    startTransition(() => {
+      pending = controller.open(
+        { type: 'text', text: 'fast query' },
+        {
+          presentation: 'floating',
+          signal: abort.signal,
+        }
+      );
+    });
+    // Let the real configured-target and installed-state promise chain finish
+    // before React commits the lower-priority opening state.
+    for (let index = 0; index < 20; index += 1) await Promise.resolve();
+  });
+  expect(screen.getByText('分享至')).toBeTruthy();
+  await act(async () => abort.abort());
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
 });

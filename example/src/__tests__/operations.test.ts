@@ -359,3 +359,105 @@ describe('platformReducer', () => {
     ]);
   });
 });
+
+it('ignores stale successes and rejects an unknown platform action', () => {
+  const state = createInitialPlatformState();
+  expect(
+    platformReducer(state, {
+      type: 'refreshSucceeded',
+      requestId: 44,
+      items: [],
+    })
+  ).toBe(state);
+  expect(
+    platformReducer(state, {
+      type: 'checkSucceeded',
+      requestId: 44,
+      target: 'dingtalk',
+      installed: true,
+    })
+  ).toBe(state);
+  expect(() => platformReducer(state, { type: 'unknown' } as never)).toThrow(
+    '未知平台状态操作'
+  );
+});
+
+it('retains feedback from a newer independent target when an older request completes', () => {
+  let state = platformReducer(
+    { ...createInitialPlatformState(), items: previousItems },
+    { type: 'checkStarted', target: 'wechat_session', requestId: 1 }
+  );
+  state = platformReducer(state, {
+    type: 'checkStarted',
+    target: 'dingtalk',
+    requestId: 2,
+  });
+  state = platformReducer(state, {
+    type: 'checkFailed',
+    target: 'dingtalk',
+    requestId: 2,
+    feedback: unknownFeedback,
+  });
+  const successful = platformReducer(state, {
+    type: 'checkSucceeded',
+    target: 'wechat_session',
+    requestId: 1,
+    installed: false,
+  });
+  expect(successful.feedback).toBe(unknownFeedback);
+  expect(successful.items[0]?.installed).toBe(false);
+  const failed = platformReducer(state, {
+    type: 'checkFailed',
+    target: 'wechat_session',
+    requestId: 1,
+    feedback: { ...unknownFeedback, message: 'older failure' },
+  });
+  expect(failed.feedback).toBe(unknownFeedback);
+  expect(failed.items.every((item) => item.freshness === 'stale')).toBe(true);
+});
+
+it('preserves newer per-target state and feedback when an overlapping refresh fails', () => {
+  const stale = previousItems.map((item) => ({
+    ...item,
+    freshness: 'stale' as const,
+  }));
+  let state = platformReducer(
+    { ...createInitialPlatformState(), items: stale },
+    { type: 'refreshStarted', requestId: 1 }
+  );
+  state = platformReducer(state, {
+    type: 'checkStarted',
+    target: 'dingtalk',
+    requestId: 2,
+  });
+  state = platformReducer(state, {
+    type: 'checkFailed',
+    target: 'dingtalk',
+    requestId: 2,
+    feedback: unknownFeedback,
+  });
+  const failed = platformReducer(state, {
+    type: 'refreshFailed',
+    requestId: 1,
+    feedback: { ...unknownFeedback, message: 'old refresh' },
+  });
+  expect(failed.feedback).toBe(unknownFeedback);
+  expect(failed.items[0]).toBe(stale[0]);
+  expect(failed.items[1]).toBe(stale[1]);
+  let empty = platformReducer(createInitialPlatformState(), {
+    type: 'refreshStarted',
+    requestId: 1,
+  });
+  empty = platformReducer(empty, {
+    type: 'checkStarted',
+    target: 'dingtalk',
+    requestId: 2,
+  });
+  expect(
+    platformReducer(empty, {
+      type: 'refreshSucceeded',
+      requestId: 1,
+      items: [],
+    }).items
+  ).toEqual([]);
+});

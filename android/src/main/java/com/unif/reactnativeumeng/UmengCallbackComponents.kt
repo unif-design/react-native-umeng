@@ -63,7 +63,7 @@ internal class UmengCallbackComponents internal constructor(
         if (firstFailure == null) {
           firstFailure = failure
         } else {
-          addSuppressedSafely(requireNotNull(firstFailure), failure)
+          addSuppressedSafely(firstFailure, failure)
         }
       }
     }
@@ -82,11 +82,8 @@ internal class UmengCallbackComponents internal constructor(
     secondary: Throwable,
   ) {
     if (original === secondary) return
-    try {
-      original.addSuppressed(secondary)
-    } catch (_: Throwable) {
-      // 保留原始失败优先于补充诊断，不能让 rollback 覆盖初始化根因。
-    }
+    // Throwable.addSuppressed rejects only null and self-suppression; both are excluded here.
+    original.addSuppressed(secondary)
   }
 
   private fun write(

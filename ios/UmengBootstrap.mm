@@ -133,7 +133,8 @@ static BOOL UmengRunVendorStages(id<UmengSDKAdapter> adapter, NSDictionary<NSStr
       stage = UmengBootstrapStageWeChatConfigured;
     }
 
-    if (stage < UmengBootstrapStageDingTalkConfigured) {
+    // A retry can resume only after WeChat registration; DingTalk has not completed yet.
+    {
       NSString *dingtalkAppId = config[@"dingtalkAppId"];
       if (dingtalkAppId != nil) {
         if (![adapter configureDingTalkWithAppId:dingtalkAppId]) {
@@ -215,12 +216,11 @@ static BOOL UmengRunBoolOnMainThread(BOOL (^block)(void)) {
 }
 
 - (instancetype)initWithAdapter:(id<UmengSDKAdapter>)adapter {
-  if (self = [super init]) {
-    _adapter = adapter;
-    _stateQueue = dispatch_queue_create("com.unif.reactnativeumeng.bootstrap.state", DISPATCH_QUEUE_SERIAL);
-    _stage = UmengBootstrapStageNotStarted;
-    _waiters = [NSMutableArray array];
-  }
+  self = [super init];
+  _adapter = adapter;
+  _stateQueue = dispatch_queue_create("com.unif.reactnativeumeng.bootstrap.state", DISPATCH_QUEUE_SERIAL);
+  _stage = UmengBootstrapStageNotStarted;
+  _waiters = [NSMutableArray array];
   return self;
 }
 
@@ -341,7 +341,7 @@ static BOOL UmengRunBoolOnMainThread(BOOL (^block)(void)) {
                              terminal:(BOOL)terminal
                                 error:(NSError *_Nullable)error {
   _stage = reachedStage;
-  if (terminal && _terminalError == nil) {
+  if (terminal) {
     _terminalError = error;
   }
   _attemptInFlight = NO;

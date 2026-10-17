@@ -27,10 +27,8 @@ static NSString *const UmengShareInvalidatedMessage = @"Share request was invali
 
 - (instancetype)init {
   self = [super init];
-  if (self) {
-    _lock = [NSLock new];
-    _requests = [NSMutableDictionary dictionary];
-  }
+  _lock = [NSLock new];
+  _requests = [NSMutableDictionary dictionary];
   return self;
 }
 

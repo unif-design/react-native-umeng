@@ -20,3 +20,15 @@ it('exposes safe reason-based feedback without raw SDK details', () => {
     message: '发生未识别错误，请稍后重试',
   });
 });
+
+it.each(['invalid_input', 'not_installed'] as const)(
+  'classifies %s as recoverable warning',
+  (reason) => {
+    expect(
+      classifyUmengError(
+        new UmengError({ reason, message: 'private vendor detail' }),
+        'share'
+      )
+    ).toMatchObject({ tone: 'warning', code: reason, restartRequired: false });
+  }
+);

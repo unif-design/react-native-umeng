@@ -7,25 +7,25 @@ import assert from 'node:assert/strict';
  *     install 是本仓验证基线。范围依据实际依赖契约与验证结果维护。
  */
 export const sharedDependencyRanges = {
-  react: { peer: '>=19.2.3 <20.0.0', install: '19.2.3' },
+  react: { peer: '>=19.2.3 <20.0.0', install: '19.3.0' },
   '@callstack/liquid-glass': {
     peer: '>=0.8.2 <0.9.0',
     install: '0.8.2',
   },
-  '@unif/react-native-design': '>=1.0.0',
-  '@unif/react-native-icons': '>=0.1.0',
+  '@unif/react-native-design': { peer: '>=1.0.0', install: '^1.6.2' },
+  '@unif/react-native-icons': { peer: '>=0.1.0', install: '^0.4.1' },
   'react-native-reanimated': {
     peer: '>=4.5.3 <4.8.0',
-    install: '^4.6.0',
+    install: '4.7.1',
   },
   'react-native-worklets': {
     peer: '>=0.11.3 <0.14.0',
-    install: '^0.12.1',
+    install: '0.13.0',
   },
 };
 
 export const requiredReactNativeLockResolution =
-  'react-native@npm:0.86.3';
+  'react-native@npm:0.88.0';
 
 export function assertReactNativeLockfileResolution(lockfile) {
   const packageDescriptors = [

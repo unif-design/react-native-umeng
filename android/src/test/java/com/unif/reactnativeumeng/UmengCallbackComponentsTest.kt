@@ -186,6 +186,24 @@ class UmengCallbackComponentsTest {
     )
   }
 
+  @Test
+  fun `disable attempts both callbacks and preserves each distinct failure`() {
+    for (sameFailure in listOf(false, true)) {
+      val first = IllegalStateException("wechat disable failed")
+      val second = if (sameFailure) first else IllegalStateException("dingtalk disable failed")
+      val writer = StatefulComponentWriter(failureFor = { state ->
+        if (state.className == WECHAT_ACTIVITY) first else second
+      })
+      val components = UmengCallbackComponents("com.example.app", writer)
+
+      val thrown = expectThrows<IllegalStateException> { components.disableAll() }
+
+      assertSame(first, thrown)
+      assertEquals(if (sameFailure) emptyList<Throwable>() else listOf(second), thrown.suppressed.toList())
+      assertEquals(listOf(WECHAT_ACTIVITY, DINGTALK_ACTIVITY), writer.writes.map { it.className })
+    }
+  }
+
   private class StatefulComponentWriter(
     initialStates: Map<String, Int> = emptyMap(),
     private val failureFor: (ComponentStateWrite) -> Throwable? = { null },

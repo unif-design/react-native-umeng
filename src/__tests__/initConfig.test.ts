@@ -49,3 +49,24 @@ it('allows analytics-only config and snapshots nested platform values', () => {
   });
   expect(Object.isFrozen(config)).toBe(true);
 });
+
+it.each([
+  [],
+  'invalid',
+  { appKey: 1 },
+  { appKey: 'app', wechat: null },
+  { appKey: 'app', wechat: [] },
+  { appKey: 'app', dingtalk: 'invalid' },
+])('rejects malformed configuration structure: %p', (input) => {
+  expect(() => normalizeInitConfig(input, 'android')).toThrow(
+    expect.objectContaining({ reason: 'invalid_input' })
+  );
+});
+
+it('adapts the optional channel without changing its value', () => {
+  expect(
+    toNativeInitConfig(
+      normalizeInitConfig({ appKey: 'app', channel: ' store ' }, 'android')
+    )
+  ).toEqual({ appkey: 'app', channel: 'store' });
+});
