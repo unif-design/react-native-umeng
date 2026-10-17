@@ -1,5 +1,11 @@
 # Changelog
 
+# [2.2.0](https://github.com/unif-design/react-native-umeng/compare/v2.1.0...v2.2.0) (2026-10-17)
+
+### Features
+
+* align RN 0.88 hosts and preserve share callbacks ([#107](https://github.com/unif-design/react-native-umeng/issues/107)) ([6d67fa1](https://github.com/unif-design/react-native-umeng/commit/6d67fa1e2671084b01e1dc4f84a0a4b197c89efd))
+
 # [2.1.0](https://github.com/unif-design/react-native-umeng/compare/v2.0.0...v2.1.0) (2026-10-16)
 
 ### Features
