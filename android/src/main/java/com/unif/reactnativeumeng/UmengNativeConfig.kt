@@ -52,8 +52,8 @@ data class UmengNativeConfig(
           null
         }
       require(
-        uri?.scheme.equals("https", ignoreCase = true) &&
-          !uri?.host.isNullOrBlank(),
+        uri != null && uri.scheme.equals("https", ignoreCase = true) &&
+          uri.host != null,
       ) {
         "`wechatUniversalLink` must be an absolute HTTPS URL with a host"
       }
@@ -63,7 +63,7 @@ data class UmengNativeConfig(
   companion object {
     fun fromReadableMap(config: ReadableMap): UmengNativeConfig {
       val appkey =
-        readString(config, "appkey", required = true)
+        readString(config, "appkey")
           ?: throw IllegalArgumentException("`appkey` is required")
       val parsed =
         UmengNativeConfig(
@@ -81,12 +81,8 @@ data class UmengNativeConfig(
     private fun readString(
       config: ReadableMap,
       key: String,
-      required: Boolean = false,
     ): String? {
       if (!config.hasKey(key)) {
-        if (required) {
-          throw IllegalArgumentException("`$key` is required")
-        }
         return null
       }
       if (config.isNull(key)) {
@@ -96,10 +92,11 @@ data class UmengNativeConfig(
         "`$key` must be a string"
       }
       val value =
-        config.getString(key)?.trim()
+        config.getString(key)
           ?: throw IllegalArgumentException("`$key` must be a string")
-      require(value.isNotEmpty()) { "`$key` must not be empty" }
-      return value
+      val trimmed = value.trim()
+      require(trimmed.isNotEmpty()) { "`$key` must not be empty" }
+      return trimmed
     }
   }
 }

@@ -760,6 +760,65 @@ class UmengShareModuleTest {
     }
   }
 
+  @Test
+  fun `diagnostic callback failure cannot escape the Activity listener`() {
+    val failure = IllegalStateException("vendor activity result failed")
+    var reported: Throwable? = null
+    val controller =
+      controller(
+        initialized = true,
+        adapter = RecordingShareAdapter(activityResultFailure = failure),
+        reportLifecycleError = {
+          reported = it
+          throw IllegalStateException("logger failed")
+        },
+      )
+
+    controller.onActivityResult("activity", 7, 8, null)
+
+    assertSame(failure, reported)
+  }
+
+  @Test
+  fun `share invocation without an exception message still rejects`() {
+    val controller =
+      controller(
+        initialized = true,
+        adapter = RecordingShareAdapter(shareFailure = IllegalStateException()),
+      )
+    val promise = RecordingPromise()
+
+    controller.shareText("wechat_session", "hello", promise)
+
+    assertEquals(listOf(Settlement.Rejected("E_SHARE_FAILED")), promise.settlements)
+  }
+
+  @Test
+  fun `main dispatcher exceptions settle the request before invoking the SDK`() {
+    for (failure in listOf(IllegalStateException(), IllegalStateException("queue unavailable"))) {
+      for (failDuringPost in listOf(false, true)) {
+        val adapter = RecordingShareAdapter()
+        val dispatcher =
+          object : ShareUiDispatcher {
+            override fun isOnUiThread(): Boolean {
+              if (!failDuringPost) throw failure
+              return false
+            }
+
+            override fun post(block: () -> Unit): Boolean = throw failure
+          }
+        val controller = controller(initialized = true, adapter = adapter, dispatcher = dispatcher)
+        val promise = RecordingPromise()
+
+        controller.shareText("wechat_session", "hello", promise)
+        controller.invalidate("activity")
+
+        assertEquals(listOf(Settlement.Rejected("E_SHARE_FAILED")), promise.settlements)
+        assertEquals(listOf(ShareAdapterCall.Release), adapter.calls)
+      }
+    }
+  }
+
   private fun assertTerminationWaitsForInvocation(
     blockedCall: BlockingVendorCall,
     invoke: (UmengShareController<String>, RecordingPromise) -> Unit,
@@ -820,7 +879,7 @@ class UmengShareModuleTest {
   private fun controller(
     initialized: Boolean,
     adapter: UmengShareAdapter,
-    dispatcher: RecordingUiDispatcher =
+    dispatcher: ShareUiDispatcher =
       RecordingUiDispatcher(onUiThread = true, postResult = true),
     onAdapterAcquired: () -> Unit = {},
     requests: ShareRequestRegistry = ShareRequestRegistry(),

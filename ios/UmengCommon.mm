@@ -19,13 +19,11 @@ RCT_EXPORT_MODULE(UmengCommon)
                              }
 
                              NSString *code = @"E_UNKNOWN";
-                             if ([error.domain isEqualToString:UmengBootstrapErrorDomain]) {
-                               if (error.code == UmengBootstrapErrorCodeInvalidConfig)
-                                 code = @"E_INVALID_OPTIONS";
-                               if (error.code == UmengBootstrapErrorCodeConfigChanged)
-                                 code = @"E_CONFIGURATION_LOCKED";
-                             }
-                             reject(code, error.localizedDescription ?: @"Failed to initialize Umeng", error);
+                             if (error.code == UmengBootstrapErrorCodeInvalidConfig)
+                               code = @"E_INVALID_OPTIONS";
+                             if (error.code == UmengBootstrapErrorCodeConfigChanged)
+                               code = @"E_CONFIGURATION_LOCKED";
+                             reject(code, error.localizedDescription, error);
                            }];
 }
 

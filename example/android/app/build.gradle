@@ -98,7 +98,7 @@ android {
             signingConfig signingConfigs.debug
             // CI 用 :app:assembleRelease 入口真实执行 R8 与 consumer rules。
             minifyEnabled true
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
 }

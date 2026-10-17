@@ -109,3 +109,54 @@ it('allows two hosts to present independently and dismiss only their own call', 
   await expect(secondResult).resolves.toEqual(result);
   expect(secondDismissed).toHaveBeenCalledTimes(1);
 });
+
+it.each([
+  { hideUninstalled: 1 },
+  { presentation: 'unknown' },
+  { onLayout: false },
+  { onDismiss: false },
+  { subtitles: { other: 'invalid' } },
+  { signal: {} },
+  { signal: { aborted: false } },
+  { signal: { aborted: false, addEventListener() {} } },
+])('rejects invalid options before notifying a host: %p', async (options) => {
+  const session = new ShareSheetSession();
+  const listener = jest.fn();
+  session.attach(listener);
+  await expect(session.open(content, options as never)).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'invalid_input' },
+  });
+  expect(listener).not.toHaveBeenCalled();
+});
+
+it('does not present a pre-aborted call', async () => {
+  const session = new ShareSheetSession();
+  const listener = jest.fn();
+  session.attach(listener);
+  const abort = new AbortController();
+  abort.abort();
+  await expect(
+    session.open(content, { signal: abort.signal })
+  ).resolves.toEqual({ status: 'cancelled' });
+  expect(listener).not.toHaveBeenCalled();
+});
+
+it('ignores an old attachment cleanup and invalid ready or sharing transitions', async () => {
+  const session = new ShareSheetSession();
+  const oldDetach = session.attach(jest.fn());
+  let id = 0;
+  const detach = session.attach((event) => {
+    if (event.kind === 'show') id = event.sessionId;
+  });
+  oldDetach();
+  const pending = session.open(content);
+  expect(session.beginSharing(id)).toBe(false);
+  expect(session.beginSharing(id + 1)).toBe(false);
+  expect(session.markReady(id + 1)).toBe(false);
+  expect(session.markReady(id)).toBe(true);
+  expect(session.markReady(id)).toBe(false);
+  expect(session.isPresenting(id)).toBe(true);
+  detach();
+  await expect(pending).resolves.toEqual({ status: 'cancelled' });
+});

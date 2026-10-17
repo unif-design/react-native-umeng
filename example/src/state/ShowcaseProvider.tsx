@@ -277,33 +277,14 @@ export function ShowcaseProvider({
     const configSnapshot = Object.freeze({ ...validation.config });
     dispatchSetup({ type: 'reviewConfigurationStarted' });
 
-    try {
-      dispatchSetup({
-        type: 'reviewConfigurationSucceeded',
-        configSnapshot,
-      });
-      appendSafeLog(
-        'setup',
-        'info',
-        `确认配置成功；微信${
-          configSnapshot.wechat === undefined ? '未配置' : '已配置'
-        }；钉钉${configSnapshot.dingtalk === undefined ? '未配置' : '已配置'}`
-      );
-    } catch (error) {
-      const operationFeedback = classifyUmengError(
-        error,
-        'reviewConfiguration'
-      );
-      dispatchSetup({
-        type: 'reviewConfigurationFailed',
-        feedback: operationFeedback,
-      });
-      appendSafeLog(
-        'setup',
-        'error',
-        `确认配置失败（${operationFeedback.code}）`
-      );
-    }
+    // The fixed reducer transition is synchronous. React owns evaluation of
+    // queued renders/log updaters and routes mounting errors to its boundary.
+    dispatchSetup({ type: 'reviewConfigurationSucceeded', configSnapshot });
+    appendSafeLog(
+      'setup',
+      'info',
+      `确认配置成功；微信${configSnapshot.wechat === undefined ? '未配置' : '已配置'}；钉钉${configSnapshot.dingtalk === undefined ? '未配置' : '已配置'}`
+    );
   }, [appendSafeLog, dispatchSetup]);
 
   const setConsent = useCallback<ShowcaseActions['setConsent']>(
@@ -411,13 +392,9 @@ export function ShowcaseProvider({
 
   const executeInitialize = useCallback(async (): Promise<void> => {
     dispatchSetup({ type: 'initializeStarted' });
-    if (setupRef.current.phase !== 'initializing') {
-      return;
-    }
-
     try {
-      const config = setupRef.current.configSnapshot;
-      if (config === null) return;
+      // Both guarded callers hold the reviewed snapshot before this synchronous transition.
+      const config = setupRef.current.configSnapshot!;
       await initializeUmeng(config);
       const initialized = await isUmengInitialized();
       if (!initialized) {

@@ -20,8 +20,7 @@ function ExampleRouter() {
     return <SetupScreen />;
   }
 
-  const route =
-    state.navigation.stack[state.navigation.stack.length - 1] ?? 'home';
+  const route = state.navigation.stack[state.navigation.stack.length - 1]!;
   switch (route) {
     case 'setup':
     case 'home':

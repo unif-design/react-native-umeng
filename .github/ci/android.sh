@@ -3,6 +3,8 @@ set -euo pipefail
 
 node scripts/verify-native-contract.mjs --platform android
 ./example/android/gradlew -p example/android testDebugUnitTest
+python3 scripts/test-native-android.py
+python3 scripts/native/check_example_android.py
 ./example/android/gradlew -p example/android :app:processReleaseMainManifest :app:assembleRelease
 
 MERGED_MANIFEST="$(find example/android/app/build/intermediates/merged_manifests \

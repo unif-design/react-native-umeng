@@ -53,12 +53,10 @@ RCT_EXPORT_MODULE(UmengShare)
                               adapter:(id<UmengShareSDKAdapter>)adapter
                        mainDispatcher:(void (^)(dispatch_block_t block))mainDispatcher {
   self = [super init];
-  if (self) {
-    _isInitialized = [isInitialized copy];
-    _adapter = adapter;
-    _mainDispatcher = [mainDispatcher copy];
-    _requestRegistry = [UmengShareRequestRegistry new];
-  }
+  _isInitialized = [isInitialized copy];
+  _adapter = adapter;
+  _mainDispatcher = [mainDispatcher copy];
+  _requestRegistry = [UmengShareRequestRegistry new];
   return self;
 }
 
@@ -203,17 +201,17 @@ RCT_EXPORT_MODULE(UmengShare)
       if (error.code == 2009) {
         didSettle = [strongRegistry rejectRequest:requestId
                                              code:@"E_USER_CANCEL"
-                                          message:error.localizedDescription ?: @"Share cancelled"
+                                          message:error.localizedDescription
                                             error:error];
       } else if (error.code == 2008) {
         didSettle = [strongRegistry rejectRequest:requestId
                                              code:@"E_PLATFORM_NOT_INSTALLED"
-                                          message:error.localizedDescription ?: @"Platform is not installed"
+                                          message:error.localizedDescription
                                             error:error];
       } else {
         didSettle = [strongRegistry rejectRequest:requestId
                                              code:@"E_SHARE_FAILED"
-                                          message:error.localizedDescription ?: @"Share failed"
+                                          message:error.localizedDescription
                                             error:error];
       }
       UmengLogIfShareCallbackWasIgnored(didSettle);

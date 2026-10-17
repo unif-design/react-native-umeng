@@ -15,6 +15,7 @@
 		10A100000000000000000006 /* SceneDelegateFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10A100000000000000000005 /* SceneDelegateFixture.swift */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		761780EF2CA45674006654EF /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EE2CA45674006654EF /* SceneDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		C7B462A7E9D1B468E1D7C9A7 /* libPods-ReactNativeUmengExampleTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5C10CD9D1FADE18E7FC37A2B /* libPods-ReactNativeUmengExampleTests.a */; };
 		D1FBC8135C5396B952798459 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
@@ -47,6 +48,7 @@
 		5C10CD9D1FADE18E7FC37A2B /* libPods-ReactNativeUmengExampleTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ReactNativeUmengExampleTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-ReactNativeUmengExample.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ReactNativeUmengExample.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = ReactNativeUmengExample/AppDelegate.swift; sourceTree = "<group>"; };
+		761780EE2CA45674006654EF /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SceneDelegate.swift; path = ReactNativeUmengExample/SceneDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = ReactNativeUmengExample/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		81CC58412D2A97F2FC803F08 /* Pods-ReactNativeUmengExampleTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ReactNativeUmengExampleTests.debug.xcconfig"; path = "Target Support Files/Pods-ReactNativeUmengExampleTests/Pods-ReactNativeUmengExampleTests.debug.xcconfig"; sourceTree = "<group>"; };
 		D61C7C1B2C55628B97008230 /* Pods-ReactNativeUmengExampleTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ReactNativeUmengExampleTests.release.xcconfig"; path = "Target Support Files/Pods-ReactNativeUmengExampleTests/Pods-ReactNativeUmengExampleTests.release.xcconfig"; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				761780EE2CA45674006654EF /* SceneDelegate.swift */,
 				10A100000000000000000005 /* SceneDelegateFixture.swift */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				10A100000000000000000007 /* ReactNativeUmengExample.entitlements */,
@@ -363,6 +366,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				761780EF2CA45674006654EF /* SceneDelegate.swift in Sources */,
 				10A100000000000000000006 /* SceneDelegateFixture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

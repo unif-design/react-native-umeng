@@ -2,6 +2,15 @@
 // preset + resolver + transformIgnorePatterns 放行清单 + peer 的官方桩 / mock。
 // 本仓将源码消费和 peer 解析固定到此 example 的同一运行时。
 module.exports = {
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/__tests__/**',
+    '!src/**/*.d.ts',
+  ],
+  coverageThreshold: {
+    global: { statements: 100, branches: 100, functions: 100, lines: 100 },
+  },
+  coverageReporters: ['text', 'json', 'json-summary', 'lcov'],
   preset: '@unif/react-native-design/jest-preset',
   moduleNameMapper: {
     // Current library source sits outside example; use this consumer's React and

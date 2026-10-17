@@ -19,7 +19,6 @@ internal class ShareRequestRegistry {
   private val noInvocations = lock.newCondition()
   private val active = linkedSetOf<ShareRequest>()
   private var state = ShareLifecycleState.ACTIVE
-  private var generation = 0L
   private var terminalFailure: ShareRequestFailure? = null
   private var inFlightInvocations = 0
   private var cleanupPending = false
@@ -30,7 +29,7 @@ internal class ShareRequestRegistry {
   fun register(promise: ShareRequestPromise): ShareRequest {
     val registration =
       lock.withLock {
-        val request = ShareRequest(this, promise, generation)
+        val request = ShareRequest(this, promise)
         ShareRequestRegistration(
           request = request,
           failure =
@@ -38,7 +37,7 @@ internal class ShareRequestRegistry {
               active += request
               null
             } else {
-              checkNotNull(terminalFailure)
+              terminalFailure!!
             },
         )
       }
@@ -58,11 +57,11 @@ internal class ShareRequestRegistry {
           state != ShareLifecycleState.ACTIVE -> {
             ShareInvocationAdmission(
               admitted = false,
-              failure = checkNotNull(terminalFailure),
+              failure = terminalFailure!!,
             )
           }
 
-          request != null && (request.isSettled || request.generation != generation) -> {
+          request != null && request.isSettled -> {
             ShareInvocationAdmission(admitted = false, failure = null)
           }
 
@@ -113,37 +112,33 @@ internal class ShareRequestRegistry {
   }
 
   fun resumeHost(cleanup: () -> Boolean) {
-    val shouldCleanup =
-      lock.withLock {
-        when (state) {
-          ShareLifecycleState.ACTIVE,
-          ShareLifecycleState.PERMANENT_INVALIDATED,
-          -> {
+    lock.withLock {
+      when (state) {
+        ShareLifecycleState.ACTIVE,
+        ShareLifecycleState.PERMANENT_INVALIDATED,
+        -> {
+          return
+        }
+
+        ShareLifecycleState.HOST_TEARING_DOWN -> {
+          resumeRequested = true
+          resumeCleanup = cleanup
+          return
+        }
+
+        ShareLifecycleState.HOST_DESTROYED -> {
+          if (!cleanupPending) {
+            reopen()
             return
           }
-
-          ShareLifecycleState.HOST_TEARING_DOWN -> {
-            resumeRequested = true
-            resumeCleanup = cleanup
-            return
-          }
-
-          ShareLifecycleState.HOST_DESTROYED -> {
-            if (!cleanupPending) {
-              reopen()
-              return
-            }
-            state = ShareLifecycleState.HOST_TEARING_DOWN
-            resumeRequested = true
-            resumeCleanup = null
-            true
-          }
+          state = ShareLifecycleState.HOST_TEARING_DOWN
+          resumeRequested = true
+          resumeCleanup = null
         }
       }
-
-    if (shouldCleanup) {
-      finishHostTeardown(attemptCleanup(cleanup))
     }
+
+    finishHostTeardown(attemptCleanup(cleanup))
   }
 
   fun invalidate(
@@ -211,41 +206,31 @@ internal class ShareRequestRegistry {
       val nextCleanup =
         lock.withLock {
           cleanupPending = !cleanupSucceeded
-          when (state) {
-            ShareLifecycleState.PERMANENT_INVALIDATED -> {
-              if (!cleanupPending) {
-                permanentCleanup = null
+          if (state == ShareLifecycleState.PERMANENT_INVALIDATED) {
+            if (!cleanupPending) {
+              permanentCleanup = null
+              return
+            }
+            permanentCleanup.also { permanentCleanup = null } ?: return
+          } else {
+            when {
+              !resumeRequested -> {
+                state = ShareLifecycleState.HOST_DESTROYED
                 return
               }
-              permanentCleanup.also { permanentCleanup = null } ?: return
-            }
 
-            ShareLifecycleState.HOST_TEARING_DOWN -> {
-              when {
-                !resumeRequested -> {
+              !cleanupPending -> {
+                reopen()
+                return
+              }
+
+              else -> {
+                resumeCleanup.also { resumeCleanup = null } ?: run {
+                  resumeRequested = false
                   state = ShareLifecycleState.HOST_DESTROYED
                   return
                 }
-
-                !cleanupPending -> {
-                  reopen()
-                  return
-                }
-
-                else -> {
-                  resumeCleanup.also { resumeCleanup = null } ?: run {
-                    resumeRequested = false
-                    state = ShareLifecycleState.HOST_DESTROYED
-                    return
-                  }
-                }
               }
-            }
-
-            ShareLifecycleState.ACTIVE,
-            ShareLifecycleState.HOST_DESTROYED,
-            -> {
-              return
             }
           }
         }
@@ -271,7 +256,6 @@ internal class ShareRequestRegistry {
     }
 
   private fun reopen() {
-    generation += 1
     state = ShareLifecycleState.ACTIVE
     terminalFailure = null
     cleanupPending = false
@@ -311,7 +295,6 @@ private data class ShareInvalidationTransition(
 internal class ShareRequest(
   private val registry: ShareRequestRegistry,
   private val promise: ShareRequestPromise,
-  internal val generation: Long,
 ) {
   private val settled = AtomicBoolean(false)
 

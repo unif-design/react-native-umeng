@@ -231,3 +231,116 @@ describe('setupReducer', () => {
     );
   });
 });
+
+it('rejects placeholders and incomplete enabled credentials while accepting an HTTPS iOS snapshot', () => {
+  expect(
+    buildInitConfig(
+      {
+        ...validBase,
+        appkey: 'YOUR_APPKEY',
+        channel: 'YOUR_CHANNEL',
+        wechatEnabled: true,
+        dingtalkEnabled: true,
+      },
+      'ios'
+    )
+  ).toEqual({
+    ok: false,
+    errors: {
+      appkey: '请替换 Umeng AppKey 占位值',
+      channel: '请替换 Channel 占位值',
+      wechatAppId: '请输入微信 App ID',
+      wechatAppSecret: '请输入微信 App Secret',
+      wechatUniversalLink: '请输入 HTTPS Universal Link',
+      dingtalkAppId: '请输入钉钉 App ID',
+    },
+  });
+  expect(
+    buildInitConfig(
+      {
+        ...validBase,
+        wechatEnabled: true,
+        wechatAppId: 'wx',
+        wechatAppSecret: 'YOUR_SECRET',
+        wechatUniversalLink: 'YOUR_LINK',
+      },
+      'ios'
+    )
+  ).toMatchObject({
+    ok: false,
+    errors: {
+      wechatAppSecret: '请替换微信 App Secret 占位值',
+      wechatUniversalLink: '请输入带 host 的绝对 HTTPS Universal Link',
+    },
+  });
+  expect(
+    buildInitConfig(
+      {
+        ...validBase,
+        wechatEnabled: true,
+        wechatAppId: ' wx ',
+        wechatAppSecret: ' secret ',
+        wechatUniversalLink: ' https://example.com/link/ ',
+      },
+      'ios'
+    )
+  ).toEqual({
+    ok: true,
+    config: {
+      appKey: 'app-key',
+      wechat: {
+        appId: 'wx',
+        appSecret: 'secret',
+        universalLink: 'https://example.com/link/',
+      },
+    },
+  });
+});
+
+it('ignores stale setup transitions and wrongly typed field edits without losing locked state', () => {
+  const editing = createInitialSetupState();
+  const feedback = {
+    tone: 'error',
+    code: 'sdk_failed',
+    message: 'failed',
+    restartRequired: false,
+  } as const;
+  const noOpActions = [
+    { type: 'reviewConfigurationSucceeded', configSnapshot: { appKey: 'key' } },
+    { type: 'reviewConfigurationFailed', feedback },
+    { type: 'setConsent', checked: true },
+    { type: 'initializeStarted' },
+    { type: 'initializeSucceeded' },
+    { type: 'initializeFailed', feedback },
+    { type: 'updateCredential', field: 'appkey', value: false },
+    { type: 'updateCredential', field: 'wechatEnabled', value: 'invalid' },
+  ] as const;
+  for (const action of noOpActions)
+    expect(setupReducer(editing, action)).toBe(editing);
+  for (const field of ['wechatEnabled', 'dingtalkEnabled'] as const) {
+    expect(
+      setupReducer(editing, { type: 'updateCredential', field, value: true })
+        .draft[field]
+    ).toBe(true);
+  }
+  const invalid = setupReducer(editing, {
+    type: 'validationFailed',
+    errors: { appkey: 'required' },
+  });
+  expect(invalid.errors.appkey).toBe('required');
+  const reviewing = setupReducer(invalid, {
+    type: 'reviewConfigurationStarted',
+  });
+  expect(setupReducer(reviewing, { type: 'reviewConfigurationStarted' })).toBe(
+    reviewing
+  );
+  expect(
+    setupReducer(reviewing, {
+      type: 'validationFailed',
+      errors: { appkey: 'stale' },
+    })
+  ).toBe(reviewing);
+  expect(() => setupReducer(editing, { type: 'unknown' } as never)).toThrow(
+    '未知初始化操作'
+  );
+});

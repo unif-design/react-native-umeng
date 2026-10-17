@@ -48,7 +48,6 @@ example/ios/*.xcworkspace
 
 # Ruby
 example/vendor/
-example/Gemfile.lock
 
 # Docusaurus
 website/.docusaurus
@@ -97,3 +96,7 @@ nitrogen/
 # codegraph: 提交 .codegraph/.gitignore 规则,daemon 运行时(pid/sock)不入库
 .codegraph/*.pid
 .codegraph/*.sock
+
+# Generated instrumentation and test reports (recreated by CI gates)
+coverage/
+example/coverage/

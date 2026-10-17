@@ -34,3 +34,9 @@ describe('navigationReducer', () => {
     ).toEqual({ stack: ['setup'] });
   });
 });
+
+it('rejects unknown runtime navigation actions', () => {
+  expect(() =>
+    navigationReducer({ stack: ['setup'] }, { type: 'unknown' } as never)
+  ).toThrow('未知导航操作');
+});
