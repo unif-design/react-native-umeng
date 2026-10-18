@@ -345,7 +345,7 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
 
   // Public compatibility and the development baseline have separate contracts.
   assert.equal(
-    '^1.6.2',
+    '^1.7.0',
     sharedRangesFor('dependencies')['@unif/react-native-design']
   );
   const peerRangesWithExactDesign = {

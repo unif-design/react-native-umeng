@@ -1,4 +1,10 @@
 import { StyleSheet } from 'react-native';
+import {
+  brandPalette,
+  fw,
+  tracking,
+  type as typography,
+} from '@unif/react-native-design';
 import type { ColorTokens } from '@unif/react-native-design';
 
 export const makeSheetStyles = (c: ColorTokens) =>
@@ -28,16 +34,16 @@ export const makeSheetStyles = (c: ColorTokens) =>
     platform: { backgroundColor: 'transparent' },
     head: { paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
     title: {
-      fontSize: 15,
-      fontWeight: '600',
-      letterSpacing: -0.1,
+      fontSize: typography.body,
+      fontWeight: fw.semi,
+      letterSpacing: tracking.subtle,
       color: c.foreground,
     },
     cancel: { marginTop: 14 },
   });
 
 export const platformLeadingStyles = StyleSheet.create({
-  wechat: { backgroundColor: '#07C160' },
+  wechat: { backgroundColor: brandPalette.wechat },
   container: {
     borderRadius: 8,
     alignItems: 'center',

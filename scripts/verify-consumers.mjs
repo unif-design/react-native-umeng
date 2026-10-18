@@ -427,7 +427,9 @@ jest.mock('react-native', () => ({
     UmengAnalytics: { onEvent: jest.fn(), signIn: jest.fn(), signOut: jest.fn() },
   })[name] },
 }));
-jest.mock('@unif/react-native-design', () => ({}));
+jest.mock('@unif/react-native-design', () => ({
+  brandPalette: { wechat: '#07C160' },
+}));
 jest.mock('react-native-svg', () => ({}));
 const api = require('@unif/react-native-umeng');
 test('published independent operations consume grouped config and share requests', async () => {

@@ -8,6 +8,7 @@ jest.mock('@unif/react-native-design', () => {
     foreground: '#111',
   };
   return {
+    ...require('./fixtures/designTheme').designTheme,
     ThemeProvider: ({ children }: any) => children,
     useTheme: () => ({ scheme: 'light', colors, shadow: {} }),
     // 组件用 useThemedStyles(maker)：用 mock 色板调真实 makeStyles，产出真实 StyleSheet。
