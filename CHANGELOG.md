@@ -1,5 +1,11 @@
 # Changelog
 
+# [2.3.0](https://github.com/unif-design/react-native-umeng/compare/v2.2.0...v2.3.0) (2026-10-18)
+
+### Features
+
+* adopt shared share-sheet theme tokens ([#108](https://github.com/unif-design/react-native-umeng/issues/108)) ([962b8c0](https://github.com/unif-design/react-native-umeng/commit/962b8c0780a98cf34616d80b3df2d73a31135978))
+
 # [2.2.0](https://github.com/unif-design/react-native-umeng/compare/v2.1.0...v2.2.0) (2026-10-17)
 
 ### Features
