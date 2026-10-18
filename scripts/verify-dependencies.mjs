@@ -61,7 +61,7 @@ const requiredWebsiteReactNativeDevelopmentGraph = {
 };
 const lockedPackageContracts = {
   "@unif/react-native-design": {
-    "version": "1.6.2",
+    "version": "1.7.0",
     "peerDependencies": {
       "@callstack/liquid-glass": ">=0.8.2 <0.9.0",
       "@unif/react-native-icons": ">=0.1.0",

@@ -21,6 +21,7 @@ jest.mock('react-native', () => ({
   },
 }));
 jest.mock('@unif/react-native-design', () => ({
+  ...require('./fixtures/designTheme').designTheme,
   useThemedStyles: (make: any) =>
     make({ surface: '#fff', foreground: '#000' }, {}),
   Cell: 'Cell',

@@ -1,4 +1,5 @@
 jest.mock('@unif/react-native-design', () => ({
+  ...require('./fixtures/designTheme').designTheme,
   useThemedStyles: () => ({}),
   useTheme: () => ({ colors: {} }),
   Button: () => null,

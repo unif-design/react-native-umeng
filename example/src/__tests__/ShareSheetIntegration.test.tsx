@@ -17,7 +17,12 @@ jest.mock('../../../src/NativeUmengShare', () => ({
 
 import { act, fireEvent, render } from '@testing-library/react-native';
 import { AccessibilityInfo, StyleSheet, Modal, View } from 'react-native';
-import { GlassLayer, ThemeProvider, useTheme } from '@unif/react-native-design';
+import {
+  GlassLayer,
+  ThemeProvider,
+  type as typography,
+  useTheme,
+} from '@unif/react-native-design';
 import {
   useShareSheet,
   type ShareSheetController,
@@ -95,7 +100,7 @@ it.each([
     });
     expect(
       StyleSheet.flatten(screen.getByText('分享至').props.style).fontSize
-    ).toBe(22.5);
+    ).toBe(typography.body * 1.5);
     screen.rerender(
       <ThemeProvider
         forceScheme={scheme === 'light' ? 'dark' : 'light'}
@@ -112,7 +117,7 @@ it.each([
     });
     expect(
       StyleSheet.flatten(screen.getByText('分享至').props.style).fontSize
-    ).toBe(18.75);
+    ).toBe(typography.body * 1.25);
     expect(NativeCommon!.getConfiguredShareTargets).toHaveBeenCalledTimes(1);
     expect(NativeShare!.isInstalled).toHaveBeenCalledTimes(1);
     await act(async () =>

@@ -11,7 +11,7 @@ import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 const expectedPeerRanges = {
   'react': '>=19.2.3 <20.0.0',
   '@callstack/liquid-glass': '>=0.8.2 <0.9.0',
-  '@unif/react-native-design': '>=1.0.0',
+  '@unif/react-native-design': '^1.7.0',
   '@unif/react-native-icons': '>=0.1.0',
   'react-native-reanimated': '>=4.5.3 <4.8.0',
   'react-native-worklets': '>=0.11.3 <0.14.0',
@@ -19,7 +19,7 @@ const expectedPeerRanges = {
 const expectedDevRanges = {
   'react': '19.3.0',
   '@callstack/liquid-glass': '0.8.2',
-  '@unif/react-native-design': '^1.6.2',
+  '@unif/react-native-design': '^1.7.0',
   '@unif/react-native-icons': '^0.4.1',
   'react-native-reanimated': '4.7.1',
   'react-native-worklets': '0.13.0',
