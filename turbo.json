@@ -73,9 +73,11 @@
         "RCT_NEW_ARCH_ENABLED",
         "RCT_REMOVE_LEGACY_ARCH",
         "RCT_USE_RN_DEP",
-        "RCT_USE_PREBUILT_RNCORE"
+        "RCT_USE_PREBUILT_RNCORE",
+        "XCODE_VERSION"
       ],
       "inputs": [
+        "$TURBO_ROOT$/.github/workflows/ci.yml",
         "$TURBO_ROOT$/package.json",
         "$TURBO_ROOT$/yarn.lock",
         "$TURBO_ROOT$/.yarnrc.yml",
