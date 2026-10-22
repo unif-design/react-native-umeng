@@ -22,6 +22,10 @@ export const makeSheetStyles = (c: ColorTokens) =>
     },
     backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: c.scrim },
     glass: { borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+    floatingCorners: {
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+    },
     sheet: {
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,

@@ -171,7 +171,10 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
 
   const sheetContent = (
     <>
-      <GlassLayer style={styles.glass} testID="umeng-share-glass" />
+      <GlassLayer
+        style={[styles.glass, floating && styles.floatingCorners]}
+        testID="umeng-share-glass"
+      />
       <View style={styles.head}>
         <Text style={styles.title}>{title}</Text>
       </View>
@@ -219,7 +222,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
       >
         <View
           testID="umeng-share-sheet"
-          style={styles.sheet}
+          style={[styles.sheet, styles.floatingCorners]}
           onLayout={handleSheetLayout}
         >
           {sheetContent}
