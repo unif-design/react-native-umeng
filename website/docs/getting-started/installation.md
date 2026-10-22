@@ -82,7 +82,7 @@ module.exports = {
 Docusaurus website 不需要为此新增 Babel 配置;这一要求只针对 Metro 消费者。
 
 :::warning `@unif/react-native-design` 是分享面板的 UI 壳,不能省
-`useShareSheet()` 返回的宿主面板使用 design 的 `Button` / `GlassLayer` 与共享主题渲染，因此 Host 应位于 design 的 `ThemeProvider` 内。默认的 RN `Modal` 呈现已在 **Modal 内容内部**创建 `GestureHandlerRootView`；App 外层的同名 root 不能跨越 Modal 的独立 native root，也不能替代这一内部边界。挂载约定见[快速上手](./quick-start)。
+`useShareSheet()` 返回的宿主面板使用 design 的 `Cell` / `Button` / `GlassLayer` 渲染，因此 Host 应位于 design 的 `ThemeProvider` 内。默认的 RN `Modal` 呈现已在 **Modal 内容内部**创建 `GestureHandlerRootView`；App 外层的同名 root 不能跨越 Modal 的独立 native root，也不能替代这一内部边界。挂载约定见[快速上手](./quick-start)。
 :::
 
 :::note 只用统计、不用分享?

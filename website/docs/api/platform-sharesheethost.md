@@ -39,7 +39,7 @@ export function Screen() {
 | title | 分享至 | 标题 |
 | cancelText | 取消 | 取消按钮文案 |
 | hideUninstalled | false | 隐藏未安装目标 |
-| subtitles | 内置中文无障碍提示 | 按 ShareTarget 添加可见说明，并覆盖无障碍提示 |
+| subtitles | 内置中文副标题 | 按 ShareTarget 覆盖副标题 |
 | presentation | modal | modal 或 floating |
 | onLayout(height) | — | 实际面板高度 |
 | onDismiss() | — | 本次显示结束，不代表分享取消 |
@@ -47,7 +47,7 @@ export function Screen() {
 
 `floating` 使用无遮罩、面板外触摸穿透的布局，适合图片预览窗口。默认 modal 的实际原生窗口内有手势根；floating 由所在窗口提供手势根。主题来自宿主所在的 Design `ThemeProvider`。
 
-两种呈现共用一层 Design Liquid Glass 底板，微信与钉钉以品牌图标和名称横向排列，平台按钮不再叠加独立玻璃或边框。未安装目标保留可见提示，自定义 `subtitles` 显示在名称下方；内置平台说明与安装状态通过按钮的无障碍提示提供。设备不支持材质或系统开启“降低透明度”时，面板回退为当前主题的实色表面。切换主题或字号只更新外观，不重复发现平台、不重开分享调用。
+两种呈现共用 Design 的 Liquid Glass 面板材质，平台继续使用竖排 Cell，保留品牌图标、名称、副标题、安装状态与箭头，并在微信和钉钉之间增加间距。平台行不额外覆盖背景颜色，图形保留各自品牌颜色。设备不支持材质或系统开启“降低透明度”时，面板回退为当前主题的实色表面。切换主题或字号只更新外观，不重复发现平台、不重开分享调用。
 
 Web 入口继续报告 `unsupported`，不模拟平台发现或分享成功。亮暗主题、面板按钮与实际厂商回调可通过本仓原生 `example` 验证；网页构建和单测不代表设备效果或第三方 App 往返已经通过。
 

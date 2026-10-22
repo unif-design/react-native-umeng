@@ -13,7 +13,12 @@ import {
   Text,
   type LayoutChangeEvent,
 } from 'react-native';
-import { Button, GlassLayer, useThemedStyles } from '@unif/react-native-design';
+import {
+  Cell,
+  Button,
+  GlassLayer,
+  useThemedStyles,
+} from '@unif/react-native-design';
 import type { ShareContent, ShareTargetInfo } from '../types';
 import { getShareTargets, share } from '../share';
 import { toFailure } from '../internal/errors';
@@ -172,31 +177,22 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
       </View>
       <View style={styles.platforms}>
         {visiblePlatforms.map((info) => (
-          <Pressable
+          <Cell
             key={info.target}
             testID={`umeng-share-cell-${info.target}`}
-            accessibilityRole="button"
-            accessibilityLabel={info.label}
-            accessibilityHint={`${subtitles[info.target] ?? SHARE_TARGET_SUBTITLES[info.target]} · ${info.installed ? '已安装' : '未安装'}`}
-            style={({ pressed }) => [
-              styles.platform,
-              pressed && styles.platformPressed,
-            ]}
+            style={styles.platform}
+            title={info.label}
+            desc={`${subtitles[info.target] ?? SHARE_TARGET_SUBTITLES[info.target]} · ${info.installed ? '已安装' : '未安装'}`}
+            // 品牌 logo 保持多色图形，以 Cell 的展示节点传入。
+            leading={{
+              kind: 'display',
+              node: <PlatformLeading platform={info.target} />,
+            }}
+            arrow
             onPress={() => {
               handlePlatformPress(state.sessionId!, state.content!, info);
             }}
-          >
-            <PlatformLeading platform={info.target} size={48} />
-            <Text style={styles.platformLabel}>{info.label}</Text>
-            {subtitles[info.target] ? (
-              <Text style={styles.platformDescription}>
-                {subtitles[info.target]}
-              </Text>
-            ) : null}
-            {!info.installed ? (
-              <Text style={styles.platformDescription}>未安装</Text>
-            ) : null}
-          </Pressable>
+          />
         ))}
       </View>
       <Button
