@@ -185,6 +185,7 @@ it('uses native installed state and hides uninstalled entries only when requeste
     );
   });
   expect(screen.getByText('钉钉')).toBeTruthy();
+  expect(screen.getByText('发送至工作群 · 未安装')).toBeTruthy();
   await act(async () => {
     fireEvent.press(screen.getByTestId('umeng-share-cell-dingtalk'));
   });

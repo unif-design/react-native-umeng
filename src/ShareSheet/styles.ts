@@ -31,6 +31,7 @@ export const makeSheetStyles = (c: ColorTokens) =>
       paddingBottom: 34,
       overflow: 'hidden',
     },
+    platforms: { gap: 8 },
     platform: { backgroundColor: 'transparent' },
     head: { paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
     title: {

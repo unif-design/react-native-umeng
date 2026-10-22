@@ -15,7 +15,7 @@ jest.mock('../../../src/NativeUmengShare', () => ({
   },
 }));
 
-import { act, fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render, within } from '@testing-library/react-native';
 import { AccessibilityInfo, StyleSheet, Modal, View } from 'react-native';
 import {
   GlassLayer,
@@ -98,6 +98,11 @@ it.each([
     expect(StyleSheet.flatten(cellSurface?.props.style)).toMatchObject({
       backgroundColor: 'transparent',
     });
+    const target = within(screen.getByTestId('umeng-share-sheet')).getByRole(
+      'button',
+      { name: '微信，发送给好友或群 · 已安装' }
+    );
+    expect(within(target).getByText('发送给好友或群 · 已安装')).toBeTruthy();
     expect(
       StyleSheet.flatten(screen.getByText('分享至').props.style).fontSize
     ).toBe(typography.body * 1.5);

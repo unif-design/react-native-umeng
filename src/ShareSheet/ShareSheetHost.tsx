@@ -175,7 +175,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
       <View style={styles.head}>
         <Text style={styles.title}>{title}</Text>
       </View>
-      <View>
+      <View style={styles.platforms}>
         {visiblePlatforms.map((info) => (
           <Cell
             key={info.target}
