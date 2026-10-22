@@ -6,6 +6,7 @@ jest.mock('@unif/react-native-design', () => {
     surface: '#fff',
     scrim: 'rgba(0,0,0,0.5)',
     foreground: '#111',
+    foregroundMuted: '#666',
   };
   return {
     ...require('./fixtures/designTheme').designTheme,
@@ -14,20 +15,6 @@ jest.mock('@unif/react-native-design', () => {
     // 组件用 useThemedStyles(maker)：用 mock 色板调真实 makeStyles，产出真实 StyleSheet。
     useThemedStyles: (maker: any) => maker(colors, {}),
     GlassLayer: (props: any) => React.createElement(View, props),
-    Cell: ({ title, desc, leading, onPress, disabled, testID }: any) => {
-      const pressableProps: Record<string, unknown> = { testID, onPress };
-      if (disabled !== undefined) {
-        pressableProps.disabled = disabled;
-        pressableProps.accessibilityState = { disabled };
-      }
-      return React.createElement(
-        TouchableOpacity,
-        pressableProps,
-        leading?.node,
-        React.createElement(Text, null, title),
-        desc && React.createElement(Text, null, desc)
-      );
-    },
     Button: ({ label, onPress, testID }: any) =>
       React.createElement(
         TouchableOpacity,
@@ -62,7 +49,14 @@ jest.mock('../NativeUmengShare', () => ({
   },
 }));
 
-import { render, act, fireEvent, waitFor } from '@testing-library/react-native';
+import {
+  render,
+  act,
+  fireEvent,
+  waitFor,
+  within,
+  userEvent,
+} from '@testing-library/react-native';
 import { Modal, View } from 'react-native';
 import {
   useShareSheet,
@@ -101,14 +95,17 @@ it('renders options, queries actual targets, and uses the same share operation',
   });
   input.text = 'changed';
   expect(screen.getByText('发送给同事')).toBeTruthy();
-  expect(screen.getByText('工作群 · 已安装')).toBeTruthy();
+  expect(screen.getByText('工作群')).toBeTruthy();
+  expect(
+    within(screen.getByTestId('umeng-share-sheet')).getByRole('button', {
+      name: '钉钉',
+    })
+  ).toHaveProp('accessibilityHint', '工作群 · 已安装');
   fireEvent(screen.getByTestId('umeng-share-sheet'), 'layout', {
     nativeEvent: { layout: { height: 250 } },
   });
   expect(onLayout).toHaveBeenCalledWith(250);
-  await act(async () => {
-    fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
-  });
+  await userEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
   await expect(pending).resolves.toEqual({
     status: 'success',
     target: 'wechat_session',
@@ -185,8 +182,11 @@ it('uses native installed state and hides uninstalled entries only when requeste
     );
   });
   expect(screen.getByText('钉钉')).toBeTruthy();
+  expect(screen.getByText('未安装')).toBeTruthy();
+  const dingtalk = screen.getByRole('button', { name: '钉钉' });
+  expect(dingtalk.props.accessibilityHint).toContain('未安装');
   await act(async () => {
-    fireEvent.press(screen.getByTestId('umeng-share-cell-dingtalk'));
+    fireEvent.press(dingtalk);
   });
   await expect(pending).resolves.toMatchObject({
     status: 'failed',

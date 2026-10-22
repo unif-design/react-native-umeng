@@ -1,6 +1,7 @@
 // Host/Fabric 单元测试隔离 Design 渲染边界；example 使用真实 Design 主题。
 export const designTheme = {
-  type: { body: 15 },
+  type: { body: 15, xs: 13 },
+  pressedOpacity: 0.7,
   fw: { semi: '600' },
   tracking: { subtle: -0.1 },
   brandPalette: {

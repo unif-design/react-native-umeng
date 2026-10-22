@@ -15,8 +15,8 @@ jest.mock('../../../src/NativeUmengShare', () => ({
   },
 }));
 
-import { act, fireEvent, render } from '@testing-library/react-native';
-import { AccessibilityInfo, StyleSheet, Modal, View } from 'react-native';
+import { act, fireEvent, render, within } from '@testing-library/react-native';
+import { AccessibilityInfo, StyleSheet, Modal } from 'react-native';
 import {
   GlassLayer,
   ThemeProvider,
@@ -89,15 +89,12 @@ it.each([
     expect(
       screen.getByTestId('umeng-share-cancel').findAllByType(GlassLayer)
     ).toHaveLength(1);
-    const cellSurface = screen
-      .getByTestId('umeng-share-cell-wechat_session')
-      .findAllByType(View)
-      .find(
-        (view) => StyleSheet.flatten(view.props.style)?.backgroundColor != null
-      );
-    expect(StyleSheet.flatten(cellSurface?.props.style)).toMatchObject({
-      backgroundColor: 'transparent',
-    });
+    const target = within(screen.getByTestId('umeng-share-sheet')).getByRole(
+      'button',
+      { name: '微信' }
+    );
+    expect(target.findAllByType(GlassLayer)).toHaveLength(0);
+    expect(target.props.accessibilityHint).toContain('已安装');
     expect(
       StyleSheet.flatten(screen.getByText('分享至').props.style).fontSize
     ).toBe(typography.body * 1.5);

@@ -2,6 +2,7 @@ import { StyleSheet } from 'react-native';
 import {
   brandPalette,
   fw,
+  pressedOpacity,
   tracking,
   type as typography,
 } from '@unif/react-native-design';
@@ -31,7 +32,26 @@ export const makeSheetStyles = (c: ColorTokens) =>
       paddingBottom: 34,
       overflow: 'hidden',
     },
-    platform: { backgroundColor: 'transparent' },
+    platforms: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    platform: {
+      flex: 1,
+      minWidth: 88,
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    platformPressed: { opacity: pressedOpacity },
+    platformLabel: {
+      fontSize: typography.body,
+      color: c.foreground,
+      textAlign: 'center',
+    },
+    platformDescription: {
+      fontSize: typography.xs,
+      color: c.foregroundMuted,
+      textAlign: 'center',
+    },
     head: { paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
     title: {
       fontSize: typography.body,
