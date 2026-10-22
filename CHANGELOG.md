@@ -1,5 +1,11 @@
 # Changelog
 
+# [2.5.0](https://github.com/unif-design/react-native-umeng/compare/v2.4.0...v2.5.0) (2026-10-22)
+
+### Features
+
+* **share:** round floating panel corners ([#111](https://github.com/unif-design/react-native-umeng/issues/111)) ([abdb9a7](https://github.com/unif-design/react-native-umeng/commit/abdb9a75b840b38f5996bd404632ea48f3b2c07b))
+
 # [2.4.0](https://github.com/unif-design/react-native-umeng/compare/v2.3.0...v2.4.0) (2026-10-22)
 
 ### Features
