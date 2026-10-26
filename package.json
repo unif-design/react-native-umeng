@@ -49,7 +49,7 @@
     "verify:dependencies": "node scripts/verify-dependencies.mjs",
     "verify:agent-instructions": "node scripts/verify-agent-instructions.mjs",
     "verify:example-contract": "node scripts/verify-example-contract.mjs",
-    "verify:release-validation": "node --test scripts/__tests__/*.test.mjs",
+    "verify:release-validation": "node --test scripts/__tests__/*.test.mjs example/ios/__tests__/ios-config-command.test.mjs",
     "verify:package": "node scripts/verify-package.mjs",
     "verify:consumers": "node scripts/verify-consumers.mjs",
     "verify:publish-contract": "node scripts/verify-publish-contract.mjs",

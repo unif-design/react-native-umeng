@@ -32,6 +32,7 @@ iOS 首次运行或原生依赖变化后：
 
 ## 接入与验证
 
+- 示例原生宿主测试随平台放在 `android/__tests__/` 和 `ios/__tests__/`，从仓库根目录执行 `yarn test:example:native:android` 与 `yarn test:example:native:ios`。测试编译示例原生源码，检查启动、生命周期和回调转发；Android／UIKit、React Native 与第三方 SDK 使用边界替身，不代表真机分享验收。
 - [独立应用接入](INTEGRATION.md)：依赖、示例源码和原生回调模板。
 - [iOS 配置](../website/docs/native-setup/ios.md) · [Android 配置](../website/docs/native-setup/android.md)
 - [开发资料](../docs/DEVELOPMENT.md)：目标契约、源码与定向验证入口。
