@@ -13,7 +13,8 @@ import path from 'node:path';
 import { URL, fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const root = fileURLToPath(new URL('../..', import.meta.url));
+const podfile = fileURLToPath(new URL('../Podfile', import.meta.url));
+const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 test('Podfile CLI config passes its directory as data without String.to_json', () => {
   const fixture = mkdtempSync(path.join(tmpdir(), 'unif-ios-cli-'));
   try {
@@ -44,7 +45,7 @@ test('Podfile CLI config passes its directory as data without String.to_json', (
       values = eval(command[1], TOPLEVEL_BINDING, ARGV[1])
       puts JSON.generate(values)
     `,
-        path.join(root, 'example/ios/Podfile'),
+        podfile,
         path.join(directory, 'Podfile'),
       ],
       { encoding: 'utf8' }
@@ -62,3 +63,29 @@ test('Podfile CLI config passes its directory as data without String.to_json', (
     rmSync(fixture, { recursive: true, force: true });
   }
 });
+
+test(
+  'example Podfile can resolve autolinking from the repository root',
+  { skip: process.platform !== 'darwin' },
+  () => {
+    const result = spawnSync(
+      'pod',
+      [
+        'ipc',
+        'podfile',
+        'example/ios/Podfile',
+        '--project-directory=example/ios',
+      ],
+      {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+      }
+    );
+
+    assert.equal(
+      result.status,
+      0,
+      result.stderr || result.error?.message || 'pod ipc podfile failed'
+    );
+  }
+);

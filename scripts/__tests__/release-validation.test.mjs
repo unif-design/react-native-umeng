@@ -67,32 +67,6 @@ const androidExampleContractPaths = [
   'example/android/app/src/main/java/unif/reactnativeumeng/example/ddshare/DDShareActivity.kt',
 ];
 
-test(
-  'example Podfile can resolve autolinking from the repository root',
-  { skip: process.platform !== 'darwin' },
-  () => {
-    const result = spawnSync(
-      'pod',
-      [
-        'ipc',
-        'podfile',
-        'example/ios/Podfile',
-        '--project-directory=example/ios',
-      ],
-      {
-        cwd: repositoryRoot,
-        encoding: 'utf8',
-      }
-    );
-
-    assert.equal(
-      result.status,
-      0,
-      result.stderr || result.error?.message || 'pod ipc podfile failed'
-    );
-  }
-);
-
 async function createIosExampleContractFixture(mutate) {
   const fixtureRoot = await mkdtemp(
     join(tmpdir(), 'umeng-ios-contract-fixture-')
