@@ -12,34 +12,37 @@ description: '安装依赖，配置原生权限、构建环境与宿主接线。
 
 | 要求         | 版本                                                                 |
 | ------------ | -------------------------------------------------------------------- |
-| React Native | 需要新架构；当前仓库开发基线为 **0.86.3**                            |
-| React        | 仓库开发基线为 19.2.3                                                |
+| React Native | 需要新架构；当前仓库开发基线为 **0.88.0**                            |
+| React        | 仓库开发基线为 19.3.0                                                |
 | iOS          | 采用当前 React Native 和依赖所要求的最低系统版本                     |
 | Android      | minSdk 24;Gradle SDK build 与真机矩阵须在具备 Android SDK 的环境验证 |
 
 :::info 仅支持新架构
-本库是 TurboModule 桥,仓库开发基线为 **React Native 0.86.3 New Architecture**。旧架构(Bridge)不在目标范围；支持范围以本页依赖清单和包声明为准。
+本库是 TurboModule 桥,仓库开发基线为 **React Native 0.88.0 New Architecture**。旧架构(Bridge)不在目标范围；包声明仍支持 `react-native >=0.86.0`，较早宿主须按其 RN 版本选择配套依赖，不能将当前基线的验证结果外推到全部版本。
 :::
 
-RN 0.88 宿主采用 Expo 58、React 19.3、Reanimated 4.7 与 Worklets 0.13 的配套组合。该组合已在 Portal 消费端通过类型检查、双平台 production JS bundle，以及 Android/iOS arm64 Debug 完整编译。初始化、微信/钉钉分享及回调仍需宿主真机验收。
+本仓 Community CLI example 使用 React 19.3.0、Reanimated 4.7.1 与 Worklets 0.13.0。已有 Portal 消费端验证采用 RN 0.88、Expo 58、React 19.3、Reanimated 4.7 与 Worklets 0.13 的组合，通过了类型检查、双平台 production JS bundle，以及 Android/iOS arm64 Debug 完整编译。初始化、微信/钉钉分享及回调仍需宿主真机验收。
 
 ---
 
 ## 1. 安装依赖 {#安装依赖}
 
-`package.json` 当前声明 **10 个 peers**。RN 工程已经提供 `react` / `react-native`;其余 8 个必须显式安装:
+`package.json` 当前声明 **11 个 peers**。RN 工程已经提供 `react` / `react-native`;其余 9 个必须显式安装。以下命令适用于 RN 0.88，将 Reanimated / Worklets 固定为本仓配套版本:
 
 ```sh
 yarn add @unif/react-native-umeng \
-  '@callstack/liquid-glass@0.8.2' \
-  '@unif/react-native-design@>=1.0.0' \
+  '@callstack/liquid-glass@>=0.8.2 <0.9.0' \
+  '@unif/react-native-design@^1.7.0' \
+  '@unif/react-native-icons@>=0.1.0' \
   'react-native-gesture-handler@>=3.0.0 <4.0.0' \
-  'react-native-reanimated@^4.6.0' \
+  'react-native-reanimated@4.7.1' \
   'react-native-reanimated-carousel@>=5.0.0 <6.0.0' \
   'react-native-safe-area-context@>=5' \
   'react-native-svg@>=15' \
-  'react-native-worklets@^0.12.1'
+  'react-native-worklets@0.13.0'
 ```
+
+下表列出包声明的 peer 允许范围，与上面的 RN 0.88 安装组合分开。Reanimated 与 Worklets 须成对选择：RN 0.88 使用 4.7.x / 0.13.x；4.6.x / 0.12.x 是较早 RN 宿主的组合，不适用于 RN 0.88，也不能将 4.7.x 与 0.12.x 混装。安装后核对锁文件中的实际版本。
 
 1.1 起使用 Design 0.35 与 Liquid Glass。从 1.0 升级时，移除旧 `@sbaiahmed1/react-native-blur`，安装上述依赖并重新执行 iOS Pods 安装；初始化、分享和统计公共 API 保持不变。
 
@@ -49,15 +52,15 @@ yarn add @unif/react-native-umeng \
 | ---------------------------------- | ------------------ | ------------------------------------------------------- |
 | `@callstack/liquid-glass`          | `>=0.8.2 <0.9.0`   | Design Liquid Glass 原生材质                            |
 | `@unif/react-native-icons`         | `>=0.1.0`          | 独立命名图标组件                                        |
-| `@unif/react-native-design`        | `>=1.0.0`          | 分享面板 UI 与 `GlassLayer` 材质                        |
+| `@unif/react-native-design`        | `^1.7.0`           | 分享面板 UI 与 `GlassLayer` 材质                        |
 | `react`                            | `>=19.2.3 <20.0.0` | RN 工程已有                                             |
-| `react-native`                     | `>=0.86.0`         | RN 工程已有;本仓当前验证基线为 RN 0.86.3                |
+| `react-native`                     | `>=0.86.0`         | RN 工程已有;本仓当前开发基线为 RN 0.88.0                |
 | `react-native-gesture-handler`     | `>=3.0.0 <4.0.0`   | design 手势底层与 ShareSheet Modal 内部 root            |
-| `react-native-reanimated`          | `>=4.5.3 <4.8.0`   | design 根入口运行时依赖;当前验证 4.6.x                  |
+| `react-native-reanimated`          | `>=4.5.3 <4.8.0`   | design 根入口运行时依赖;本仓使用 4.7.1                  |
 | `react-native-reanimated-carousel` | `>=5.0.0 <6.0.0`   | design 根入口静态依赖                                   |
 | `react-native-safe-area-context`   | `>=5`              | design 根入口静态依赖                                   |
 | `react-native-svg`                 | `>=15`             | 面板平台图标与 design 图标                              |
-| `react-native-worklets`            | `>=0.11.3 <0.14.0` | Reanimated / design 运行时与 Babel 转换;当前验证 0.12.x |
+| `react-native-worklets`            | `>=0.11.3 <0.14.0` | Reanimated / design 运行时与 Babel 转换;本仓使用 0.13.0 |
 
 范围以安装版本的 `package.json#peerDependencies` 为准。
 
@@ -121,7 +124,7 @@ Android 端依赖随 Gradle 自动同步,无需手动 link。使用项目已有�
 
 分享后能否跳回 App,完全取决于原生侧的 URL Scheme / 回调 Activity 注册。**配置方法见对应平台文档**,按对应平台文档逐项配置:
 
-- [iOS 原生配置](../native-setup/ios) —— `Info.plist` 的 `LSApplicationQueriesSchemes` / `CFBundleURLTypes`,`AppDelegate` 转发 `handleOpen(_:options:)`,微信 Universal Link。
+- [iOS 原生配置](../native-setup/ios) —— `Info.plist` 的 `LSApplicationQueriesSchemes` / `CFBundleURLTypes`、SceneDelegate 注册、AppDelegate / SceneDelegate 回调转发与微信 Universal Link。
 - [Android 原生配置](../native-setup/android) —— `WXEntryActivity` / `DDShareActivity` 必须在**宿主包名**下并直接继承 SDK 回调基类;Activity 不硬编码凭据。
 
 > 友盟 `appkey` / `appsecret` / Universal Link 等都通过 授权后的 `initializeUmeng(config)` 传,**不写在 Info.plist / Gradle**。

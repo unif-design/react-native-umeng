@@ -124,13 +124,14 @@ function ShareScreen(): React.JSX.Element {
 const INSTALL_COMMAND = [
   'yarn add @unif/react-native-umeng',
   "'@callstack/liquid-glass@>=0.8.2 <0.9.0'",
-  "'@unif/react-native-design@>=0.41.0'",
+  "'@unif/react-native-design@^1.7.0'",
+  "'@unif/react-native-icons@>=0.1.0'",
   "'react-native-gesture-handler@>=3.0.0 <4.0.0'",
-  "'react-native-reanimated@>=4.5.3 <4.7.0'",
+  "'react-native-reanimated@4.7.1'",
   "'react-native-reanimated-carousel@>=5.0.0 <6.0.0'",
   "'react-native-safe-area-context@>=5'",
   "'react-native-svg@>=15'",
-  "'react-native-worklets@>=0.11.3 <0.13.0'",
+  "'react-native-worklets@0.13.0'",
 ].join(' ');
 
 function InstallBlock(): React.JSX.Element {
@@ -144,7 +145,7 @@ function InstallBlock(): React.JSX.Element {
     <div className="hp-install">
       <span className="dollar">$</span>
       <span>
-        yarn add <span className="pkg">@unif/react-native-umeng</span> …（8
+        yarn add <span className="pkg">@unif/react-native-umeng</span> …（9
         peers）
       </span>
       <button

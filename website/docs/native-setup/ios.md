@@ -103,14 +103,22 @@ Objective-C 声明为 `handleOpenURL:options:`，Swift importer 会省略与首�
 
 ## 使用 SceneDelegate 的宿主 {#scene-delegate}
 
-使用 Scene lifecycle 时，除 AppDelegate 外还要覆盖 warm URL、warm Universal Link，以及 `willConnectTo` 的 cold URL/Universal Link。仓库中的 `SceneDelegateFixture.swift` 已编译验证以下结构：
+使用 Scene lifecycle 时，还要覆盖 warm URL、warm Universal Link，以及 `willConnectTo` 的 cold URL/Universal Link。本仓 RN 0.88 example 的 [`Info.plist`](https://github.com/unif-design/react-native-umeng/blob/main/example/ios/ReactNativeUmengExample/Info.plist) 已通过 `UIApplicationSceneManifest` 注册真实 [`SceneDelegate.swift`](https://github.com/unif-design/react-native-umeng/blob/main/example/ios/ReactNativeUmengExample/SceneDelegate.swift)：
+
+- 冷启动先把 `connectionOptions.urlContexts` 与 `connectionOptions.userActivities` 分别交给 Umeng，再将原始 `connectionOptions` 传给 `startReactNative`，让 React Native 接收初始链接。
+- warm URL / Universal Link 先调用 Umeng，再调用 `RCTLinkingManager.scene`，两个处理方都会收到回调。
+- 将接线合并到消费者已注册的 SceneDelegate，保留现有窗口和 React Native factory 初始化；不要把仅有回调的类当成完整宿主。
+
+### 较早宿主的 application 回调参考
+
+仍使用 `RCTLinkingManager.application` 转发的宿主可参考下面的 [`SceneDelegateFixture.swift`](https://github.com/unif-design/react-native-umeng/blob/main/example/ios/ReactNativeUmengExample/SceneDelegateFixture.swift)。它保留编译验证用途，不是 example 注册的 runtime SceneDelegate：
 
 ```swift
 import React
 import ReactNativeUmeng
 import UIKit
 
-final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+final class SceneDelegateFixture: UIResponder, UIWindowSceneDelegate {
   func scene(_ scene: UIScene, openURLContexts contexts: Set<UIOpenURLContext>) {
     for context in contexts {
       let options = applicationOptions(for: context)
@@ -182,7 +190,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 }
 ```
 
-把 fixture 结构迁入真实 SceneDelegate 后，还要按宿主 lifecycle 配置注册它；example 只把 fixture 放进 Compile Sources，没有注册 runtime scene manifest。
+采用该 fixture 的转发方式时，把方法合并到真实 SceneDelegate，并按宿主 lifecycle 配置注册；当前 example 的场景注册和 RN 0.88 接线以上面的真实宿主文件为准。
 
 ## Pods 与 Codegen {#podfile}
 

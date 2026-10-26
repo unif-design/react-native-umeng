@@ -21,8 +21,11 @@ yarn add @unif/react-native-umeng \
   'react-native-worklets@>=0.11.3 <0.14.0'
 ```
 
-React 与 React Native 由消费者宿主提供；本 example 验证的组合见仓库
-[`package.json`](../package.json)。把 `react-native-worklets/plugin` 合并到消费者
+React 与 React Native 由消费者宿主提供；本 example 使用 RN 0.88.0、React 19.3.0、
+Reanimated 4.7.1 与 Worklets 0.13.0，版本见仓库
+[`package.json`](../package.json)。上述 peer 范围保留较早 RN 宿主支持，Reanimated 与
+Worklets 仍须配套选择；RN 0.88 使用 4.7.x / 0.13.x，不能混装 4.7.x / 0.12.x。
+把 `react-native-worklets/plugin` 合并到消费者
 `babel.config.js` 的 `plugins`，并保持为最后一项。
 
 npm 包不发布 example。先在本地 clone 本仓库，然后在消费者 App 根目录只复制
@@ -48,16 +51,21 @@ import UmengShowcase from './src/umeng-showcase/App';
 
 参考 example 的 [`Info.plist`](./ios/ReactNativeUmengExample/Info.plist)、
 [`AppDelegate.swift`](./ios/ReactNativeUmengExample/AppDelegate.swift)、
-[`SceneDelegateFixture.swift`](./ios/ReactNativeUmengExample/SceneDelegateFixture.swift)
+[`SceneDelegate.swift`](./ios/ReactNativeUmengExample/SceneDelegate.swift)
 和
 [`ReactNativeUmengExample.entitlements`](./ios/ReactNativeUmengExample/ReactNativeUmengExample.entitlements)，
 并逐项完成 [iOS native setup](../website/docs/native-setup/ios.md)：
 
 - URL Scheme 使用平台登记的原值，不额外拼接 `wx` 或 `dingoa`。
-- AppDelegate / SceneDelegate 的 URL 与 Universal Link callback 都要分别调用
-  Umeng handler 和 `RCTLinkingManager`，最后合并两个结果；不要用短路表达式漏掉任一
-  handler。`SceneDelegateFixture.swift` 只是编译 fixture，应把方法合并到真实且已注册
-  lifecycle 的 SceneDelegate，不要整文件覆盖。
+- example 已在 `Info.plist` 的 `UIApplicationSceneManifest` 中注册真实
+  `SceneDelegate`。RN 0.88 冷启动先把 `connectionOptions` 中的 URL / Universal Link
+  交给 Umeng，再将原始 `connectionOptions` 传给 `startReactNative`；warm 回调分别
+  调用 Umeng handler 与 `RCTLinkingManager.scene`。保留宿主已有的窗口、React Native
+  factory 初始化与场景注册，不要整文件覆盖。
+- AppDelegate 以及仍使用 `RCTLinkingManager.application` 转发的较早宿主，应分别
+  执行两个 handler 后再合并结果，不要用短路表达式漏掉任一 handler。
+  [`SceneDelegateFixture.swift`](./ios/ReactNativeUmengExample/SceneDelegateFixture.swift)
+  保留这种转发方式的编译参考；它不是 example 注册的 runtime SceneDelegate。
 - Associated Domains entitlement 写成 `applinks:links.example.com`，不含 scheme 或
   path。AASA 部署在
   `https://links.example.com/.well-known/apple-app-site-association`，必须使用
