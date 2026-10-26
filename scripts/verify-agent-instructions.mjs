@@ -230,7 +230,7 @@ function proseBlocks(markdown, sourcePath) {
 }
 
 function positivelyRequiresSkill(markdown, skillName) {
-  const canonicalDirective = `必须使用 ${skillName}。`;
+  const canonicalDirective = `实际开发和修改源码时使用 ${skillName}；单纯接口查询不启动开发阶段。`;
 
   return proseBlocks(markdown, 'AGENTS.md').some(
     (block) =>
@@ -434,12 +434,6 @@ export async function verifyAgentInstructions(
 
   let hasSkillLink = false;
   for (const [relativePath, markdown] of activeMarkdown) {
-    if (markdown.includes('unif-umeng')) {
-      failures.push(
-        `${relativePath} references obsolete Skill name unif-umeng`
-      );
-    }
-
     const links = linkNodes(markdown, relativePath);
     hasSkillLink ||= linksToDevelopmentSkills(links);
     for (const { url: target } of links) {

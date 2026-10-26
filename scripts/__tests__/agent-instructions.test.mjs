@@ -85,7 +85,7 @@ async function createValidRepository() {
     write(
       fixtureRoot,
       'AGENTS.md',
-      '必须使用 `unif-portal-dev-skills:code-development`。\n'
+      '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n'
     ),
     write(
       fixtureRoot,
@@ -136,6 +136,26 @@ test('accepts CRLF, MDX, reference links, balanced parentheses, and fenced examp
   try {
     const result = await verifyAgentInstructions(fixtureRoot);
     assert.equal(result.activeMarkdownFiles.length, 7);
+  } finally {
+    await rm(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('accepts the library capability alongside scoped development guidance', async () => {
+  const fixtureRoot = await createValidRepository();
+  try {
+    await write(
+      fixtureRoot,
+      'AGENTS.md',
+      '本库能力的使用、维护和排障使用 `unif-portal-dev-skills:unif-umeng`。\n\n' +
+        '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n'
+    );
+    await write(
+      fixtureRoot,
+      'website/docs/skills.md',
+      '本库使用 unif-umeng 定位公开能力。\n'
+    );
+    await verifyAgentInstructions(fixtureRoot);
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }
@@ -195,6 +215,7 @@ test('rejects reverse CLAUDE delegation and negated Skill guidance', async () =>
     );
 
     for (const optionalGuidance of [
+      '必须使用 `unif-portal-dev-skills:code-development`。\n',
       'Use the `unif-portal-dev-skills:code-development` Skill only if you feel like it.\n',
       'Use cases for the `unif-portal-dev-skills:code-development` Skill are documented here.\n',
       '使用场景：`unif-portal-dev-skills:code-development` Skill。\n',
