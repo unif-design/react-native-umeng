@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 /**
  * 跨 manifest 共享的依赖 range。值有两种写法:
  *   - 字符串:peer 与安装侧(dev / example / website)同值
- *   - `{ peer, install }`:两者语义不同:peer 是对外兼容范围，
- *     install 是本仓验证基线。范围依据实际依赖契约与验证结果维护。
+ *   - `{ peer, install, website? }`:peer 是对外兼容范围，install 是原生验证基线，
+ *     website 指定独立的官网基线。范围依据实际依赖契约与验证结果维护。
  */
 export const sharedDependencyRanges = {
   react: { peer: '>=19.2.3 <20.0.0', install: '19.3.0' },
@@ -12,7 +12,11 @@ export const sharedDependencyRanges = {
     peer: '>=0.8.2 <0.9.0',
     install: '0.8.2',
   },
-  '@unif/react-native-design': '^1.7.0',
+  '@unif/react-native-design': {
+    peer: '^1.7.0',
+    install: '^1.7.0',
+    website: '^1.13.4',
+  },
   '@unif/react-native-icons': { peer: '>=0.1.0', install: '^0.4.1' },
   'react-native-reanimated': {
     peer: '>=4.5.3 <4.8.0',
@@ -50,7 +54,7 @@ export function assertReactNativeLockfileResolution(lockfile) {
 }
 
 /** 把契约摊平成某个 manifest field 该有的 `{ 包名: range }`。 */
-export function sharedRangesFor(field) {
+export function sharedRangesFor(field, manifestPath) {
   return Object.fromEntries(
     Object.entries(sharedDependencyRanges).map(([name, expected]) => [
       name,
@@ -58,7 +62,9 @@ export function sharedRangesFor(field) {
         ? expected
         : field === 'peerDependencies'
           ? expected.peer
-          : expected.install,
+          : manifestPath === 'website/package.json'
+            ? expected.website ?? expected.install
+            : expected.install,
     ])
   );
 }
@@ -69,7 +75,7 @@ export function assertSharedDependencyRanges(
   manifestPath
 ) {
   for (const [name, expectedRange] of Object.entries(
-    sharedRangesFor(field)
+    sharedRangesFor(field, manifestPath)
   )) {
     assert.equal(
       manifest[field]?.[name],

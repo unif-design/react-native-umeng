@@ -305,7 +305,7 @@ test('无契约变更时不发版,人工指定 increment 时照发', () => {
   }
 });
 
-test('shared Design runtime ranges must remain exact in every manifest', () => {
+test('native Design runtime ranges must remain exact in manifests', () => {
   const manifest = {
     dependencies: sharedRangesFor('dependencies'),
   };
@@ -353,6 +353,25 @@ test('shared Design runtime ranges must remain exact in every manifest', () => {
       ),
     /react-native-worklets.*0\.13\.0/
   );
+});
+
+test('website Design upgrade keeps the native workspace and public peer ranges unchanged', () => {
+  for (const [manifestPath, field, expected, rejected] of [
+    ['website/package.json', 'dependencies', '^1.13.4', '^1.7.0'],
+    ['package.json', 'devDependencies', '^1.7.0', '^1.13.4'],
+    ['example/package.json', 'dependencies', '^1.7.0', '^1.13.4'],
+    ['package.json', 'peerDependencies', '^1.7.0', '^1.13.4'],
+  ]) {
+    const manifest = {
+      [field]: { ...sharedRangesFor(field), '@unif/react-native-design': expected },
+    };
+    assert.doesNotThrow(() => assertSharedDependencyRanges(manifest, field, manifestPath));
+    manifest[field]['@unif/react-native-design'] = rejected;
+    assert.throws(
+      () => assertSharedDependencyRanges(manifest, field, manifestPath),
+      new RegExp(`design as ${escapeRegExp(expected)}`)
+    );
+  }
 });
 
 test('workspace development graph matches the React Native 0.88.0 fixture', async () => {
@@ -430,6 +449,16 @@ test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', a
       join(fixtureRoot, 'node_modules'),
       'dir'
     );
+    const websiteDesignPath = join(
+      fixtureRoot,
+      'website/node_modules/@unif/react-native-design/package.json'
+    );
+    const websiteDesignManifest = await readFile(
+      join(repositoryRoot, 'website/node_modules/@unif/react-native-design/package.json'),
+      'utf8'
+    );
+    await mkdir(dirname(websiteDesignPath), { recursive: true });
+    await writeFile(websiteDesignPath, websiteDesignManifest);
 
     const lockfile = await readFile(join(repositoryRoot, 'yarn.lock'), 'utf8');
     const reactNativePackageStanza =
@@ -454,6 +483,15 @@ test('dependency verifier rejects an RN 0.85 package resolution in yarn.lock', a
       0,
       `unrelated 0.85.3 packages must remain valid:\n${unrelatedResult.stderr}`
     );
+
+    await writeFile(
+      websiteDesignPath,
+      JSON.stringify({ ...JSON.parse(websiteDesignManifest), version: '1.7.0' })
+    );
+    const staleWebsiteInstall = runVerifier();
+    assert.notEqual(staleWebsiteInstall.status, 0);
+    assert.match(staleWebsiteInstall.stderr, /website.*design.*version must remain locked/);
+    await writeFile(websiteDesignPath, websiteDesignManifest);
 
     const mutatedLockfile = lockfileWithUnrelated085.replace(
       reactNativePackageStanza,

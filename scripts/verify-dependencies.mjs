@@ -314,6 +314,11 @@ assertRequiredPeer(installedPackages['react-native-worklets'], 'react-native-wor
 for (const [packageName, contract] of Object.entries(lockedPackageContracts)) {
   assertLockedPackageContract(packageName, installedPackages[packageName], contract);
 }
+assertLockedPackageContract(
+  'website @unif/react-native-design',
+  await readJson('website/node_modules/@unif/react-native-design/package.json'),
+  { ...lockedPackageContracts['@unif/react-native-design'], version: '1.13.4' },
+);
 
 for (const [packageName, range] of Object.entries(root.peerDependencies)) {
   const installedPackage = installedPackages[packageName];
