@@ -21,7 +21,7 @@
     "@docusaurus/preset-classic": "^3.10.1",
     "@mdx-js/react": "^3.0.0",
     "@react-native/assets-registry": "0.88.0",
-    "@unif/react-native-design": "^1.7.0",
+    "@unif/react-native-design": "^1.13.4",
     "@unif/react-native-icons": "^0.4.1",
     "@unif/react-native-umeng": "workspace:*",
     "clsx": "^2.0.0",
