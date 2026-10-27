@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.5.4](https://github.com/unif-design/react-native-umeng/compare/v2.5.3...v2.5.4) (2026-10-27)
+
+### Bug Fixes
+
+* adopt responsive docs home styles ([#115](https://github.com/unif-design/react-native-umeng/issues/115)) ([45c65a7](https://github.com/unif-design/react-native-umeng/commit/45c65a79ddf382dc8023b14221a1be0e411a44cb))
+
 ## [2.5.3](https://github.com/unif-design/react-native-umeng/compare/v2.5.2...v2.5.3) (2026-10-27)
 
 ## [2.5.2](https://github.com/unif-design/react-native-umeng/compare/v2.5.1...v2.5.2) (2026-10-26)
