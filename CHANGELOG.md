@@ -1,5 +1,7 @@
 # Changelog
 
+## [2.5.5](https://github.com/unif-design/react-native-umeng/compare/v2.5.4...v2.5.5) (2026-10-29)
+
 ## [2.5.4](https://github.com/unif-design/react-native-umeng/compare/v2.5.3...v2.5.4) (2026-10-27)
 
 ### Bug Fixes
