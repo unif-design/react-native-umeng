@@ -342,15 +342,27 @@ class UmengShareModule(
   override fun onHostPause() = Unit
 
   override fun onActivityStopped(activity: Activity) {
-    if (activity === reactApplicationContext.currentActivity && !activity.isChangingConfigurations)
+    if (activity === reactApplicationContext.currentActivity && !activity.isChangingConfigurations) {
       controller.onHostStopped()
+    }
   }
 
-  override fun onActivityCreated(activity: Activity, state: Bundle?) = Unit
+  override fun onActivityCreated(
+    activity: Activity,
+    state: Bundle?,
+  ) = Unit
+
   override fun onActivityStarted(activity: Activity) = Unit
+
   override fun onActivityResumed(activity: Activity) = Unit
+
   override fun onActivityPaused(activity: Activity) = Unit
-  override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) = Unit
+
+  override fun onActivitySaveInstanceState(
+    activity: Activity,
+    state: Bundle,
+  ) = Unit
+
   override fun onActivityDestroyed(activity: Activity) = Unit
 
   override fun onHostDestroy() {

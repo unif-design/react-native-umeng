@@ -33,10 +33,14 @@ static NSString *const UmengShareInvalidatedMessage = @"Share request was invali
   _lock = [NSLock new];
   _requests = [NSMutableDictionary dictionary];
   NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
-  [center addObserver:self selector:@selector(applicationDidEnterBackground:)
-                 name:UIApplicationDidEnterBackgroundNotification object:nil];
-  [center addObserver:self selector:@selector(applicationDidBecomeActive:)
-                 name:UIApplicationDidBecomeActiveNotification object:nil];
+  [center addObserver:self
+             selector:@selector(applicationDidEnterBackground:)
+                 name:UIApplicationDidEnterBackgroundNotification
+               object:nil];
+  [center addObserver:self
+             selector:@selector(applicationDidBecomeActive:)
+                 name:UIApplicationDidBecomeActiveNotification
+               object:nil];
   return self;
 }
 
@@ -53,7 +57,8 @@ static NSString *const UmengShareInvalidatedMessage = @"Share request was invali
 - (void)applicationDidEnterBackground:(NSNotification *)notification {
   [_lock lock];
   for (UmengPendingShareRequest *request in _requests.allValues) {
-    if (request.invoked) request.leftApplication = YES;
+    if (request.invoked)
+      request.leftApplication = YES;
   }
   [_lock unlock];
 }
@@ -63,7 +68,8 @@ static NSString *const UmengShareInvalidatedMessage = @"Share request was invali
   [_lock lock];
   for (NSUUID *requestId in _requests.allKeys) {
     UmengPendingShareRequest *request = _requests[requestId];
-    if (!request.leftApplication) continue;
+    if (!request.leftApplication)
+      continue;
     [_requests removeObjectForKey:requestId];
     [retired addObject:request];
   }
