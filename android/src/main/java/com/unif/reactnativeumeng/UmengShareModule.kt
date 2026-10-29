@@ -1,7 +1,9 @@
 package com.unif.reactnativeumeng
 
 import android.app.Activity
+import android.app.Application
 import android.content.Intent
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -127,7 +129,12 @@ internal class UmengShareController<Host>(
     }
   }
 
+  fun onHostStopped() {
+    requests.markHostStopped()
+  }
+
   fun onHostResume() {
+    requests.retireReturnedShares()
     requests.resumeHost {
       cleanupVendor(currentHost())
     }
@@ -163,6 +170,7 @@ internal class UmengShareController<Host>(
 
     runOnUi(request) {
       requests.withActiveInvocation(request) {
+        requests.markInvoked(request)
         adapterFactory(host).share(
           mappedPlatform,
           payload,
@@ -278,7 +286,9 @@ class UmengShareModule(
   reactContext: ReactApplicationContext,
 ) : NativeUmengShareSpec(reactContext),
   ActivityEventListener,
-  LifecycleEventListener {
+  LifecycleEventListener,
+  Application.ActivityLifecycleCallbacks {
+  private val application = reactContext.applicationContext as Application
   private val controller =
     UmengShareController<Activity>(
       isInitialized = UmengBootstrap::isInited,
@@ -294,6 +304,7 @@ class UmengShareModule(
     // 注册 React Native listener 不触达任何友盟 API。
     reactContext.addActivityEventListener(this)
     reactContext.addLifecycleEventListener(this)
+    application.registerActivityLifecycleCallbacks(this)
   }
 
   override fun invalidate() {
@@ -306,6 +317,7 @@ class UmengShareModule(
         try {
           reactApplicationContext.removeLifecycleEventListener(this)
         } finally {
+          application.unregisterActivityLifecycleCallbacks(this)
           super.invalidate()
         }
       }
@@ -328,6 +340,30 @@ class UmengShareModule(
   }
 
   override fun onHostPause() = Unit
+
+  override fun onActivityStopped(activity: Activity) {
+    if (activity === reactApplicationContext.currentActivity && !activity.isChangingConfigurations) {
+      controller.onHostStopped()
+    }
+  }
+
+  override fun onActivityCreated(
+    activity: Activity,
+    state: Bundle?,
+  ) = Unit
+
+  override fun onActivityStarted(activity: Activity) = Unit
+
+  override fun onActivityResumed(activity: Activity) = Unit
+
+  override fun onActivityPaused(activity: Activity) = Unit
+
+  override fun onActivitySaveInstanceState(
+    activity: Activity,
+    state: Bundle,
+  ) = Unit
+
+  override fun onActivityDestroyed(activity: Activity) = Unit
 
   override fun onHostDestroy() {
     controller.onHostDestroy(reactApplicationContext.currentActivity)

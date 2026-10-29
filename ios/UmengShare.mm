@@ -218,6 +218,7 @@ RCT_EXPORT_MODULE(UmengShare)
     };
 
     @try {
+      [registry markInvokedRequest:requestId];
       adapterInvocation(completion);
     } @catch (NSException *exception) {
       [registry rejectRequest:requestId

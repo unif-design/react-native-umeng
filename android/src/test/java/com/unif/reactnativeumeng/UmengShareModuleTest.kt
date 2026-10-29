@@ -876,6 +876,51 @@ class UmengShareModuleTest {
     }
   }
 
+  @Test
+  fun `stopped host expires only invoked shares and the next share keeps its own callback`() {
+    val adapter = RecordingShareAdapter()
+    val registry = ShareRequestRegistry()
+    val controller = controller(initialized = true, adapter = adapter, requests = registry)
+    val queryPromise = RecordingPromise()
+    val query = registry.register(queryPromise)
+    val first = RecordingPromise()
+    controller.shareText("dingtalk", "first", first)
+    controller.onHostStopped()
+    controller.onHostResume()
+    assertEquals(listOf(Settlement.Rejected("E_INVALID_RESPONSE")), first.settlements)
+    assertEquals(emptyList<Settlement>(), queryPromise.settlements)
+    query.resolve(true)
+    val next = RecordingPromise()
+    controller.shareText("dingtalk", "second", next)
+    adapter.callbacks.first().onSuccess()
+    adapter.callbacks.first().onFailure(IllegalStateException("old"))
+    assertEquals(emptyList<Settlement>(), next.settlements)
+    adapter.callbacks.last().onSuccess()
+    assertEquals(listOf(Settlement.Resolved(UmengShareSuccess("dingtalk"))), next.settlements)
+    controller.onHostStopped()
+    controller.onHostResume()
+    assertEquals(1, next.settlements.size)
+  }
+
+  @Test
+  fun `next async failure without leaving app settles normally after an expired share`() {
+    val adapter = RecordingShareAdapter()
+    val controller = controller(initialized = true, adapter = adapter)
+    val first = RecordingPromise()
+    controller.shareText("dingtalk", "first", first)
+    controller.onHostStopped()
+    controller.onHostResume()
+    val second = RecordingPromise()
+    controller.shareImage("dingtalk", "https://example.com/a.png", null, second)
+    adapter.callbacks.last().onFailure(IllegalStateException("image preparation failed"))
+    assertEquals(listOf(Settlement.Rejected("E_SHARE_FAILED")), second.settlements)
+    val third = RecordingPromise()
+    controller.shareText("dingtalk", "third", third)
+    adapter.callbacks.last().onSuccess()
+    assertEquals(listOf(Settlement.Resolved(UmengShareSuccess("dingtalk"))), third.settlements)
+    assertEquals(3, adapter.calls.count { it is ShareAdapterCall.Share })
+  }
+
   private fun controller(
     initialized: Boolean,
     adapter: UmengShareAdapter,

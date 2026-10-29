@@ -26,6 +26,25 @@ internal class ShareRequestRegistry {
   private var resumeCleanup: (() -> Boolean)? = null
   private var permanentCleanup: (() -> Boolean)? = null
 
+  fun markInvoked(request: ShareRequest) {
+    lock.withLock { request.invoked = true }
+  }
+
+  fun markHostStopped() {
+    lock.withLock {
+      active.forEach { request ->
+        if (request.invoked) request.leftHost = true
+      }
+    }
+  }
+
+  fun retireReturnedShares() {
+    val retired = lock.withLock { active.filter { it.leftHost } }
+    retired.forEach { request ->
+      request.reject("E_INVALID_RESPONSE", "Returned to the app without a share receipt", null)
+    }
+  }
+
   fun register(promise: ShareRequestPromise): ShareRequest {
     val registration =
       lock.withLock {
@@ -297,6 +316,8 @@ internal class ShareRequest(
   private val promise: ShareRequestPromise,
 ) {
   private val settled = AtomicBoolean(false)
+  var invoked = false
+  var leftHost = false
 
   val isSettled: Boolean
     get() = settled.get()

@@ -3,6 +3,8 @@
 #import <UMCommon/MobClick.h>
 #import <UMCommon/UMCommon.h>
 #import <UMShare/UMShare.h>
+NSNotificationName const UIApplicationDidEnterBackgroundNotification = @"UIApplicationDidEnterBackgroundNotification";
+NSNotificationName const UIApplicationDidBecomeActiveNotification = @"UIApplicationDidBecomeActiveNotification";
 @implementation UIApplication
 + (instancetype)sharedApplication {
   static UIApplication *v;

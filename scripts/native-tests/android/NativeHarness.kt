@@ -303,6 +303,37 @@ fun main(args: Array<String>) {
   ShareAction.actions.last().callback!!.onResult(null)
   check(queued.count == 1)
   Looper.current = Looper.main
+  context.application.callbacks.forEach {
+    it.onActivityCreated(activity, null)
+    it.onActivityStarted(activity)
+    it.onActivityResumed(activity)
+    it.onActivityPaused(activity)
+    it.onActivitySaveInstanceState(activity, android.os.Bundle())
+    it.onActivityDestroyed(Activity())
+  }
+  val abandoned = CapturedPromise()
+  share.shareText("dingtalk", "abandoned", abandoned)
+  val abandonedCallback = ShareAction.actions.last().callback!!
+  share.onHostPause()
+  share.onHostResume()
+  check(abandoned.count == 0)
+  context.application.callbacks.forEach { it.onActivityStopped(Activity()) }
+  activity.isChangingConfigurations = true
+  context.application.callbacks.forEach { it.onActivityStopped(activity) }
+  share.onHostResume()
+  check(abandoned.count == 0)
+  activity.isChangingConfigurations = false
+  context.application.callbacks.forEach { it.onActivityStopped(activity) }
+  share.onHostResume()
+  check(abandoned.code == "E_INVALID_RESPONSE")
+  val retry = CapturedPromise()
+  share.shareText("dingtalk", "retry", retry)
+  abandonedCallback.onResult(null)
+  abandonedCallback.onError(null, null)
+  abandonedCallback.onCancel(null)
+  check(retry.count == 0)
+  ShareAction.actions.last().callback!!.onResult(null)
+  check(retry.count == 1 && retry.code == null)
   share.onHostDestroy()
   share.onHostResume()
   val pending = CapturedPromise()
@@ -312,7 +343,8 @@ fun main(args: Array<String>) {
     pending.code == "E_SHARE_FAILED" &&
       share.invalidated &&
       !context.activities.contains(share) &&
-      !context.lifecycles.contains(share)
+      !context.lifecycles.contains(share) &&
+      !context.application.callbacks.contains(share)
   )
   val after = CapturedPromise()
   share.isInstalled("dingtalk", after)

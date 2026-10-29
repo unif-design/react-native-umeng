@@ -403,3 +403,22 @@ it('preserves a cancellation raised by an input getter before a target is select
   };
   await expect(api.share(input)).resolves.toEqual({ status: 'cancelled' });
 });
+
+it('preserves a missing native receipt as invalid_response and releases the share channel', async () => {
+  mockNative.shareText.mockRejectedValueOnce({
+    code: 'E_INVALID_RESPONSE',
+    message: 'Returned without a share receipt',
+  });
+  const request = {
+    target: 'wechat_session',
+    content: { type: 'text', text: 'hello' },
+  } as const;
+  await expect(api.share(request)).resolves.toMatchObject({
+    status: 'failed',
+    error: { reason: 'invalid_response', sourceCode: 'E_INVALID_RESPONSE' },
+  });
+  await expect(api.share(request)).resolves.toEqual({
+    status: 'success',
+    target: 'wechat_session',
+  });
+});

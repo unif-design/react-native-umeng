@@ -31,6 +31,8 @@ interface LifecycleEventListener {
 }
 
 open class ReactApplicationContext : android.content.Context() {
+  val application = android.app.Application()
+  override fun getApplicationContext(): android.content.Context = application
   var currentActivity: android.app.Activity? = null
   val activities = linkedSetOf<ActivityEventListener>()
   val lifecycles = linkedSetOf<LifecycleEventListener>()
