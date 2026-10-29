@@ -140,4 +140,3 @@ Android 端依赖随 Gradle 自动同步,无需手动 link。使用项目已有�
 ## 官方参考
 
 - [Reanimated 4 Getting started](https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/getting-started/) —— New Architecture、独立安装 Worklets、Community CLI plugin 与“必须最后”
-- [Migrating from Reanimated 3.x to 4.x](https://docs.swmansion.com/react-native-reanimated/docs/guides/migration-from-3.x/) —— Reanimated 4 的 Worklets 依赖与 Babel plugin 迁移说明
