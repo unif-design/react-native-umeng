@@ -1,5 +1,11 @@
 # Changelog
 
+# [2.6.0](https://github.com/unif-design/react-native-umeng/compare/v2.5.5...v2.6.0) (2026-10-29)
+
+### Features
+
+* **share:** 结束返回应用后无回执的分享等待 ([16eecb8](https://github.com/unif-design/react-native-umeng/commit/16eecb823e76774bdf31227b809a5ea78d94cf25))
+
 ## [2.5.5](https://github.com/unif-design/react-native-umeng/compare/v2.5.4...v2.5.5) (2026-10-29)
 
 ## [2.5.4](https://github.com/unif-design/react-native-umeng/compare/v2.5.3...v2.5.4) (2026-10-27)
