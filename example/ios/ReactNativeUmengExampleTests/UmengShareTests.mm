@@ -636,6 +636,101 @@ typedef void (^TestShareCompletion)(NSError *_Nullable error);
   XCTAssertEqual(settleCount, 1);
 }
 
+- (void)testReturnWithoutReceiptRetiresOnlyAfterBackgroundAndDoesNotInventCancellation {
+  RecordingShareAdapter *adapter = [RecordingShareAdapter new];
+  UmengShare *module = [self moduleWithInitialized:YES adapter:adapter];
+  NSMutableArray *results = [NSMutableArray array];
+  [module shareText:@"dingtalk" text:@"first"
+      resolve:^(id value) { [results addObject:value]; }
+      reject:^(NSString *code, NSString *message, NSError *error) { [results addObject:code]; }];
+  NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+  [center postNotificationName:@"UIApplicationWillResignActiveNotification" object:nil];
+  [center postNotificationName:@"UIApplicationDidBecomeActiveNotification" object:nil];
+  XCTAssertEqual(results.count, 0u);
+  [center postNotificationName:@"UIApplicationDidEnterBackgroundNotification" object:nil];
+  XCTAssertEqual(results.count, 0u);
+  [center postNotificationName:@"UIApplicationDidBecomeActiveNotification" object:nil];
+  XCTAssertEqualObjects(results, (@[@"E_INVALID_RESPONSE"]));
+  adapter.pendingCompletions.firstObject(nil);
+  XCTAssertEqualObjects(results, (@[@"E_INVALID_RESPONSE"]));
+}
+
+- (void)testNextShareOnTheSamePlatformKeepsItsOwnResultAfterTheOldRequestExpires {
+  RecordingShareAdapter *adapter = [RecordingShareAdapter new];
+  UmengShare *module = [self moduleWithInitialized:YES adapter:adapter];
+  NSMutableArray *first = [NSMutableArray array];
+  NSMutableArray *second = [NSMutableArray array];
+  [module shareText:@"dingtalk" text:@"first"
+      resolve:^(id value) { [first addObject:value]; }
+      reject:^(NSString *code, NSString *message, NSError *error) { [first addObject:code]; }];
+  [NSNotificationCenter.defaultCenter postNotificationName:@"UIApplicationDidEnterBackgroundNotification" object:nil];
+  [NSNotificationCenter.defaultCenter postNotificationName:@"UIApplicationDidBecomeActiveNotification" object:nil];
+  [module shareText:@"dingtalk" text:@"second"
+      resolve:^(id value) { [second addObject:value]; }
+      reject:^(NSString *code, NSString *message, NSError *error) { [second addObject:code]; }];
+  XCTAssertEqual(adapter.calls.count, 2u);
+  adapter.pendingCompletions.firstObject(nil);
+  adapter.pendingCompletions.firstObject([NSError errorWithDomain:@"vendor" code:2010 userInfo:nil]);
+  XCTAssertEqual(second.count, 0u);
+  adapter.pendingCompletions.lastObject(nil);
+  XCTAssertEqualObjects(first, (@[@"E_INVALID_RESPONSE"]));
+  XCTAssertEqualObjects(second, (@[@{@"code": @"success", @"platform": @"dingtalk"}]));
+}
+
+- (void)testReceiptBeforeReturnPreservesSuccessAndTheNextReceipt {
+  RecordingShareAdapter *adapter = [RecordingShareAdapter new];
+  UmengShare *module = [self moduleWithInitialized:YES adapter:adapter];
+  NSMutableArray *results = [NSMutableArray array];
+  NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+  for (NSInteger attempt = 0; attempt < 2; attempt++) {
+    [module shareText:@"dingtalk" text:@"normal"
+        resolve:^(id value) { [results addObject:value]; }
+        reject:^(NSString *code, NSString *message, NSError *error) { XCTFail(@"unexpected %@", code); }];
+    [center postNotificationName:@"UIApplicationDidEnterBackgroundNotification" object:nil];
+    adapter.pendingCompletions.lastObject(nil);
+    [center postNotificationName:@"UIApplicationDidBecomeActiveNotification" object:nil];
+  }
+  XCTAssertEqual(results.count, 2u);
+  XCTAssertEqualObjects(results.lastObject, (@{@"code": @"success", @"platform": @"dingtalk"}));
+}
+
+- (void)testBackgroundBeforeNativeInvocationDoesNotRetireAQueuedRequest {
+  RecordingShareAdapter *adapter = [RecordingShareAdapter new];
+  __block dispatch_block_t queued = nil;
+  UmengShare *module = [[UmengShare alloc]
+      initWithIsInitialized:^BOOL { return YES; }
+      adapter:adapter
+      mainDispatcher:^(dispatch_block_t block) { queued = [block copy]; }];
+  NSMutableArray *results = [NSMutableArray array];
+  [module shareText:@"dingtalk" text:@"queued"
+      resolve:^(id value) { [results addObject:value]; }
+      reject:^(NSString *code, NSString *message, NSError *error) { [results addObject:code]; }];
+  [NSNotificationCenter.defaultCenter postNotificationName:@"UIApplicationDidEnterBackgroundNotification" object:nil];
+  [NSNotificationCenter.defaultCenter postNotificationName:@"UIApplicationDidBecomeActiveNotification" object:nil];
+  XCTAssertEqual(results.count, 0u);
+  queued();
+  adapter.pendingCompletions.lastObject(nil);
+  XCTAssertEqualObjects(results, (@[@{@"code": @"success", @"platform": @"dingtalk"}]));
+}
+
+- (void)testNextAsyncFailureWithoutLeavingAppStillEndsItsOwnRequest {
+  RecordingShareAdapter *adapter = [RecordingShareAdapter new];
+  UmengShare *module = [self moduleWithInitialized:YES adapter:adapter];
+  NSMutableArray *results = [NSMutableArray array];
+  RCTPromiseResolveBlock resolve = ^(id value) { [results addObject:value]; };
+  RCTPromiseRejectBlock reject = ^(NSString *code, NSString *message, NSError *error) { [results addObject:code]; };
+  [module shareText:@"dingtalk" text:@"abandoned" resolve:resolve reject:reject];
+  [NSNotificationCenter.defaultCenter postNotificationName:@"UIApplicationDidEnterBackgroundNotification" object:nil];
+  [NSNotificationCenter.defaultCenter postNotificationName:@"UIApplicationDidBecomeActiveNotification" object:nil];
+  [module shareImage:@"dingtalk" image:@"https://example.com/fails.png" thumb:nil resolve:resolve reject:reject];
+  adapter.pendingCompletions.lastObject([NSError errorWithDomain:@"vendor" code:2010 userInfo:nil]);
+  XCTAssertEqualObjects(results, (@[@"E_INVALID_RESPONSE", @"E_SHARE_FAILED"]));
+  [module shareText:@"dingtalk" text:@"again" resolve:resolve reject:reject];
+  adapter.pendingCompletions.lastObject(nil);
+  XCTAssertEqual(results.count, 3u);
+  XCTAssertEqual(adapter.calls.count, 3u);
+}
+
 - (UmengShare *)moduleWithInitialized:(BOOL)initialized adapter:(RecordingShareAdapter *)adapter {
   return [[UmengShare alloc]
       initWithIsInitialized:^BOOL {

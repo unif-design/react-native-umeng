@@ -11,6 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @interface UmengShareRequestRegistry : NSObject
 
+- (void)markInvokedRequest:(NSUUID *)requestId;
 - (nullable NSUUID *)registerResolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject;
 - (BOOL)isActive:(NSUUID *)requestId;
 - (BOOL)resolveRequest:(NSUUID *)requestId result:(id)result;

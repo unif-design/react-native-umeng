@@ -4,6 +4,7 @@ export const NATIVE_ERROR_REASONS: Readonly<
   Record<string, UmengFailure['reason']>
 > = {
   E_INVALID_OPTIONS: 'invalid_input',
+  E_INVALID_RESPONSE: 'invalid_response',
   E_CONFIGURATION_LOCKED: 'configuration_locked',
   E_NOT_INITIALIZED: 'not_initialized',
   E_PLATFORM_NOT_INSTALLED: 'not_installed',

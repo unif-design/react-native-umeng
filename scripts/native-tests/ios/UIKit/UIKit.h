@@ -6,3 +6,6 @@ typedef NSString *UIApplicationOpenURLOptionsKey;
 @property NSMutableArray<NSURL *> *openedURLs;
 - (BOOL)canOpenURL:(NSURL *)url;
 @end
+
+extern NSNotificationName const UIApplicationDidEnterBackgroundNotification;
+extern NSNotificationName const UIApplicationDidBecomeActiveNotification;

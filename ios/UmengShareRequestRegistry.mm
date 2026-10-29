@@ -1,4 +1,5 @@
 #import "UmengShareRequestRegistry.h"
+#import <UIKit/UIKit.h>
 
 static NSString *const UmengShareInvalidatedCode = @"E_SHARE_FAILED";
 static NSString *const UmengShareInvalidatedMessage = @"Share request was invalidated";
@@ -7,6 +8,8 @@ static NSString *const UmengShareInvalidatedMessage = @"Share request was invali
 
 @property(nonatomic, copy) RCTPromiseResolveBlock resolve;
 @property(nonatomic, copy) RCTPromiseRejectBlock reject;
+@property(nonatomic) BOOL invoked;
+@property(nonatomic) BOOL leftApplication;
 
 @end
 
@@ -29,7 +32,45 @@ static NSString *const UmengShareInvalidatedMessage = @"Share request was invali
   self = [super init];
   _lock = [NSLock new];
   _requests = [NSMutableDictionary dictionary];
+  NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+  [center addObserver:self selector:@selector(applicationDidEnterBackground:)
+                 name:UIApplicationDidEnterBackgroundNotification object:nil];
+  [center addObserver:self selector:@selector(applicationDidBecomeActive:)
+                 name:UIApplicationDidBecomeActiveNotification object:nil];
   return self;
+}
+
+- (void)dealloc {
+  [NSNotificationCenter.defaultCenter removeObserver:self];
+}
+
+- (void)markInvokedRequest:(NSUUID *)requestId {
+  [_lock lock];
+  _requests[requestId].invoked = YES;
+  [_lock unlock];
+}
+
+- (void)applicationDidEnterBackground:(NSNotification *)notification {
+  [_lock lock];
+  for (UmengPendingShareRequest *request in _requests.allValues) {
+    if (request.invoked) request.leftApplication = YES;
+  }
+  [_lock unlock];
+}
+
+- (void)applicationDidBecomeActive:(NSNotification *)notification {
+  NSMutableArray<UmengPendingShareRequest *> *retired = [NSMutableArray array];
+  [_lock lock];
+  for (NSUUID *requestId in _requests.allKeys) {
+    UmengPendingShareRequest *request = _requests[requestId];
+    if (!request.leftApplication) continue;
+    [_requests removeObjectForKey:requestId];
+    [retired addObject:request];
+  }
+  [_lock unlock];
+  for (UmengPendingShareRequest *request in retired) {
+    request.reject(@"E_INVALID_RESPONSE", @"Returned to the app without a share receipt", nil);
+  }
 }
 
 - (NSUUID *)registerResolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
