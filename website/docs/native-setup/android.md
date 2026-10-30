@@ -148,8 +148,8 @@ fun disableUmengCallbackActivities(context: Context) {
 | 配置项                                | iOS | Android                                       |
 | ------------------------------------- | --- | --------------------------------------------- |
 | AndroidManifest 回调 Activity         | —   | ✅ library 自动合并为 disabled                |
-| `WXEntryActivity.kt`                  | —   | ✅ 必填                                       |
-| `DDShareActivity.kt`                  | —   | ✅ 必填                                       |
+| `WXEntryActivity.kt`                  | —   | 启用微信分享时提供                            |
+| `DDShareActivity.kt`                  | —   | 启用钉钉分享时提供                            |
 | 宿主 `build.gradle` 声明钉钉/微信 SDK | —   | ✅ 必填(**不自动**,见 [#sdk-deps](#sdk-deps)) |
 | 权限 / `<queries>`                    | —   | ✅ 自动合并                                   |
 | FileProvider                          | —   | ✅ library 合并;宿主需验 merged Manifest      |

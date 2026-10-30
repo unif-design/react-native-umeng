@@ -70,7 +70,7 @@ import UmengShowcase from './src/umeng-showcase/App';
   path。AASA 部署在
   `https://links.example.com/.well-known/apple-app-site-association`，必须使用
   HTTPS 且不得重定向；AASA 的 `appID` 使用 `TEAM_ID.BUNDLE_ID`。
-- `wechatUniversalLink` 的 path 必须被 AASA paths / components 覆盖，其 domain
+- `wechat.universalLink` 的 path 必须被 AASA paths / components 覆盖，其 domain
   必须与 entitlement host 一致。
 
 合并 native 配置后安装 Pods：

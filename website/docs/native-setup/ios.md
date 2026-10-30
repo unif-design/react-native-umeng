@@ -47,7 +47,7 @@ description: '配置 iOS 分享回调、URL Scheme 和 Universal Link。'
 
 | 键                            | 说明                                                     |
 | ----------------------------- | -------------------------------------------------------- |
-| `LSApplicationQueriesSchemes` | `isInstalled` / 第三方跳转所需的查询白名单               |
+| `LSApplicationQueriesSchemes` | `getShareTargets()` 查询安装状态及第三方跳转所需的白名单 |
 | `CFBundleURLTypes`            | 微信 App ID 与钉钉 AppKey / Client ID 的**平台分配原值** |
 
 微信 App ID 本身通常以 `wx` 开头，钉钉旧 AppKey 也可能包含 `dingoa`；“使用原值”表示不要在平台分配值之外再手工拼一次前缀。
@@ -256,14 +256,16 @@ iOS 没有公开 vendor preInit API。用户授权后的 `initializeUmeng(config
 
 ## 平台支持 {#platform-support}
 
-| 配置/门禁                                    | 当前仓库证据                         | 消费者仍需验证                                      |
-| -------------------------------------------- | ------------------------------------ | --------------------------------------------------- |
-| `ReactNativeUmeng` module + Codegen provider | simulator build / provider scan PASS | 自己的 Pod 图与 runtime lookup                      |
-| Common/Share/Analytics native gate           | 31/31 XCTest PASS                    | 真实 vendor 行为                                    |
-| AppDelegate URL/UL 双路转发                  | example compile + XCTest PASS        | 真实 URL Scheme 回跳                                |
-| Scene warm/cold 双路转发                     | compile fixture PASS                 | 真实 Scene lifecycle 注册与回跳                     |
-| queries / URL Types / entitlement            | example plist/entitlement lint PASS  | 替换真实平台原值与域名                              |
-| AASA / Universal Link                        | 配置契约已文档化                     | HTTPS、无重定向、TeamID.BundleID/path/domain 与真机 |
+| 配置/门禁                                    | 核对内容                              | 消费者仍需验证                                      |
+| -------------------------------------------- | ------------------------------------- | --------------------------------------------------- |
+| `ReactNativeUmeng` module + Codegen provider | Pod 模块名与三个模块映射              | 自己的 Pod 图与 runtime lookup                      |
+| Common/Share/Analytics native gate           | 自有原生实现与外部 SDK 边界           | 真实 vendor 行为                                    |
+| AppDelegate URL/UL 双路转发                  | Umeng 与 React Native 均收到回调      | 真实 URL Scheme 回跳                                |
+| Scene warm/cold 双路转发                     | 真实注册的 SceneDelegate 与冷启动参数 | 真实 Scene lifecycle 注册与回跳                     |
+| queries / URL Types / entitlement            | plist、entitlement 与目标平台配置     | 替换真实平台原值与域名                              |
+| AASA / Universal Link                        | 配置契约已文档化                      | HTTPS、无重定向、TeamID.BundleID/path/domain 与真机 |
+
+历史测试的时间、执行数量与边界见[测试记录](../testing)和[原生实现验证记录](https://github.com/unif-design/react-native-umeng/blob/main/docs/rn88-native-coverage.md)。其中原生实现测试替换 UIKit、React Native 与厂商接口，不代表真实 SDK 往返已经通过。模拟器还受实际厂商二进制的平台切片限制，应先核对目标架构，不能仅凭旧构建结果推断当前目标可用。
 
 ## 相关 {#related}
 

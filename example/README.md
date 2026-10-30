@@ -18,7 +18,7 @@ iOS 首次运行或原生依赖变化后：
 (cd example && bundle exec pod install --project-directory=ios)
 ```
 
-常规构建与完整测试由 CI 执行。开展真机测试时使用 `yarn example ios` 或 `yarn example android`，并按平台指南完成应用配置。
+常规构建与完整测试由 CI 执行。开展真机测试时使用 `yarn example ios --device` 或 `yarn example android`，并按平台指南完成应用配置。
 
 ## 操作顺序
 

@@ -44,8 +44,6 @@ yarn add @unif/react-native-umeng \
 
 下表列出包声明的 peer 允许范围，与上面的 RN 0.88 安装组合分开。Reanimated 与 Worklets 须成对选择：RN 0.88 使用 4.7.x / 0.13.x；4.6.x / 0.12.x 是较早 RN 宿主的组合，不适用于 RN 0.88，也不能将 4.7.x 与 0.12.x 混装。安装后核对锁文件中的实际版本。
 
-1.1 起使用 Design 0.35 与 Liquid Glass。从 1.0 升级时，移除旧 `@sbaiahmed1/react-native-blur`，安装上述依赖并重新执行 iOS Pods 安装；初始化、分享和统计公共 API 保持不变。
-
 各包的作用与版本约束:
 
 | 包                                 | 版本约束           | 作用                                                    |
@@ -103,7 +101,7 @@ cd ios && bundle exec pod install
 ```
 
 :::info iOS 已验证与待验边界
-仓库已验证 `ReactNativeUmeng` module、三个 Codegen modulesProvider、simulator build 与 XCTest。消费者仍需在自己的 Pod 图和宿主 target 重新执行 build；真实微信 / 钉钉 App、URL Scheme 与 Universal Link/AASA 只能在带真实凭据的真机验收。
+本库通过 `ReactNativeUmeng` Pod 模块和三个 Codegen `modulesProvider` 接入宿主。历史编译、测试执行数量及边界见[测试记录](../testing)；消费者仍需在自己的 Pod 图和目标架构重新构建。模拟器支持取决于实际厂商二进制切片，真实微信 / 钉钉 App、URL Scheme 与 Universal Link/AASA 需要在带真实配置的设备验收。
 :::
 
 :::warning 模拟器只能验编译与 JS/native 逻辑
