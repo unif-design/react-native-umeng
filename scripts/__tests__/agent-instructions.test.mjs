@@ -6,6 +6,24 @@ import test from 'node:test';
 
 import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 
+const genericDirectives = [
+  [
+    'code-organization',
+    '目录、文件职责、命名与公共入口使用 `code-organization`。',
+  ],
+  [
+    'react-native-development',
+    'React Native 组件、Hook、样式与平台实现使用 `react-native-development`。',
+  ],
+  [
+    'react-native-library',
+    '库创建、维护、打包、发布及运行示例使用 `react-native-library`。',
+  ],
+  ['documentation', '文档编写、文档站与生成构建使用 `documentation`。'],
+];
+const genericInstructions =
+  genericDirectives.map(([, line]) => '- ' + line).join('\n') + '\n\n';
+
 // 刻意不从 verify-agent-instructions 的契约推导:那样测试会自证,契约被改坏也照过。
 // peer 保留兼容范围；dev 明确 RN 0.88 正式版的实际验证基线。
 const expectedPeerRanges = {
@@ -85,7 +103,8 @@ async function createValidRepository() {
     write(
       fixtureRoot,
       'AGENTS.md',
-      '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n'
+      genericInstructions +
+        '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n'
     ),
     write(
       fixtureRoot,
@@ -131,6 +150,35 @@ async function createValidRepository() {
   return fixtureRoot;
 }
 
+for (const [skillName, directive] of genericDirectives) {
+  test(`requires active and affirmative ${skillName} guidance`, async () => {
+    const fixtureRoot = await createValidRepository();
+    try {
+      const base =
+        genericInstructions +
+        '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n';
+      for (const replacement of [
+        '',
+        '可选：' + directive,
+        '不使用 `' + skillName + '`。',
+        '```md\n' + directive + '\n```',
+      ]) {
+        await write(
+          fixtureRoot,
+          'AGENTS.md',
+          base.replace('- ' + directive, '\n' + replacement + '\n')
+        );
+        await assert.rejects(
+          verifyAgentInstructions(fixtureRoot),
+          new RegExp(`must positively require the ${skillName} Skill`)
+        );
+      }
+    } finally {
+      await rm(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+}
+
 test('accepts CRLF, MDX, reference links, balanced parentheses, and fenced examples', async () => {
   const fixtureRoot = await createValidRepository();
   try {
@@ -147,7 +195,8 @@ test('accepts the library capability alongside scoped development guidance', asy
     await write(
       fixtureRoot,
       'AGENTS.md',
-      '本库能力的使用、维护和排障使用 `unif-portal-dev-skills:unif-umeng`。\n\n' +
+      genericInstructions +
+        '本库能力的使用、维护和排障使用 `unif-portal-dev-skills:unif-umeng`。\n\n' +
         '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n'
     );
     await write(

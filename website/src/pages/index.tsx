@@ -171,7 +171,7 @@ const CODE_LINES: CodeLine[] = [
     {K('import')} <span className="tok-id">{'{ share }'}</span> {K('from')}{' '}
     {ST("'@unif/react-native-umeng'")}
   </>,
-  <> </>,
+  <>{'// 已取得用户同意并完成 initializeUmeng'}</>,
   <>
     {K('const')} result = {K('await')} {FN('share')}({'{'}
   </>,
@@ -188,7 +188,7 @@ const CODE_LINES: CodeLine[] = [
     {'    '}title: {ST("'拜访总结'")},
   </>,
   <>
-    {'    '}url: <span className="tok-id">visit</span>.url,
+    {'    '}url: {ST("'https://example.com/visit'")},
   </>,
   <>{'  }'}</>,
   <>{'}'})</>,
@@ -234,13 +234,13 @@ export default function Home(): React.JSX.Element {
             <div className="hp-hero-copy">
               <span className="hp-eyebrow">@unif/react-native-umeng</span>
               <h1 className="hp-title">
-                社会化分享，
+                分享与统计
                 <br />
-                <span className="accent">微信 · 钉钉 · 统计</span>
+                <span className="accent">微信 · 钉钉</span>
               </h1>
               <p className="hp-tagline">
-                友盟+ U-Share + U-App 的 React Native 封装：微信会话 /
-                钉钉分享，叠加友盟移动统计，由应用控制用户同意后的初始化时机。
+                提供微信会话和钉钉分享、实例分享面板与应用统计。
+                应用在取得用户同意后初始化 SDK，并处理每次操作结果。
               </p>
               <div className="hp-cta-row">
                 <Link to="/docs/intro" className="hp-btn hp-btn-primary">
@@ -284,7 +284,7 @@ export default function Home(): React.JSX.Element {
               </div>
               <span className="hp-combo-badge">
                 <span className="dot" />
-                原生分享面板
+                分享面板示意
               </span>
             </div>
           </div>

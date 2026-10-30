@@ -635,6 +635,13 @@ test('independent consumer guide rejects contract mutations', async (t) => {
       replacement: 'TEAM-ID-BUNDLE-ID',
       expectedFailure: /consumer guide is missing AASA appID format/,
     },
+    {
+      name: 'obsolete public Universal Link field',
+      search: '`wechat.universalLink`',
+      replacement: '`wechatUniversalLink`',
+      expectedFailure:
+        /consumer guide is missing AASA path and domain align with Universal Link/,
+    },
   ];
 
   for (const mutation of mutations) {
