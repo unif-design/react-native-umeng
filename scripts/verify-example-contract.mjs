@@ -182,7 +182,7 @@ function verifyConsumerGuide({ failures, source }) {
     ['AASA appID format', /TEAM_ID\.BUNDLE_ID/],
     [
       'AASA path and domain align with Universal Link',
-      /wechatUniversalLink[\s\S]*(path|路径)[\s\S]*(domain|域名|host)[\s\S]*(一致|对齐)/i,
+      /\bwechat\.universalLink\b[\s\S]*(path|路径)[\s\S]*(domain|域名|host)[\s\S]*(一致|对齐)/i,
     ],
     [
       'real callbacks require devices and online domain',
