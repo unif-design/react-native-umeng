@@ -1,6 +1,6 @@
 # 目标路径:.github/workflows/native-lint.yml
-# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
-# 改 native lint 标准请改 .github/templates/workflows/native-lint.yml 再 sync-repo.sh 下发。
+# 由 github-delivery/templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
+# 改 native lint 标准请改 github-delivery/templates/workflows/native-lint.yml 再 sync-repo.sh 下发。
 #
 # 仅下发给有 native 源码的仓(umeng / hms-scan):
 #   - lint-cpp    —— ObjC++/C++(*.mm/*.h/*.cpp)走 clang-format,读仓库根 .clang-format

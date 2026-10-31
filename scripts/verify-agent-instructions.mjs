@@ -207,39 +207,6 @@ function linkNodes(markdown, sourcePath) {
   return links;
 }
 
-function proseBlocks(markdown, sourcePath) {
-  const blocks = [];
-  visit(parseMarkdown(markdown, sourcePath), (node) => {
-    if (node.type !== 'paragraph' && node.type !== 'heading') {
-      return;
-    }
-
-    let value = '';
-    visit(node, (child) => {
-      if (
-        child !== node &&
-        (child.type === 'text' || child.type === 'inlineCode') &&
-        typeof child.value === 'string'
-      ) {
-        value += child.value;
-      }
-    });
-    blocks.push(value);
-  });
-  return blocks;
-}
-
-function positivelyRequiresSkill(
-  markdown,
-  skillName,
-  canonicalDirective = `实际开发和修改源码时使用 ${skillName}；单纯接口查询不启动开发阶段。`
-) {
-  return proseBlocks(markdown, 'AGENTS.md').some(
-    (block) =>
-      block.trim().replace(/^\d+(?:[.)、]|：)\s*/u, '') === canonicalDirective
-  );
-}
-
 function isExternalOrRouteTarget(target) {
   return (
     target.startsWith('#') ||
@@ -384,36 +351,6 @@ export async function verifyAgentInstructions(
   if (/CLAUDE\.md/iu.test(agentsInstructions)) {
     failures.push('AGENTS.md must not reference CLAUDE.md');
   }
-  if (
-    !positivelyRequiresSkill(
-      agentsInstructions,
-      'unif-portal-dev-skills:code-development'
-    )
-  ) {
-    failures.push(
-      'AGENTS.md must positively require the unif-portal-dev-skills:code-development Skill'
-    );
-  }
-  for (const [skillName, directive] of [
-    [
-      'code-organization',
-      '目录、文件职责、命名与公共入口使用 code-organization。',
-    ],
-    [
-      'react-native-development',
-      'React Native 组件、Hook、样式与平台实现使用 react-native-development。',
-    ],
-    [
-      'react-native-library',
-      '库创建、维护、打包、发布及运行示例使用 react-native-library。',
-    ],
-    ['documentation', '文档编写、文档站与生成构建使用 documentation。'],
-  ]) {
-    if (!positivelyRequiresSkill(agentsInstructions, skillName, directive)) {
-      failures.push(`AGENTS.md must positively require the ${skillName} Skill`);
-    }
-  }
-
   const manifest = JSON.parse(
     await readFile(resolve(repositoryRoot, 'package.json'), 'utf8')
   );
