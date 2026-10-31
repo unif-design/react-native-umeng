@@ -6,24 +6,6 @@ import test from 'node:test';
 
 import { verifyAgentInstructions } from '../verify-agent-instructions.mjs';
 
-const genericDirectives = [
-  [
-    'code-organization',
-    '目录、文件职责、命名与公共入口使用 `code-organization`。',
-  ],
-  [
-    'react-native-development',
-    'React Native 组件、Hook、样式与平台实现使用 `react-native-development`。',
-  ],
-  [
-    'react-native-library',
-    '库创建、维护、打包、发布及运行示例使用 `react-native-library`。',
-  ],
-  ['documentation', '文档编写、文档站与生成构建使用 `documentation`。'],
-];
-const genericInstructions =
-  genericDirectives.map(([, line]) => '- ' + line).join('\n') + '\n\n';
-
 // 刻意不从 verify-agent-instructions 的契约推导:那样测试会自证,契约被改坏也照过。
 // peer 保留兼容范围；dev 明确 RN 0.88 正式版的实际验证基线。
 const expectedPeerRanges = {
@@ -103,13 +85,13 @@ async function createValidRepository() {
     write(
       fixtureRoot,
       'AGENTS.md',
-      genericInstructions +
-        '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n'
+      '按本次任务选用适用且已安装的技能。\n\n[开发资料](docs/DEVELOPMENT.md)\n'
     ),
+    write(fixtureRoot, 'docs/DEVELOPMENT.md', '# 开发资料\n'),
     write(
       fixtureRoot,
       'README.md',
-      '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)\n'
+      '[Unif 能力资料](https://github.com/unif-skill/unif-portal-dev-skills)\n'
     ),
     write(fixtureRoot, 'CONTRIBUTING.md', '# Contributing\n'),
     write(fixtureRoot, 'example/README.md', '# Example\n'),
@@ -150,35 +132,6 @@ async function createValidRepository() {
   return fixtureRoot;
 }
 
-for (const [skillName, directive] of genericDirectives) {
-  test(`requires active and affirmative ${skillName} guidance`, async () => {
-    const fixtureRoot = await createValidRepository();
-    try {
-      const base =
-        genericInstructions +
-        '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n';
-      for (const replacement of [
-        '',
-        '可选：' + directive,
-        '不使用 `' + skillName + '`。',
-        '```md\n' + directive + '\n```',
-      ]) {
-        await write(
-          fixtureRoot,
-          'AGENTS.md',
-          base.replace('- ' + directive, '\n' + replacement + '\n')
-        );
-        await assert.rejects(
-          verifyAgentInstructions(fixtureRoot),
-          new RegExp(`must positively require the ${skillName} Skill`)
-        );
-      }
-    } finally {
-      await rm(fixtureRoot, { recursive: true, force: true });
-    }
-  });
-}
-
 test('accepts CRLF, MDX, reference links, balanced parentheses, and fenced examples', async () => {
   const fixtureRoot = await createValidRepository();
   try {
@@ -189,15 +142,14 @@ test('accepts CRLF, MDX, reference links, balanced parentheses, and fenced examp
   }
 });
 
-test('accepts the library capability alongside scoped development guidance', async () => {
+test('accepts task-specific skills without fixed prerequisites', async () => {
   const fixtureRoot = await createValidRepository();
   try {
     await write(
       fixtureRoot,
       'AGENTS.md',
-      genericInstructions +
-        '本库能力的使用、维护和排障使用 `unif-portal-dev-skills:unif-umeng`。\n\n' +
-        '实际开发和修改源码时使用 `unif-portal-dev-skills:code-development`；单纯接口查询不启动开发阶段。\n'
+      '本库能力资料可使用 `unif-umeng` 定位，其他技能按当前任务选择。\n\n' +
+        '[开发资料](docs/DEVELOPMENT.md)\n'
     );
     await write(
       fixtureRoot,
@@ -210,77 +162,18 @@ test('accepts the library capability alongside scoped development guidance', asy
   }
 });
 
-test('rejects reverse CLAUDE delegation and negated Skill guidance', async () => {
+test('rejects reverse CLAUDE delegation', async () => {
   const fixtureRoot = await createValidRepository();
   try {
     await write(
       fixtureRoot,
       'AGENTS.md',
-      '规范统一见 [CLAUDE.md](./CLAUDE.md)。\n读取并使用 `unif-portal-dev-skills:code-development` Skill。\n'
+      '规范统一见 [CLAUDE.md](./CLAUDE.md)。\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
       /must not reference CLAUDE\.md/
     );
-
-    await write(
-      fixtureRoot,
-      'AGENTS.md',
-      'Do not use the `unif-portal-dev-skills:code-development` Skill.\n'
-    );
-    await assert.rejects(
-      verifyAgentInstructions(fixtureRoot),
-      /must positively require the unif-portal-dev-skills:code-development Skill/
-    );
-
-    await write(
-      fixtureRoot,
-      'AGENTS.md',
-      'Agents may use the `unif-portal-dev-skills:code-development` Skill if desired.\n'
-    );
-    await assert.rejects(
-      verifyAgentInstructions(fixtureRoot),
-      /must positively require the unif-portal-dev-skills:code-development Skill/
-    );
-
-    await write(
-      fixtureRoot,
-      'AGENTS.md',
-      'Agents might use the `unif-portal-dev-skills:code-development` Skill.\n'
-    );
-    await assert.rejects(
-      verifyAgentInstructions(fixtureRoot),
-      /must positively require the unif-portal-dev-skills:code-development Skill/
-    );
-
-    await write(
-      fixtureRoot,
-      'AGENTS.md',
-      'Agent 可使用 `unif-portal-dev-skills:code-development` Skill。\n'
-    );
-    await assert.rejects(
-      verifyAgentInstructions(fixtureRoot),
-      /must positively require the unif-portal-dev-skills:code-development Skill/
-    );
-
-    for (const optionalGuidance of [
-      '必须使用 `unif-portal-dev-skills:code-development`。\n',
-      'Use the `unif-portal-dev-skills:code-development` Skill only if you feel like it.\n',
-      'Use cases for the `unif-portal-dev-skills:code-development` Skill are documented here.\n',
-      '使用场景：`unif-portal-dev-skills:code-development` Skill。\n',
-      '本仓不强制使用 `unif-portal-dev-skills:code-development` Skill。\n',
-      '是否必须使用 `unif-portal-dev-skills:code-development` Skill？\n',
-      'Must agents use the `unif-portal-dev-skills:code-development` Skill?\n',
-      'It is unclear whether the `unif-portal-dev-skills:code-development` Skill is required.\n',
-      'The `unif-portal-dev-skills:code-development` Skill is required only by legacy projects.\n',
-      'No agent must use the `unif-portal-dev-skills:code-development` Skill.\n',
-    ]) {
-      await write(fixtureRoot, 'AGENTS.md', optionalGuidance);
-      await assert.rejects(
-        verifyAgentInstructions(fixtureRoot),
-        /must positively require the unif-portal-dev-skills:code-development Skill/
-      );
-    }
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true });
   }
@@ -292,7 +185,7 @@ test('requires a real Skill hyperlink target instead of ordinary text', async ()
     await write(
       fixtureRoot,
       'README.md',
-      '`skills/unif-portal-dev-skills:code-development` is text, while [skills](https://github.com/unif-skill) is generic.\n'
+      '`https://github.com/unif-skill/unif-portal-dev-skills` is text, while [skills](https://github.com/unif-skill) is generic.\n'
     );
     await assert.rejects(
       verifyAgentInstructions(fixtureRoot),
@@ -320,7 +213,7 @@ test('does not skip broken local links that contain braces', async () => {
       fixtureRoot,
       'README.md',
       [
-        '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)',
+        '[Unif 能力资料](https://github.com/unif-skill/unif-portal-dev-skills)',
         '[broken](./{missing}.md)',
         '',
       ].join('\n')
@@ -346,7 +239,7 @@ test('rejects lexical and symlink link escapes outside the repository', async ()
       fixtureRoot,
       'README.md',
       [
-        '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)',
+        '[Unif 能力资料](https://github.com/unif-skill/unif-portal-dev-skills)',
         '[escape](../outside-instructions.md)',
         '',
       ].join('\n')
@@ -360,7 +253,7 @@ test('rejects lexical and symlink link escapes outside the repository', async ()
       fixtureRoot,
       'README.md',
       [
-        '[unif-portal-dev-skills:code-development Skill](https://github.com/unif-skill/unif-portal-dev-skills)',
+        '[Unif 能力资料](https://github.com/unif-skill/unif-portal-dev-skills)',
         '[symlink](./website/docs/outside-link.md)',
         '',
       ].join('\n')

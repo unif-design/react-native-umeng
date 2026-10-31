@@ -1,5 +1,5 @@
 # 目标路径:.github/workflows/nightly-build-check.yml
-# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
+# 由 github-delivery/templates/ 同步而来 —— 各仓统一版本,不要单仓 drift。
 #
 # 仅下发给有 native 源码的仓(umeng / hms-scan):提早发现 upstream RN 升级导致的
 # native 编译 breakage。对标 reanimated 的 nightly build-check。

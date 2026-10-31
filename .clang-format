@@ -1,5 +1,5 @@
 # 目标路径:.clang-format(仓库根)
-# 由 unif-design/.github 的 templates/ 同步而来 —— 各仓统一,勿单仓 drift。
+# 由 github-delivery/templates/ 同步而来 —— 各仓统一,勿单仓 drift。
 # 仅下发给有 native 源码(*.mm / *.h / *.cpp)的仓(umeng / hms-scan)。
 #
 # 刻意只用「跨 clang-format 版本都稳定」的 3 个老选项:本地 reformat(brew llvm@18)
