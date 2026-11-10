@@ -1,3 +1,4 @@
+export { SharePanel } from './ShareSheet/SharePanel';
 export { initializeUmeng, isUmengInitialized } from './common';
 export { getShareTargets, share } from './share';
 export { trackEvent, bindAnalyticsUser, clearAnalyticsUser } from './analytics';
@@ -19,6 +20,7 @@ export type {
   ShareCancelled,
   ShareFailed,
   ShareResult,
+  SharePanelProps,
   ShareSheetOptions,
   ShareSheetCallOptions,
   ShareSheetController,

@@ -84,6 +84,14 @@ export interface ShareSheetOptions {
 export interface ShareSheetCallOptions extends ShareSheetOptions {
   signal?: AbortSignal;
 }
+export interface SharePanelProps extends Pick<
+  ShareSheetOptions,
+  'title' | 'subtitles' | 'hideUninstalled'
+> {
+  targets: readonly ShareTargetInfo[];
+  onSelect(target: ShareTarget): void;
+  disabled?: boolean;
+}
 export interface ShareSheetController {
   open(
     content: Readonly<ShareContent>,

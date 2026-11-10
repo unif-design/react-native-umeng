@@ -3,6 +3,7 @@ import { createElement, Fragment, useState } from 'react';
 import type {
   UmengConfiguration,
   ShareTarget,
+  SharePanelProps,
   ShareResult,
   ShareTargetInfo,
   ShareRequest,
@@ -73,3 +74,5 @@ export const bindAnalyticsUser = jest.fn(
   (_input: Readonly<AnalyticsUser>): void => {}
 );
 export const clearAnalyticsUser = jest.fn((): void => {});
+
+export const SharePanel = jest.fn((_props: SharePanelProps) => null);

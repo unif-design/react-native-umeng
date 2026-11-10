@@ -12,6 +12,7 @@ it('exports independent operations without old namespaces or presentation intern
   expect(Object.keys(api).sort()).toEqual(
     [
       'UmengError',
+      'SharePanel',
       'bindAnalyticsUser',
       'clearAnalyticsUser',
       'getShareTargets',

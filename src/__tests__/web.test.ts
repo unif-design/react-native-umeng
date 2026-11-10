@@ -1,3 +1,6 @@
+jest.mock('@unif/react-native-design', () => ({
+  ...require('./fixtures/designTheme').designTheme,
+}));
 import { renderHook } from '@testing-library/react-native';
 jest.mock('../NativeUmengCommon', () => {
   throw new Error('Web must not load native');

@@ -10,20 +10,13 @@ import {
   Platform,
   Pressable,
   View,
-  Text,
   type LayoutChangeEvent,
 } from 'react-native';
-import {
-  Cell,
-  Button,
-  GlassLayer,
-  useThemedStyles,
-} from '@unif/react-native-design';
-import type { ShareContent, ShareTargetInfo } from '../types';
+import { Button, GlassLayer, useThemedStyles } from '@unif/react-native-design';
+import type { ShareContent, ShareTarget } from '../types';
 import { getShareTargets, share } from '../share';
 import { toFailure } from '../internal/errors';
-import { SHARE_TARGET_SUBTITLES } from '../internal/shareTargets';
-import { PlatformLeading } from './PlatformLeading';
+import { SharePanel } from './SharePanel';
 
 import type { ShareSheetHostProps, SheetState } from './types';
 import { INITIAL_SHEET_STATE } from './constants';
@@ -128,11 +121,11 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
     (
       sessionId: number,
       content: Readonly<ShareContent>,
-      info: ShareTargetInfo
+      target: ShareTarget
     ) => {
       if (!controller.beginSharing(sessionId)) return;
       // The original operation owns its receipt after the presentation ends.
-      share({ target: info.target, content }).then((result) =>
+      share({ target, content }).then((result) =>
         controller.settle(sessionId, result)
       );
     },
@@ -159,14 +152,7 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
   if (state.phase === 'closed' || state.phase === 'loadingPlatforms')
     return null;
 
-  const title = state.options.title ?? '分享至';
   const cancelText = state.options.cancelText ?? '取消';
-  const subtitles = state.options.subtitles ?? {};
-  const hideUninstalled = state.options.hideUninstalled ?? false;
-
-  const visiblePlatforms = state.platforms.filter(
-    (p) => !hideUninstalled || p.installed
-  );
   const floating = state.options.presentation === 'floating';
 
   const sheetContent = (
@@ -175,29 +161,15 @@ export const ShareSheetHost = ({ controller }: ShareSheetHostProps) => {
         style={[styles.glass, floating && styles.floatingCorners]}
         testID="umeng-share-glass"
       />
-      <View style={styles.head}>
-        <Text style={styles.title}>{title}</Text>
-      </View>
-      <View style={styles.platforms}>
-        {visiblePlatforms.map((info) => (
-          <Cell
-            key={info.target}
-            testID={`umeng-share-cell-${info.target}`}
-            style={styles.platform}
-            title={info.label}
-            desc={`${subtitles[info.target] ?? SHARE_TARGET_SUBTITLES[info.target]} · ${info.installed ? '已安装' : '未安装'}`}
-            // 品牌 logo 保持多色图形，以 Cell 的展示节点传入。
-            leading={{
-              kind: 'display',
-              node: <PlatformLeading platform={info.target} />,
-            }}
-            arrow
-            onPress={() => {
-              handlePlatformPress(state.sessionId!, state.content!, info);
-            }}
-          />
-        ))}
-      </View>
+      <SharePanel
+        targets={state.platforms}
+        title={state.options.title}
+        subtitles={state.options.subtitles}
+        hideUninstalled={state.options.hideUninstalled}
+        onSelect={(target) => {
+          handlePlatformPress(state.sessionId!, state.content!, target);
+        }}
+      />
       <Button
         testID="umeng-share-cancel"
         variant="secondary"
