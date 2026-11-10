@@ -245,7 +245,7 @@ async function writeFixtureFiles(fixtureDir, rootManifest, tarballFilename) {
     ),
     writeFile(join(fixtureDir, '.yarnrc.yml'), 'nodeLinker: node-modules\n'),
     writeFile(
-      join(fixtureDir, 'babel.config.cjs'),
+      join(fixtureDir, 'babel.config.js'),
       "module.exports = { presets: ['module:@react-native/babel-preset'] };\n"
     ),
     ...consumerSmokeCases.map(({ entry, specifier }) =>
@@ -441,6 +441,7 @@ test('published independent operations consume grouped config and share requests
   expect(api.bindAnalyticsUser({ userId: 'user' })).toBeUndefined();
   expect(api.clearAnalyticsUser()).toBeUndefined();
   expect(api.useShareSheet).toEqual(expect.any(Function));
+  expect(api.SharePanel).toEqual(expect.any(Function));
   expect(api.Common).toBeUndefined();
 });
 `

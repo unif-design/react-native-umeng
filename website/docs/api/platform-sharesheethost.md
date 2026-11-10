@@ -54,3 +54,23 @@ Web 入口继续报告 `unsupported`，不模拟平台发现或分享成功。�
 未安装但仍显示的目标被选择后返回 `not_installed`，不会打开商店或自动改选其他目标。取消按钮、signal 或宿主卸载在开始分享前返回 `cancelled`。分享开始后结束呈现仍由原调用等待真实 SDK 回执；卸载或 `onDismiss` 不把结果改成取消。旧查询、布局和回调不得更新新面板。
 
 [分享结果](./share#shareresult) · [分享组合](../guides/sharing)
+
+
+## SharePanel {#share-panel}
+
+2.7.0 起，`SharePanel` 可直接嵌入页面，与弹窗复用相同的渠道列表。它只展示调用方提供的 `targets`，在点击时调用 `onSelect(target)`，不查询平台、不生成内容、不打开原生分享。适合用户先选渠道，应用再准备图片的场景。
+
+```tsx
+<SharePanel
+  targets={targets}
+  disabled={preparing}
+  onSelect={async target => {
+    // 图片准备、上传、错误反馈与生命周期由应用负责。
+    const imageUrl = await prepareImage();
+    const result = await share({ target, content: { type: 'image', imageUrl } });
+    showResult(result);
+  }}
+/>
+```
+
+`targets` 来自 `getShareTargets()` 的成功结果；查询失败应呈现具体错误，不以空列表冒充未安装。准备期间由调用方设置 `disabled` 并保护异步重入。`title`、`subtitles`、`hideUninstalled` 与上表一致；组件不带取消按钮、Modal 或背景材质，容器由宿主提供。Web 可以渲染明确提供的数据，但原生查询和分享仍返回 `unsupported`。官方 mock 的组件为空节点，不模拟渠道点击。

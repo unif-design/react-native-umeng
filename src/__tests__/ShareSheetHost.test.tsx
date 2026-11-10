@@ -64,8 +64,10 @@ jest.mock('../NativeUmengShare', () => ({
 
 import { render, act, fireEvent, waitFor } from '@testing-library/react-native';
 import { Modal, View } from 'react-native';
+import { Cell } from '@unif/react-native-design';
 import {
   useShareSheet,
+  SharePanel,
   type ShareSheetController,
   type ShareResult,
 } from '../index';
@@ -665,4 +667,38 @@ it('replays a ready update correctly when platform discovery completes during a 
   expect(screen.getByText('分享至')).toBeTruthy();
   await act(async () => abort.abort());
   await expect(pending).resolves.toEqual({ status: 'cancelled' });
+});
+
+it('lets an embedded consumer prepare content after choosing a target without opening the SDK', () => {
+  const onSelect = jest.fn();
+  const targets = [
+    { target: 'wechat_session' as const, label: '微信', installed: true },
+    { target: 'dingtalk' as const, label: '钉钉', installed: false },
+  ];
+  const screen = render(<SharePanel targets={targets} onSelect={onSelect} />);
+  expect(screen.queryByTestId('umeng-share-cancel')).toBeNull();
+  expect(screen.getByText('分享至')).toBeTruthy();
+  fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
+  expect(onSelect).toHaveBeenCalledWith('wechat_session');
+  expect(Native!.isInstalled).not.toHaveBeenCalled();
+  expect(Native!.shareText).not.toHaveBeenCalled();
+  screen.rerender(
+    <SharePanel targets={targets} onSelect={onSelect} disabled />
+  );
+  fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
+  // A consumer dispatching the disabled row handler must not start work.
+  screen.UNSAFE_getAllByType(Cell)[1]!.props.onPress();
+  expect(onSelect).toHaveBeenCalledTimes(1);
+  screen.rerender(
+    <SharePanel
+      targets={targets}
+      onSelect={onSelect}
+      hideUninstalled
+      title="转发"
+    />
+  );
+  expect(screen.queryByTestId('umeng-share-cell-dingtalk')).toBeNull();
+  expect(screen.getByText('转发')).toBeTruthy();
+  screen.rerender(<SharePanel targets={[]} onSelect={onSelect} />);
+  expect(screen.queryByTestId('umeng-share-cell-wechat_session')).toBeNull();
 });

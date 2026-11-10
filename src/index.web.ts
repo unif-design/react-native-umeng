@@ -1,3 +1,4 @@
+export { SharePanel } from './ShareSheet/SharePanel';
 import { createElement, Fragment, useState } from 'react';
 import { UmengError } from './UmengError';
 import type {
@@ -27,6 +28,7 @@ export type {
   ShareCancelled,
   ShareFailed,
   ShareResult,
+  SharePanelProps,
   ShareSheetOptions,
   ShareSheetCallOptions,
   ShareSheetController,

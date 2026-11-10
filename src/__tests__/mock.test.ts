@@ -44,6 +44,7 @@ it('provides consumer readiness, targets and a stable cancelling sheet with opti
   });
   expect(api.bindAnalyticsUser({ userId: 'user' })).toBeUndefined();
   expect(api.clearAnalyticsUser()).toBeUndefined();
+  expect(api.SharePanel({ targets: [], onSelect: jest.fn() })).toBeNull();
   const hook = renderHook(() => api.useShareSheet());
   const controller = hook.result.current[0];
   const content = { type: 'text', text: 'hello' } as const;
