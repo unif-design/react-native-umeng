@@ -1,5 +1,11 @@
 # Changelog
 
+# [2.7.0](https://github.com/unif-design/react-native-umeng/compare/v2.6.0...v2.7.0) (2026-11-10)
+
+### Features
+
+* 支持嵌入分享渠道面板 ([#120](https://github.com/unif-design/react-native-umeng/issues/120)) ([da5682f](https://github.com/unif-design/react-native-umeng/commit/da5682f64d626a5901976c11b82d984a79746dec))
+
 # [2.6.0](https://github.com/unif-design/react-native-umeng/compare/v2.5.5...v2.6.0) (2026-10-29)
 
 ### Features
