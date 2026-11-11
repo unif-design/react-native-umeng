@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.7.1](https://github.com/unif-design/react-native-umeng/compare/v2.7.0...v2.7.1) (2026-11-11)
+
+### Bug Fixes
+
+* 简化分享渠道布局和安装状态提示 ([#121](https://github.com/unif-design/react-native-umeng/issues/121)) ([f6d584e](https://github.com/unif-design/react-native-umeng/commit/f6d584e105eb98ddb5a228db170f92fd77a59290))
+
 # [2.7.0](https://github.com/unif-design/react-native-umeng/compare/v2.6.0...v2.7.0) (2026-11-10)
 
 ### Features
