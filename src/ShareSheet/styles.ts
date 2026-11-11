@@ -35,8 +35,25 @@ export const makeSheetStyles = (c: ColorTokens) =>
       paddingBottom: 34,
       overflow: 'hidden',
     },
-    platforms: { gap: 8 },
-    platform: { backgroundColor: 'transparent' },
+    platforms: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      columnGap: 12,
+      rowGap: 8,
+    },
+    platform: {
+      width: 96,
+      maxWidth: '100%',
+      alignItems: 'center',
+      paddingVertical: 6,
+      gap: 4,
+    },
+    description: {
+      color: c.foreground,
+      fontSize: typography.xs,
+      textAlign: 'center',
+    },
+    muted: { opacity: 0.55 },
     head: { paddingHorizontal: 4, paddingTop: 6, paddingBottom: 4 },
     title: {
       fontSize: typography.body,

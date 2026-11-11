@@ -14,20 +14,6 @@ jest.mock('@unif/react-native-design', () => {
     // 组件用 useThemedStyles(maker)：用 mock 色板调真实 makeStyles，产出真实 StyleSheet。
     useThemedStyles: (maker: any) => maker(colors, {}),
     GlassLayer: (props: any) => React.createElement(View, props),
-    Cell: ({ title, desc, leading, onPress, disabled, testID }: any) => {
-      const pressableProps: Record<string, unknown> = { testID, onPress };
-      if (disabled !== undefined) {
-        pressableProps.disabled = disabled;
-        pressableProps.accessibilityState = { disabled };
-      }
-      return React.createElement(
-        TouchableOpacity,
-        pressableProps,
-        leading?.node,
-        React.createElement(Text, null, title),
-        desc && React.createElement(Text, null, desc)
-      );
-    },
     Button: ({ label, onPress, testID }: any) =>
       React.createElement(
         TouchableOpacity,
@@ -64,7 +50,6 @@ jest.mock('../NativeUmengShare', () => ({
 
 import { render, act, fireEvent, waitFor } from '@testing-library/react-native';
 import { Modal, View } from 'react-native';
-import { Cell } from '@unif/react-native-design';
 import {
   useShareSheet,
   SharePanel,
@@ -103,7 +88,7 @@ it('renders options, queries actual targets, and uses the same share operation',
   });
   input.text = 'changed';
   expect(screen.getByText('发送给同事')).toBeTruthy();
-  expect(screen.getByText('工作群 · 已安装')).toBeTruthy();
+  expect(screen.getByText('工作群')).toBeTruthy();
   fireEvent(screen.getByTestId('umeng-share-sheet'), 'layout', {
     nativeEvent: { layout: { height: 250 } },
   });
@@ -186,8 +171,8 @@ it('uses native installed state and hides uninstalled entries only when requeste
       { presentation: 'floating' }
     );
   });
-  expect(screen.getByText('钉钉')).toBeTruthy();
-  expect(screen.getByText('发送至工作群 · 未安装')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '钉钉，未安装' })).toBeTruthy();
+  expect(screen.getByText('未安装')).toBeTruthy();
   await act(async () => {
     fireEvent.press(screen.getByTestId('umeng-share-cell-dingtalk'));
   });
@@ -678,6 +663,11 @@ it('lets an embedded consumer prepare content after choosing a target without op
   const screen = render(<SharePanel targets={targets} onSelect={onSelect} />);
   expect(screen.queryByTestId('umeng-share-cancel')).toBeNull();
   expect(screen.getByText('分享至')).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: '微信，发送给好友或群' })
+  ).toBeTruthy();
+  expect(screen.getByRole('button', { name: '钉钉，未安装' })).toBeTruthy();
+  expect(screen.queryByText(/已安装|发送至工作群/)).toBeNull();
   fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
   expect(onSelect).toHaveBeenCalledWith('wechat_session');
   expect(Native!.isInstalled).not.toHaveBeenCalled();
@@ -686,8 +676,7 @@ it('lets an embedded consumer prepare content after choosing a target without op
     <SharePanel targets={targets} onSelect={onSelect} disabled />
   );
   fireEvent.press(screen.getByTestId('umeng-share-cell-wechat_session'));
-  // A consumer dispatching the disabled row handler must not start work.
-  screen.UNSAFE_getAllByType(Cell)[1]!.props.onPress();
+  expect(screen.getByRole('button', { name: '钉钉，未安装' })).toBeDisabled();
   expect(onSelect).toHaveBeenCalledTimes(1);
   screen.rerender(
     <SharePanel
@@ -699,6 +688,13 @@ it('lets an embedded consumer prepare content after choosing a target without op
   );
   expect(screen.queryByTestId('umeng-share-cell-dingtalk')).toBeNull();
   expect(screen.getByText('转发')).toBeTruthy();
+  screen.rerender(
+    <SharePanel targets={targets} onSelect={onSelect} title="" />
+  );
+  expect(screen.queryByText('分享至')).toBeNull();
+  expect(
+    screen.getByRole('button', { name: '微信，发送给好友或群' })
+  ).toBeTruthy();
   screen.rerender(<SharePanel targets={[]} onSelect={onSelect} />);
   expect(screen.queryByTestId('umeng-share-cell-wechat_session')).toBeNull();
 });

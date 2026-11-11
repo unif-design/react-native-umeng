@@ -1,5 +1,5 @@
-import { Text, View } from 'react-native';
-import { Cell, useThemedStyles } from '@unif/react-native-design';
+import { Pressable, Text, View } from 'react-native';
+import { useThemedStyles } from '@unif/react-native-design';
 import type { SharePanelProps } from '../types';
 import { SHARE_TARGET_SUBTITLES } from '../internal/shareTargets';
 import { PlatformLeading } from './PlatformLeading';
@@ -17,32 +17,37 @@ export function SharePanel({
   const styles = useThemedStyles(makeSheetStyles);
   return (
     <View>
-      <View style={styles.head}>
-        <Text style={styles.title}>{title}</Text>
-      </View>
+      {title ? (
+        <View style={styles.head}>
+          <Text style={styles.title}>{title}</Text>
+        </View>
+      ) : null}
       <View style={styles.platforms}>
         {targets
           .filter((info) => !hideUninstalled || info.installed)
-          .map((info) => (
-            <Cell
-              key={info.target}
-              testID={`umeng-share-cell-${info.target}`}
-              style={styles.platform}
-              title={info.label}
-              desc={`${subtitles[info.target] ?? SHARE_TARGET_SUBTITLES[info.target]} · ${info.installed ? '已安装' : '未安装'}`}
-              leading={{
-                kind: 'display',
-                node: <PlatformLeading platform={info.target} />,
-              }}
-              arrow
-              disabled={disabled}
-              onPress={() => {
-                if (!disabled) {
-                  onSelect(info.target);
-                }
-              }}
-            />
-          ))}
+          .map((info) => {
+            const description = info.installed
+              ? (subtitles[info.target] ?? SHARE_TARGET_SUBTITLES[info.target])
+              : '未安装';
+            return (
+              <Pressable
+                key={info.target}
+                testID={`umeng-share-cell-${info.target}`}
+                accessibilityRole="button"
+                accessibilityLabel={`${info.label}，${description}`}
+                accessibilityState={{ disabled }}
+                disabled={disabled}
+                style={({ pressed }) => [
+                  styles.platform,
+                  (disabled || pressed) && styles.muted,
+                ]}
+                onPress={disabled ? undefined : () => onSelect(info.target)}
+              >
+                <PlatformLeading platform={info.target} />
+                <Text style={styles.description}>{description}</Text>
+              </Pressable>
+            );
+          })}
       </View>
     </View>
   );
