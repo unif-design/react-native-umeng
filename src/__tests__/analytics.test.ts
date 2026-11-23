@@ -7,7 +7,7 @@ import {
   trackEvent,
   bindAnalyticsUser,
   clearAnalyticsUser,
-} from '../analytics';
+} from '../analytics/analytics';
 import { UmengError } from '../UmengError';
 beforeEach(() => jest.clearAllMocks());
 it('hands off attributes synchronously and preserves finite numeric values', () => {

@@ -12,8 +12,8 @@ jest.mock('react-native', () => ({
 }));
 
 import NativeCommon from '../NativeUmengCommon';
-import { initializeUmeng } from '../common';
-import { getShareTargets, share } from '../share';
+import { initializeUmeng } from '../initialization/common';
+import { getShareTargets, share } from '../sharing/share';
 
 it('initializes Android without the iOS universal-link requirement', async () => {
   await initializeUmeng({
