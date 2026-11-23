@@ -1,5 +1,11 @@
 # Changelog
 
+# [2.8.0](https://github.com/unif-design/react-native-umeng/compare/v2.7.1...v2.8.0) (2026-11-23)
+
+### Features
+
+* **umeng:** 按初始化、统计和分享归组平台实现 ([#127](https://github.com/unif-design/react-native-umeng/issues/127)) ([335b1b7](https://github.com/unif-design/react-native-umeng/commit/335b1b77a9faf33970318a460dd57bfcb3e13f97))
+
 ## [2.7.1](https://github.com/unif-design/react-native-umeng/compare/v2.7.0...v2.7.1) (2026-11-11)
 
 ### Bug Fixes
