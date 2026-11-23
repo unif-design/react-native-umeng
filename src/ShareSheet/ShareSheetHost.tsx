@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Button, GlassLayer, useThemedStyles } from '@unif/react-native-design';
 import type { ShareContent, ShareTarget } from '../types';
-import { getShareTargets, share } from '../share';
+import { getShareTargets, share } from '../sharing/share';
 import { toFailure } from '../internal/errors';
 import { SharePanel } from './SharePanel';
 

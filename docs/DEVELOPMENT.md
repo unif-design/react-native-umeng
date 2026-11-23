@@ -28,9 +28,9 @@
 当前可定位的源码与验证入口：
 
 - [公共源码入口](../src/index.ts)
-- [初始化](../src/common.ts)
-- [分享](../src/share.ts)
-- [统计](../src/analytics.ts)
+- [初始化](../src/initialization/common.ts)
+- [分享](../src/sharing/share.ts)
+- [统计](../src/analytics/analytics.ts)
 - [单元测试](../src/__tests__/)
 
 命令与依赖版本以 [package.json](../package.json)、锁文件及实际安装为准，验证接线见 [.github/workflows](../.github/workflows/)。本文件不复制通用开发、测试或交付规则；根据当前任务选择适用技能并核对项目资料。

@@ -1,14 +1,14 @@
 import { Platform } from 'react-native';
-import NativeUmengCommon from './NativeUmengCommon';
-import { normalizeError, unavailable } from './internal/errors';
+import NativeUmengCommon from '../NativeUmengCommon';
+import { normalizeError, unavailable } from '../internal/errors';
 import {
   areInitConfigsEqual,
   normalizeInitConfig,
   toNativeInitConfig,
   type NormalizedUmengInitConfig,
-} from './internal/initConfig';
-import { UmengError } from './UmengError';
-import type { UmengConfiguration } from './types';
+} from '../internal/initConfig';
+import { UmengError } from '../UmengError';
+import type { UmengConfiguration } from '../types';
 
 let configSnapshot: Readonly<NormalizedUmengInitConfig> | null = null;
 let initPromise: Promise<void> | null = null;

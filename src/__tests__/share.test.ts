@@ -17,7 +17,7 @@ jest.mock('../NativeUmengShare', () => ({
   __esModule: true,
   default: mockNative,
 }));
-const api: typeof import('../share') = require('../share');
+const api: typeof import('../sharing/share') = require('../sharing/share');
 
 beforeEach(() => {
   jest.clearAllMocks();

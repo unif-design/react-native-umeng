@@ -1,11 +1,11 @@
-import NativeUmengAnalytics from './NativeUmengAnalytics';
-import { normalizeError, unavailable } from './internal/errors';
+import NativeUmengAnalytics from '../NativeUmengAnalytics';
+import { normalizeError, unavailable } from '../internal/errors';
 import {
   invalidInput,
   requireObject,
   requireString,
-} from './internal/inputValidation';
-import type { AnalyticsEvent, AnalyticsUser } from './types';
+} from '../internal/inputValidation';
+import type { AnalyticsEvent, AnalyticsUser } from '../types';
 
 /** Synchronous handoff; return does not confirm upload to the analytics service. */
 export function trackEvent(input: Readonly<AnalyticsEvent>): void {

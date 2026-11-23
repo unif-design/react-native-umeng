@@ -3,13 +3,13 @@ jest.mock('react-native', () => ({
   TurboModuleRegistry: { get: () => null },
 }));
 
-import { initializeUmeng, isUmengInitialized } from '../common';
-import { getShareTargets, share } from '../share';
+import { initializeUmeng, isUmengInitialized } from '../initialization/common';
+import { getShareTargets, share } from '../sharing/share';
 import {
   trackEvent,
   bindAnalyticsUser,
   clearAnalyticsUser,
-} from '../analytics';
+} from '../analytics/analytics';
 
 it('reports missing native registration through the public failure contracts', async () => {
   await expect(initializeUmeng({ appKey: 'app' })).rejects.toMatchObject({

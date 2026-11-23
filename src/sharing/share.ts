@@ -1,16 +1,16 @@
-import NativeUmengCommon from './NativeUmengCommon';
-import NativeUmengShare from './NativeUmengShare';
-import { normalizeError, toFailure, unavailable } from './internal/errors';
-import { isShareTarget, snapshotContent } from './internal/shareContent';
-import { invalidInput, requireObject } from './internal/inputValidation';
-import { SHARE_TARGET_LABELS } from './internal/shareTargets';
-import { UmengError } from './UmengError';
+import NativeUmengCommon from '../NativeUmengCommon';
+import NativeUmengShare from '../NativeUmengShare';
+import { normalizeError, toFailure, unavailable } from '../internal/errors';
+import { isShareTarget, snapshotContent } from '../internal/shareContent';
+import { invalidInput, requireObject } from '../internal/inputValidation';
+import { SHARE_TARGET_LABELS } from '../internal/shareTargets';
+import { UmengError } from '../UmengError';
 import type {
   ShareTarget,
   ShareTargetInfo,
   ShareRequest,
   ShareResult,
-} from './types';
+} from '../types';
 
 async function configuredTargets(): Promise<readonly ShareTarget[]> {
   if (!NativeUmengCommon) throw unavailable();

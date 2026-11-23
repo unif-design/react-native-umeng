@@ -11,7 +11,7 @@ jest.mock('../NativeUmengCommon', () => ({
 
 async function loadCommon() {
   jest.resetModules();
-  return import('../common');
+  return import('../initialization/common');
 }
 
 beforeEach(() => {
